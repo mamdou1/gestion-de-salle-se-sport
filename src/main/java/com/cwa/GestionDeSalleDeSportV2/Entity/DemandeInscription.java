@@ -50,7 +50,7 @@ public class DemandeInscription {
     private String password;
 
     @PastOrPresent(message = "La date de naissance ne peut pas être dans le futur")
-    private LocalDate date_de_naissance;
+    private String date_de_naissance;
 
     @CreationTimestamp
     private LocalDateTime dateSoumission;
@@ -125,11 +125,11 @@ public class DemandeInscription {
         this.password = password;
     }
 
-    public LocalDate getDate_de_naissance() {
+    public String getDate_de_naissance() {
         return date_de_naissance;
     }
 
-    public void setDate_de_naissance(LocalDate date_de_naissance) {
+    public void setDate_de_naissance(String date_de_naissance) {
         this.date_de_naissance = date_de_naissance;
     }
 

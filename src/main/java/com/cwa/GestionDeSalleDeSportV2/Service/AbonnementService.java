@@ -2,25 +2,32 @@ package com.cwa.GestionDeSalleDeSportV2.Service;
 
 
 import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
-import com.cwa.GestionDeSalleDeSportV2.DTO.AbonnementDTO;
+import com.cwa.GestionDeSalleDeSportV2.DTO.*;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutAbonnement;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.*;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Famille;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.AbonnementRepository;
+import com.cwa.GestionDeSalleDeSportV2.Repository.FamilleRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.nio.file.AccessDeniedException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -28,24 +35,43 @@ import java.util.List;
 public class AbonnementService {
 
     private final AbonnementRepository abonnementRepository;
+    private final FamilleRepository familleRepository;
+    private final FactureCollectiveService factureCollectiveService;
+    private final EmailService emailService;
+    private final NotificationService notificationService;
+    private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
+    private final UserService userService;
     private final GymRepository gymRepository;
     private final AbonnementEventService abonnementEventService;
     private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
 
-    public AbonnementService(AbonnementRepository abonnementRepository, UserRepository userRepository, GymRepository gymRepository, AbonnementEventService abonnementEventService, UtilisateurActuellementConnecter utilisateurActuellementConnecter) {
+    public AbonnementService(AbonnementRepository abonnementRepository, FamilleRepository familleRepository, FactureCollectiveService factureCollectiveService, EmailService emailService, NotificationService notificationService, PasswordEncoder passwordEncoder, UserRepository userRepository, UserService userService, GymRepository gymRepository, AbonnementEventService abonnementEventService, UtilisateurActuellementConnecter utilisateurActuellementConnecter) {
         this.abonnementRepository = abonnementRepository;
+        this.familleRepository = familleRepository;
+        this.factureCollectiveService = factureCollectiveService;
+        this.emailService = emailService;
+        this.notificationService = notificationService;
+        this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
+        this.userService = userService;
         this.gymRepository = gymRepository;
         this.abonnementEventService = abonnementEventService;
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
     }
 
     // 1. Mettre un abonnement en pause / reprendre
-    public Abonnement mettreEnPause(Long idAbonnement) {
+    public Abonnement mettreEnPause(Long idAbonnement, int joursAbsence) {
+        if (joursAbsence < 7) {
+            throw new IllegalArgumentException("Le nombre de jours d'absence doit être supérieur ou égal à 7 pour mettre l'abonnement en pause.");
+        }
 
         Abonnement abonnement = abonnementRepository.findById(idAbonnement)
                 .orElseThrow(() -> new RuntimeException("Abonnement introuvable."));
+
+        if (abonnement.getStatut() != StatutAbonnement.EN_COURS) {
+            throw new IllegalStateException("Seul un abonnement en cours peut être mis en pause.");
+        }
 
         abonnement.setStatut(StatutAbonnement.EN_PAUSE);
         abonnement.setDatePauseAbonnement(LocalDate.now());
@@ -57,11 +83,16 @@ public class AbonnementService {
         Abonnement abonnement = abonnementRepository.findById(idAbonnement)
                 .orElseThrow(() -> new RuntimeException("Abonnement introuvable."));
 
+        if (abonnement.getStatut() != StatutAbonnement.EN_PAUSE) {
+            throw new IllegalStateException("Seul un abonnement en pause peut être repris.");
+        }
+
         abonnement.setStatut(StatutAbonnement.EN_COURS);
         abonnement.setDatePauseAbonnement(null);
 
         return abonnementRepository.save(abonnement);
     }
+
 
     // 2. Création d’un nouvel abonnement avec statut auto
     public void ajouterAbonnement(AbonnementDTO dto) throws MessagingException {
@@ -241,4 +272,6 @@ public class AbonnementService {
                 .orElseThrow(()-> new RuntimeException("Membre introuvable."));
         return abonnementRepository.findByMembreOrderByDateDebutAbonnementDesc(membre);
     }
+
+
 }

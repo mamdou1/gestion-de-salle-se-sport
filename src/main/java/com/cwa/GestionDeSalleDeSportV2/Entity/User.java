@@ -3,6 +3,7 @@ package com.cwa.GestionDeSalleDeSportV2.Entity;
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Genre;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutMembre;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
@@ -18,6 +19,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -67,8 +69,8 @@ public class User implements UserDetails {
     @Column(unique = false, nullable = false)
     private String password;
 
-    @PastOrPresent(message = "La date de naissance ne peut pas être dans le futur")
-    private LocalDate date_de_naissance;
+    //@PastOrPresent(message = "La date de naissance ne peut pas être dans le futur")
+    private String date_de_naissance;
 
     @CreationTimestamp
     private LocalDateTime date_creation;
@@ -78,6 +80,29 @@ public class User implements UserDetails {
     private Role role;
     private LocalDateTime lastLogin;
     private Boolean isOnline = false;
+    private BigDecimal fraisInscription;
+    private Boolean fraisInscriptionPayer = false;
+
+    @OneToMany(mappedBy = "membre", cascade = CascadeType.ALL)
+    private List<Abonnement> abonnements;
+
+    @Column
+    private String telephoneReference; // Numéro de téléphone du chef de famille
+
+    @Column
+    private LocalDate dateRetrait; // Date à laquelle le retrait prend effet
+
+    @Enumerated(EnumType.STRING)
+    private StatutMembre statut; // Nouveau champ
+
+    @ManyToOne
+    @JoinColumn(name = "famille_id")
+    @JsonBackReference
+    private Famille famille;
+
+    @OneToMany(mappedBy = "destinataire", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<Notification> notifications;
+
 
 
     @Override
@@ -183,12 +208,20 @@ public class User implements UserDetails {
         this.password = password;
     }
 
-    public LocalDate getDate_de_naissance() {
+    public String getDate_de_naissance() {
         return date_de_naissance;
     }
 
-    public void setDate_de_naissance(LocalDate date_de_naissance) {
+    public void setDate_de_naissance(String date_de_naissance) {
         this.date_de_naissance = date_de_naissance;
+    }
+
+    public List<Notification> getNotifications() {
+        return notifications;
+    }
+
+    public void setNotifications(List<Notification> notifications) {
+        this.notifications = notifications;
     }
 
     public LocalDateTime getDate_creation() {
@@ -222,4 +255,61 @@ public class User implements UserDetails {
     public void setOnline(Boolean online) {
         isOnline = online;
     }
+
+    public BigDecimal getFraisInscription() {
+        return fraisInscription;
+    }
+
+    public void setFraisInscription(BigDecimal fraisInscription) {
+        this.fraisInscription = fraisInscription;
+    }
+
+    public Boolean getFraisInscriptionPayer() {
+        return fraisInscriptionPayer;
+    }
+
+    public void setFraisInscriptionPayer(Boolean fraisInscriptionPayer) {
+        this.fraisInscriptionPayer = fraisInscriptionPayer;
+    }
+
+    public List<Abonnement> getAbonnements() {
+        return abonnements;
+    }
+
+    public void setAbonnements(List<Abonnement> abonnements) {
+        this.abonnements = abonnements;
+    }
+
+    public String getTelephoneReference() {
+        return telephoneReference;
+    }
+
+    public void setTelephoneReference(String telephoneReference) {
+        this.telephoneReference = telephoneReference;
+    }
+
+    public LocalDate getDateRetrait() {
+        return dateRetrait;
+    }
+
+    public void setDateRetrait(LocalDate dateRetrait) {
+        this.dateRetrait = dateRetrait;
+    }
+
+    public StatutMembre getStatut() {
+        return statut;
+    }
+
+    public void setStatut(StatutMembre statut) {
+        this.statut = statut;
+    }
+
+    public Famille getFamille() {
+        return famille;
+    }
+
+    public void setFamille(Famille famille) {
+        this.famille = famille;
+    }
 }
+

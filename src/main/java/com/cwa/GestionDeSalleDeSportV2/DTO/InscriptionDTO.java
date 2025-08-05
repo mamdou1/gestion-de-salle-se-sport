@@ -17,11 +17,16 @@ public class InscriptionDTO {
     private String adresseAdmin;
     private String emailAdmin;
     private Genre genre;
-    private LocalDate date_de_naissance;
+    private String date_de_naissance;
 
 
     private String telephoneAdmin;
     private String passwordAdmin;
+
+
+    // 🔧 Constructeur par défaut nécessaire à la désérialisation
+    public InscriptionDTO() {
+    }
 
     public InscriptionDTO(Genre genre) {
         this.genre = genre;
@@ -115,11 +120,11 @@ public class InscriptionDTO {
         this.genre = genre;
     }
 
-    public LocalDate getDate_de_naissance() {
+    public String getDate_de_naissance() {
         return date_de_naissance;
     }
 
-    public void setDate_de_naissance(LocalDate date_de_naissance) {
+    public void setDate_de_naissance(String date_de_naissance) {
         this.date_de_naissance = date_de_naissance;
     }
 }

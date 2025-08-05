@@ -17,6 +17,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Service
@@ -59,6 +60,7 @@ public class AuthService {
       //  admin.setOnline(false);
         admin.setGym(gym);
 
+        // . Telephone et mot de passe
         admin.setTelephone(dto.getTelephoneAdmin());
         admin.setPassword(passwordEncoder.encode(dto.getPasswordAdmin()));
 

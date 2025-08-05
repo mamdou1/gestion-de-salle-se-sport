@@ -1,10 +1,14 @@
 package com.cwa.GestionDeSalleDeSportV2.Service;
 
 
+import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
+import com.cwa.GestionDeSalleDeSportV2.DTO.FamilleDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.MembreDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.StaffDTO;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Famille;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
+import com.cwa.GestionDeSalleDeSportV2.Repository.FamilleRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -20,11 +25,15 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
+    private final FamilleRepository familleRepository;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService, UtilisateurActuellementConnecter utilisateurActuellementConnecter, FamilleRepository familleRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
+        this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
+        this.familleRepository = familleRepository;
     }
 
     //  1.  Vérifie si l'utilisateur peut gérer des membres
@@ -89,6 +98,8 @@ public class UserService {
         membre.setRole(Role.MEMBRE);
         membre.setGym(staff.getGym());
         membre.setDate_creation(LocalDateTime.now());
+        membre.setFraisInscription(dto.getFraisInscriptionMembre());
+        membre.setFraisInscriptionPayer(true);
         membre.setDate_de_naissance(dto.getGetDate_de_naissanceMembre());
 
         String mdp = genererMotDePasse(membre);

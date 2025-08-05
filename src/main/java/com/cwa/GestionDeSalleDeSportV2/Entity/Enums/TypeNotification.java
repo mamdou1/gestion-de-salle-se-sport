@@ -6,5 +6,7 @@ public enum TypeNotification {
     VENTE,
     STOCK,
     PRODUIT,
-    PROMOTION
+    PROMOTION,
+    EVENEMENT,
+    COACHING
 }

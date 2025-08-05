@@ -3,7 +3,9 @@ package com.cwa.GestionDeSalleDeSportV2.Service;
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutAbonnement;
+import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.AbonnementRepository;
+import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -17,11 +19,13 @@ public class AbonnementSchedulerService {
     private final AbonnementRepository abonnementRepository;
     private final AbonnementService abonnementService;
     private final AbonnementEventService abonnementEventService;
+    private final UserRepository userRepository;
 
-    public AbonnementSchedulerService(AbonnementRepository abonnementRepository, AbonnementService abonnementService, AbonnementEventService abonnementEventService) {
+    public AbonnementSchedulerService(AbonnementRepository abonnementRepository, AbonnementService abonnementService, AbonnementEventService abonnementEventService, UserRepository userRepository) {
         this.abonnementRepository = abonnementRepository;
         this.abonnementService = abonnementService;
         this.abonnementEventService = abonnementEventService;
+        this.userRepository = userRepository;
     }
 
     // Chaque jour à 6h — mise à jour des statuts
@@ -63,6 +67,21 @@ public class AbonnementSchedulerService {
                     abonnementEventService.notifierRappelFin(abonnement);
                 }
             }
+        }
+    }
+
+    @Scheduled(cron = "0 0 6 * * *")
+    public void verifierRetraitFamille(){
+
+        LocalDate aujourd_hui = LocalDate.now();
+        List<User> membreARetirer = userRepository.findByDateRetrait(aujourd_hui);
+
+        for (User membre : membreARetirer){
+            membre.setTelephoneReference(null);
+            membre.setFamille(null);
+            membre.setDateRetrait(null);
+
+            userRepository.save(membre);
         }
     }
 }

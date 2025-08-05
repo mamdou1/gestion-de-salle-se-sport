@@ -16,7 +16,7 @@ public class DemandeInscriptionDTO {
     private Genre genre;
     private String password;
     private Gym gym;
-    private LocalDate date_de_naissance;
+    private String date_de_naissance;
 
     public String getNom() {
         return nom;
@@ -83,11 +83,11 @@ public class DemandeInscriptionDTO {
     }
 
 
-    public LocalDate getDate_de_naissance() {
+    public String getDate_de_naissance() {
         return date_de_naissance;
     }
 
-    public void setDate_de_naissance(LocalDate date_de_naissance) {
+    public void setDate_de_naissance(String date_de_naissance) {
         this.date_de_naissance = date_de_naissance;
     }
 }

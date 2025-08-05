@@ -13,6 +13,7 @@ public class ValidationInscriptionDTO {
     private ModeDePaiement modeDePaiement;
     private BigDecimal prixAbonnement;
     private BigInteger nombreDeMois;
+    private BigDecimal fraisInscription;
 
     public Long getDemandeId() {
         return demandeId;
@@ -52,5 +53,13 @@ public class ValidationInscriptionDTO {
 
     public void setNombreDeMois(BigInteger nombreDeMois) {
         this.nombreDeMois = nombreDeMois;
+    }
+
+    public BigDecimal getFraisInscription() {
+        return fraisInscription;
+    }
+
+    public void setFraisInscription(BigDecimal fraisInscription) {
+        this.fraisInscription = fraisInscription;
     }
 }

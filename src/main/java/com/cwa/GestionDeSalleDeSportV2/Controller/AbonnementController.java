@@ -1,8 +1,7 @@
 package com.cwa.GestionDeSalleDeSportV2.Controller;
 
 
-import com.cwa.GestionDeSalleDeSportV2.DTO.AbonnementDTO;
-import com.cwa.GestionDeSalleDeSportV2.DTO.RenouvelerAbonnementDTO;
+import com.cwa.GestionDeSalleDeSportV2.DTO.*;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
 import com.cwa.GestionDeSalleDeSportV2.Service.AbonnementService;
 import jakarta.mail.MessagingException;
@@ -12,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.nio.file.AccessDeniedException;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -54,19 +54,18 @@ public class AbonnementController {
     }
 
     // 5.  Mettre un abonnement en pause
-    @PostMapping("/pause/{id}")
-    public ResponseEntity<String> mettreEnPause(@PathVariable Long id){
-        abonnementService.mettreEnPause(id);
-        return new ResponseEntity<>("Abonnement mis en pause avec succès", HttpStatus.CREATED);
+    @PutMapping("/pause/{id}")
+    public ResponseEntity<Abonnement> mettreEnPause(int joursAbsence, @PathVariable Long idAbonnement) {
+        Abonnement abonnement = abonnementService.mettreEnPause(idAbonnement, joursAbsence);
+        return ResponseEntity.ok(abonnement);
     }
 
     //  6.  Reprendre l'abonnement
-    @PostMapping("/reprendre/{id}")
-    public ResponseEntity<String> reprendreAbonnement(@PathVariable Long id){
-        abonnementService.reprendreAbonnement(id);
-        return new ResponseEntity<>("Abonnement repris avec succès", HttpStatus.CREATED);
+    @PutMapping("/reprendre/{id}")
+    public ResponseEntity<Abonnement> reprendreAbonnement(@PathVariable Long idAbonnement) {
+        Abonnement abonnement = abonnementService.reprendreAbonnement(idAbonnement);
+        return ResponseEntity.ok(abonnement);
     }
-
     //  7.  Mis à jour du statut d'un abonnement
     @PutMapping("/mis-a-jour-statut/{id}")
     public ResponseEntity<String> mettreAJourStatut(@PathVariable Long id){
@@ -81,4 +80,5 @@ public class AbonnementController {
         List<Abonnement> historique  = abonnementService.getHistoriqueAbonnementParMembre(id);
         return ResponseEntity.ok(historique );
     }
+
 }

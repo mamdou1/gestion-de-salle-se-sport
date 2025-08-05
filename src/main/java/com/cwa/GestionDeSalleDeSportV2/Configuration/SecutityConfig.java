@@ -39,7 +39,7 @@ public class SecutityConfig {
                 .sessionManagement(Session ->
                         Session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth ->
-                        auth.requestMatchers("/api/**", "/error").permitAll()
+                        auth.requestMatchers("/api/**", "/error", "/swagger-ui/**", "/api-docs/**","/v3/api-docs/**").permitAll()
                                 .anyRequest().authenticated()
                         )
                 .addFilterBefore(new JwtFilter(customUserDetailsService, jwtUtils), UsernamePasswordAuthenticationFilter.class);
@@ -61,4 +61,10 @@ public class SecutityConfig {
 
         return authenticationManagerBuilder.build();
     }
+
+//    @Bean
+//    public JwtDecoder jwtDecoder() {
+//        // Remplacez par l'URL de votre serveur d'authentification ou utilisez un decoder mock pour tests
+//        return NimbusJwtDecoder.withJwkSetUri("https://your-auth-server/.well-known/jwks.json").build();
+//    }
 }

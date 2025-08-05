@@ -60,6 +60,7 @@ public class ValidationInscriptionService {
         user.setDate_creation(LocalDateTime.now());
         user.setOnline(false);
         user.setPassword(demande.getPassword());
+        user.setFraisInscription(dto.getFraisInscription());
 
         userRepository.save(user);
 

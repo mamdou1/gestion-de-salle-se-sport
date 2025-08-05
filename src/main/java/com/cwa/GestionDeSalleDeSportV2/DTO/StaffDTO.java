@@ -15,7 +15,7 @@ public class StaffDTO {
     private Genre genreStaff;
     private String passwordStaff;
     private Role roleStaff;
-    private LocalDate date_de_naissanceStaff;
+    private String date_de_naissanceStaff;
     public String getNomStaff() {
         return nomStaff;
     }
@@ -80,11 +80,11 @@ public class StaffDTO {
         this.roleStaff = roleStaff;
     }
 
-    public LocalDate getDate_de_naissanceStaff() {
+    public String getDate_de_naissanceStaff() {
         return date_de_naissanceStaff;
     }
 
-    public void setDate_de_naissanceStaff(LocalDate date_de_naissanceStaff) {
+    public void setDate_de_naissanceStaff(String date_de_naissanceStaff) {
         this.date_de_naissanceStaff = date_de_naissanceStaff;
     }
 }

@@ -62,6 +62,11 @@ public class Abonnement {
     @Enumerated(EnumType.STRING)
     private ModeDePaiement modeDePaiement;
 
+    @ManyToOne
+    @JoinColumn(name = "famille_id")
+    @JsonBackReference
+    private Famille famille;
+
 
 
     public Long getId() {
@@ -166,6 +171,14 @@ public class Abonnement {
 
     public void setModeDePaiement(ModeDePaiement modeDePaiement) {
         this.modeDePaiement = modeDePaiement;
+    }
+
+    public Famille getFamille() {
+        return famille;
+    }
+
+    public void setFamille(Famille famille) {
+        this.famille = famille;
     }
 }
 
