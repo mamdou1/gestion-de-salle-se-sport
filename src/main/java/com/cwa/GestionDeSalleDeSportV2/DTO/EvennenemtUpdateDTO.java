@@ -1,38 +1,18 @@
 package com.cwa.GestionDeSalleDeSportV2.DTO;
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutEvent;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import lombok.Data;
 
 import java.time.LocalDateTime;
 
-@Data
-public class EvenementDTO {
-    private Long gymId;
+public class EvennenemtUpdateDTO {
 
-    @NotBlank(message = "Le titre est requis")
     private String nom;
-
     private String description;
-
     private StatutEvent statutEvent;
-
-    @NotNull(message = "La date de début est requise")
     private LocalDateTime dateDebut;
-
     private LocalDateTime dateFin;
-
     private Long createdById;
 
-
-    public Long getGymId() {
-        return gymId;
-    }
-
-    public void setGymId(Long gymId) {
-        this.gymId = gymId;
-    }
 
     public String getNom() {
         return nom;

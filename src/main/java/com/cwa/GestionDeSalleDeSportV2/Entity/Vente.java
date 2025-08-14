@@ -1,6 +1,7 @@
 package com.cwa.GestionDeSalleDeSportV2.Entity;
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,6 +10,9 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 @Entity
 @Data
@@ -21,12 +25,15 @@ public class Vente {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(columnDefinition = "DATE")
     private LocalDate dateVente;
 
     @ManyToOne
-    private User client;
+    @JsonManagedReference
+    private User membre;
 
     @ManyToOne
+    @JsonManagedReference
     private User staff;
 
     private BigDecimal montantTotal;
@@ -34,6 +41,20 @@ public class Vente {
     @Enumerated(EnumType.STRING)
     private ModeDePaiement modeDePaiement;
 
+
+
+    @OneToMany(mappedBy = "vente", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private List<LigneVente> lignes = new ArrayList<>();
+
+    // Calcul dynamique du montant total (pas stocké en base)
+//    @PostLoad
+//    public void calculerMontantTotal() {
+//        montantTotal = lignes.stream()
+//                .map(LigneVente::getPrixTotal)
+//                .filter(Objects::nonNull) // Filtrer les valeurs null
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//    }
 
     public Long getId() {
         return id;
@@ -51,12 +72,12 @@ public class Vente {
         this.dateVente = dateVente;
     }
 
-    public User getClient() {
-        return client;
+    public User getMembre() {
+        return membre;
     }
 
-    public void setClient(User client) {
-        this.client = client;
+    public void setMembre(User membre) {
+        this.membre = membre;
     }
 
     public User getStaff() {
@@ -81,5 +102,13 @@ public class Vente {
 
     public void setModeDePaiement(ModeDePaiement modeDePaiement) {
         this.modeDePaiement = modeDePaiement;
+    }
+
+    public List<LigneVente> getLignes() {
+        return lignes;
+    }
+
+    public void setLignes(List<LigneVente> lignes) {
+        this.lignes = lignes;
     }
 }

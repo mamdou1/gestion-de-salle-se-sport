@@ -21,6 +21,7 @@ public class Famille {
 
     @ManyToOne
     @JoinColumn(name = "gym_id", nullable = false)
+    @JsonBackReference
     private Gym gym;
 
     @OneToOne

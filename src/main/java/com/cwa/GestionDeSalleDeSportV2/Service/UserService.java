@@ -7,8 +7,10 @@ import com.cwa.GestionDeSalleDeSportV2.DTO.MembreDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.StaffDTO;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Famille;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.FamilleRepository;
+import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,6 +20,7 @@ import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class UserService {
@@ -27,13 +30,15 @@ public class UserService {
     private final EmailService emailService;
     private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
     private final FamilleRepository familleRepository;
+    private final GymRepository gymRepository;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService, UtilisateurActuellementConnecter utilisateurActuellementConnecter, FamilleRepository familleRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService, UtilisateurActuellementConnecter utilisateurActuellementConnecter, FamilleRepository familleRepository, GymRepository gymRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
         this.familleRepository = familleRepository;
+        this.gymRepository = gymRepository;
     }
 
     //  1.  Vérifie si l'utilisateur peut gérer des membres
@@ -72,7 +77,8 @@ public class UserService {
         staff.setDate_creation(LocalDateTime.now());
         staff.setDate_de_naissance(dto.getDate_de_naissanceStaff());
         staff.setTelephone(dto.getNumeroTelephoneStaff());
-        staff.setGym(admin.getGym());
+        staff.setGym(admin.getGym()); // Gym principal
+        staff.addGym(admin.getGym()); // Ajouter à gyms
 
         //  mdp == mot de passe
         String mdp = genererMotDePasse(staff);
@@ -86,27 +92,65 @@ public class UserService {
     }
 
     //  4.  Ajout d'un membre par le Staff a qui de droit(par Réceptionniste, Gérant, Admin)
-    public String ajouterMembre(MembreDTO dto, User staff) throws MessagingException {
+    public String ajouterMembre(MembreDTO dto, User staff) throws MessagingException, AccessDeniedException {
+        if (!peutGererMembre(staff)){
+            throw new AccessDeniedException("Seul le staff authorisé peut ajouter un membre.");
+        }
 
-        User membre = new User();
-        membre.setNom(dto.getNomMembre());
-        membre.setPrenom(dto.getPrenomMembre());
-        membre.setEmail(dto.getEmailMembre());
-        membre.setTelephone(dto.getNumeroTelephoneMembre());
-        membre.setGenre(dto.getGenreMembre());
-        membre.setAdresse(dto.getAdresseMembre());
-        membre.setRole(Role.MEMBRE);
-        membre.setGym(staff.getGym());
-        membre.setDate_creation(LocalDateTime.now());
-        membre.setFraisInscription(dto.getFraisInscriptionMembre());
-        membre.setFraisInscriptionPayer(true);
-        membre.setDate_de_naissance(dto.getGetDate_de_naissanceMembre());
+        Optional<User> existingUser = userRepository.findByTelephoneOrEmail(dto.getNumeroTelephoneMembre(), dto.getEmailMembre());
 
-        String mdp = genererMotDePasse(membre);
-        membre.setPassword(passwordEncoder.encode(mdp));
+        if (existingUser.isPresent()){
+            User membreExistant = existingUser.get();
 
-        userRepository.save(membre);
-        emailService.envoyerEmailBienvenu(membre, mdp);
+            // Ajouter le gum du staff s'il n'est pas déjà associé
+            if (!membreExistant.getGyms().contains(staff.getGym())){
+                membreExistant.getGyms().add(staff.getGym());
+            }
+
+            // Ajouter les gyms supplémentaires
+            if (dto.getGymsIds() != null){
+                dto.getGymsIds().forEach(gymId->{
+                    Gym gym = gymRepository.findById(gymId)
+                            .orElseThrow(()->new RuntimeException("Gym introuvable"));
+                    if (!membreExistant.getGyms().contains(gym)){
+                        membreExistant.getGyms().add(gym);
+                    }
+                });
+            }
+
+            userRepository.save(membreExistant);
+            return "Membe déjà existant. Gym ajouté avec succès.";
+        }
+
+        // Création d'un nouveau membre
+        User nouveauMembre = new User();
+        nouveauMembre.setNom(dto.getNomMembre());
+        nouveauMembre.setPrenom(dto.getPrenomMembre());
+        nouveauMembre.setEmail(dto.getEmailMembre());
+        nouveauMembre.setTelephone(dto.getNumeroTelephoneMembre());
+        nouveauMembre.setGenre(dto.getGenreMembre());
+        nouveauMembre.setAdresse(dto.getAdresseMembre());
+        nouveauMembre.setRole(Role.MEMBRE);
+        nouveauMembre.setGym(staff.getGym());
+        nouveauMembre.addGym(staff.getGym());
+        if (dto.getGymsIds() != null) {
+            dto.getGymsIds().forEach(gymId -> {
+                Gym gym = gymRepository.findById(gymId)
+                        .orElseThrow(() -> new RuntimeException("Gym non trouvé : " + gymId));
+                nouveauMembre.addGym(gym);
+            });
+        }
+
+        nouveauMembre.setDate_creation(LocalDateTime.now());
+        nouveauMembre.setFraisInscription(dto.getFraisInscriptionMembre());
+        nouveauMembre.setFraisInscriptionPayer(true);
+        nouveauMembre.setDate_de_naissance(dto.getGetDate_de_naissanceMembre());
+
+        String mdp = genererMotDePasse(nouveauMembre);
+        nouveauMembre.setPassword(passwordEncoder.encode(mdp));
+
+        userRepository.save(nouveauMembre);
+        emailService.envoyerEmailBienvenu(nouveauMembre, mdp);
 
         return "Membre ajouter avec succès !";
     }
@@ -150,7 +194,7 @@ public class UserService {
             throw new AccessDeniedException("Accès refusé.");
         }
 
-        if (!isSelf && ! curentUser.getGym().equals(membre.getGym())){
+        if (!isSelf && ! curentUser.getGyms().contains(membre.getGym())){
             throw new AccessDeniedException("Membre d'une autre salle.");
         }
 
@@ -164,5 +208,13 @@ public class UserService {
     //  7.  Afficher tout les utilesateur
     public List<User> getAllUser(){
         return userRepository.findAll();
+    }
+
+    public Gym findGymById(Long id) {
+        return gymRepository.findById(id).orElseThrow(() -> new RuntimeException("Gym introuvable"));
+    }
+
+    public List<Gym> findGymsByIds(List<Long> ids) {
+        return gymRepository.findAllById(ids);
     }
 }

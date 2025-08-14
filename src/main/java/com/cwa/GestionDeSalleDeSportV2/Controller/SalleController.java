@@ -38,25 +38,28 @@ public class SalleController {
     @GetMapping("/gym")
     public ResponseEntity<List<Salle>> ListerSalleParGym(){
         User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        return new ResponseEntity<>(salleService.ListerSalleParGym(staff.getGym()), HttpStatus.OK);
+        return new ResponseEntity<>(salleService.ListerSalleParGym(staff, staff.getGym()), HttpStatus.OK);
     }
 
     //  3.  getById controller
     @GetMapping("/{id}")
     public  ResponseEntity<Salle> getSalleById(@PathVariable Long id){
-        return new ResponseEntity<>(salleService.getSalleById(id), HttpStatus.OK);
+        User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        return new ResponseEntity<>(salleService.getSalleById(staff,id), HttpStatus.OK);
     }
 
     //  4.  Modifier salle
     @PutMapping("/{id}")
     public ResponseEntity<Salle> madifierSalle(@RequestBody SalleDTO dto ,@PathVariable Long id){
-        return new ResponseEntity<>(salleService.modifierSalle(id, dto.getNom()), HttpStatus.CREATED);
+        User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        return new ResponseEntity<>(salleService.modifierSalle(staff, id, dto.getNom()), HttpStatus.CREATED);
     }
 
     //  5.  Supprimer un salle
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> supprimeerSalle(@PathVariable Long id){
-        salleService.supprimerSalle(id);
+        User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        salleService.supprimerSalle(staff, id);
         return ResponseEntity.noContent().build();
     }
 }

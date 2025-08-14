@@ -6,5 +6,6 @@ public enum Role {
     COACH,
     GERANT,
     ADMIN,
-    MEMBRE
+    MEMBRE,
+    MEMBRE_TEMPORAIRE
 }

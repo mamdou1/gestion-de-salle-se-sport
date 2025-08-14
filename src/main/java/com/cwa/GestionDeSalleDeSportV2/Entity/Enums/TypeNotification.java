@@ -8,5 +8,6 @@ public enum TypeNotification {
     PRODUIT,
     PROMOTION,
     EVENEMENT,
-    COACHING
+    COACHING,
+    INSCRIPTION
 }

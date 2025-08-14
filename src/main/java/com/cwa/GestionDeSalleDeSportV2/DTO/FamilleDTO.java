@@ -10,13 +10,12 @@ public class FamilleDTO {
     @NotBlank(message = "Le nom de la famille est obligatoire")
     private String nom;
 
-    @NotBlank(message = "Le numéro de téléphone du chef de famille est obligatoire")
-    private String telephoneChefFamille;
-
     @NotNull(message = "L'ID du chef de famille est obligatoire")
     private Long chefFamilleId;
 
     private List<Long> membresId;
+
+    private Long gymId; // Ajout pour associer à un gym
 
 
     public String getNom() {
@@ -25,14 +24,6 @@ public class FamilleDTO {
 
     public void setNom(String nom) {
         this.nom = nom;
-    }
-
-    public String getTelephoneChefFamille() {
-        return telephoneChefFamille;
-    }
-
-    public void setTelephoneChefFamille(String telephoneChefFamille) {
-        this.telephoneChefFamille = telephoneChefFamille;
     }
 
     public Long getChefFamilleId() {
@@ -49,6 +40,14 @@ public class FamilleDTO {
 
     public void setMembresId(List<Long> membresId) {
         this.membresId = membresId;
+    }
+
+    public Long getGymId() {
+        return gymId;
+    }
+
+    public void setGymId(Long gymId) {
+        this.gymId = gymId;
     }
 }
 

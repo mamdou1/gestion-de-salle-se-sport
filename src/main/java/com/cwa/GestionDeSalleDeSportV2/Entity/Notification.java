@@ -2,6 +2,8 @@ package com.cwa.GestionDeSalleDeSportV2.Entity;
 
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeNotification;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -30,6 +32,7 @@ public class Notification {
     private LocalDateTime dateEnvoi;
 
     @ManyToOne
+    @JsonManagedReference
     private User destinataire;
 
     private String contexte; // ABONNEMENT, VENTE, STOCK

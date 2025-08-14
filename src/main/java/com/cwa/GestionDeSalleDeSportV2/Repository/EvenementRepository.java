@@ -7,5 +7,5 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface EvenementRepository extends JpaRepository<Evenement, Long> {
-    List<Evenement> findByGymIdAndStartDateGreaterThanEqualAndEndDateLessThanEqual(Long gymId, LocalDateTime start, LocalDateTime end);
+    List<Evenement> findByGymIdAndDateDebutGreaterThanEqualAndDateFinLessThanEqual(Long gymId, LocalDateTime start, LocalDateTime end);
 }

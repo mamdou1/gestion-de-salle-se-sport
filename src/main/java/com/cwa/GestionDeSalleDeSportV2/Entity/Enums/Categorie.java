@@ -1,7 +1,7 @@
 package com.cwa.GestionDeSalleDeSportV2.Entity.Enums;
 
-public enum EventType {
+public enum Categorie {
 
-    EN_COURS,
-    EN_ATTENTE
+    EQUIPEMENT,
+    ALIMENTATION
 }

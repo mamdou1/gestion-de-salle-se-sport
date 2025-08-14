@@ -1,11 +1,22 @@
 package com.cwa.GestionDeSalleDeSportV2.DTO;
 
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.PeriodAbonnement;
+
 import java.math.BigDecimal;
 
 public class RenouvelerAbonnementDTO {
     private Long id;
+    private PeriodAbonnement periodAbonnement;
     private Integer ajoutMois;
     private Double nouveauAbonnement;
+
+    public PeriodAbonnement getPeriodAbonnement() {
+        return periodAbonnement;
+    }
+
+    public void setPeriodAbonnement(PeriodAbonnement periodAbonnement) {
+        this.periodAbonnement = periodAbonnement;
+    }
 
     public Integer getAjoutMois() {
         return ajoutMois;

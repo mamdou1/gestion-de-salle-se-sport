@@ -2,6 +2,8 @@ package com.cwa.GestionDeSalleDeSportV2.Entity;
 
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Genre;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutMembre;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -20,44 +22,42 @@ public class DemandeInscription {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @NotBlank(message = "Le nom est obligatoire")
+
     private String nom;
 
-    @NotBlank(message = "Le prénom est obligatoire")
     private String prenom;
 
-    @NotBlank(message = "L'adresse est obligatoire")
     private String adresse;
 
-    @Email(message = "Un email valide est requis")
-    @Column(unique = true)
     private String email;
 
-    @NotBlank(message = "Le numéro de téléphone est obligatoire")
-    @Column(unique = true)
     private String telephone;
 
-    @NotNull(message = "Le genre est obligatoire")
     @Enumerated(EnumType.STRING)
     private Genre genre;
 
-//    @NotBlank(message = "Le nom d'utilisateur est obligatoire")
-//    @Column(unique = true, nullable = false)
-//    private String username;
-
-    @NotBlank(message = "Le mot de passe est obligatoire")
-    @Column(unique = false, nullable = false)
     private String password;
 
-    @PastOrPresent(message = "La date de naissance ne peut pas être dans le futur")
+    //@PastOrPresent(message = "La date de naissance ne peut pas être dans le futur")
     private String date_de_naissance;
 
     @CreationTimestamp
     private LocalDateTime dateSoumission;
 
     @ManyToOne
-    @JoinColumn(name = "GymId")
+    @JoinColumn(name = "gym_id")
+    @JsonBackReference
     private Gym gym;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    @JsonBackReference
+    private User user; // Lien avec utilisateur existant (si applicable)
+
+    private String raisonRejet; // Raison si rejté
+
+    @Enumerated(EnumType.STRING)
+    private StatutMembre statut = StatutMembre.EN_ATTENTE_VALIDATION; //Statut
 
     private boolean estValidee = false;
 
@@ -155,5 +155,29 @@ public class DemandeInscription {
 
     public void setEstValidee(boolean estValidee) {
         this.estValidee = estValidee;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public String getRaisonRejet() {
+        return raisonRejet;
+    }
+
+    public void setRaisonRejet(String raisonRejet) {
+        this.raisonRejet = raisonRejet;
+    }
+
+    public StatutMembre getStatut() {
+        return statut;
+    }
+
+    public void setStatut(StatutMembre statut) {
+        this.statut = statut;
     }
 }

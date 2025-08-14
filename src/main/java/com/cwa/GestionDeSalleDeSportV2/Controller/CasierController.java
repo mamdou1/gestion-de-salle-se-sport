@@ -46,18 +46,21 @@ public class CasierController {
     //  3.  Voir les casiers disponibles dans une salle
     @GetMapping("/disponibles/salle/{salleId}")
     public ResponseEntity<List<Casier>> getCasierDisponibleDansSalle(@PathVariable Long salleId){
-        return ResponseEntity.ok(casierService.getCasierDisponibleDansSalle(salleId));
+        User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        return ResponseEntity.ok(casierService.getCasierDisponibleDansSalle(staff, salleId));
     }
 
     //  4.  Voir tous les casiers (dispo ou occupés) dans une salle
     @GetMapping("/salle/{salleId}")
     public ResponseEntity<List<Casier>> getTousLesCasiersDisponibleDansSalle(@PathVariable Long salleId){
-        return ResponseEntity.ok(casierService.getTousLesCasiersDisponibleDansSalle(salleId));
+        User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        return ResponseEntity.ok(casierService.getTousLesCasiersDisponibleDansSalle(staff, salleId));
     }
 
     //  5.  Tout les casier disponibles dans le gym
     @GetMapping("/gym/{gymId}")
     public ResponseEntity<List<Casier>> getTousCasierDisponibleDansGym(@PathVariable Long gymId){
-        return ResponseEntity.ok(casierService.getTousCasierDisponibleDansGym(gymId));
+        User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        return ResponseEntity.ok(casierService.getTousCasierDisponibleDansGym(staff, gymId));
     }
 }

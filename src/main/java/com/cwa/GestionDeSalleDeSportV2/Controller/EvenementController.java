@@ -2,6 +2,7 @@ package com.cwa.GestionDeSalleDeSportV2.Controller;
 
 import com.cwa.GestionDeSalleDeSportV2.DTO.EvenementDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.EvenementViewDTO;
+import com.cwa.GestionDeSalleDeSportV2.DTO.EvennenemtUpdateDTO;
 import com.cwa.GestionDeSalleDeSportV2.Service.EvenementService;
 import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
@@ -34,7 +35,7 @@ public class EvenementController {
 
     //  2.  Met à jour un événement
     @PutMapping("/mettre_a_jour/{id}")
-    public ResponseEntity<EvenementViewDTO> mettreAJourEvenement(@PathVariable Long id, @Valid @RequestBody EvenementDTO dto) throws MessagingException {
+    public ResponseEntity<EvenementViewDTO> mettreAJourEvenement(@Valid @RequestBody EvennenemtUpdateDTO dto, @PathVariable Long id) throws MessagingException {
         EvenementViewDTO updated = evenementService.mettreAJourEvenement(id, dto);
         return ResponseEntity.ok(updated);
     }

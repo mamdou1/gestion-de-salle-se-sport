@@ -5,7 +5,6 @@ import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConn
 import com.cwa.GestionDeSalleDeSportV2.DTO.*;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.*;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Famille;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.AbonnementRepository;
@@ -14,7 +13,6 @@ import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
-import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,9 +23,7 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 
 
@@ -61,13 +57,18 @@ public class AbonnementService {
     }
 
     // 1. Mettre un abonnement en pause / reprendre
-    public Abonnement mettreEnPause(Long idAbonnement, int joursAbsence) {
+    public Abonnement mettreEnPause(Long idAbonnement, int joursAbsence) throws AccessDeniedException {
         if (joursAbsence < 7) {
             throw new IllegalArgumentException("Le nombre de jours d'absence doit être supérieur ou égal à 7 pour mettre l'abonnement en pause.");
         }
 
         Abonnement abonnement = abonnementRepository.findById(idAbonnement)
                 .orElseThrow(() -> new RuntimeException("Abonnement introuvable."));
+
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!currentUser.getGyms().contains(abonnement.getGym())){
+            throw new AccessDeniedException("Accès refusé à cet abonnement. ");
+        }
 
         if (abonnement.getStatut() != StatutAbonnement.EN_COURS) {
             throw new IllegalStateException("Seul un abonnement en cours peut être mis en pause.");
@@ -79,9 +80,14 @@ public class AbonnementService {
         return abonnementRepository.save(abonnement);
     }
 
-    public Abonnement reprendreAbonnement(Long idAbonnement) {
+    public Abonnement reprendreAbonnement(Long idAbonnement) throws AccessDeniedException {
         Abonnement abonnement = abonnementRepository.findById(idAbonnement)
                 .orElseThrow(() -> new RuntimeException("Abonnement introuvable."));
+
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!currentUser.getGyms().contains(abonnement.getGym())) {
+            throw new AccessDeniedException("Accès refusé à cet abonnement.");
+        }
 
         if (abonnement.getStatut() != StatutAbonnement.EN_PAUSE) {
             throw new IllegalStateException("Seul un abonnement en pause peut être repris.");
@@ -93,25 +99,47 @@ public class AbonnementService {
         return abonnementRepository.save(abonnement);
     }
 
+    public Abonnement resilierAbonnement(Long idAbonnement) throws AccessDeniedException {
+        Abonnement abonnement = abonnementRepository.findById(idAbonnement)
+                .orElseThrow(()-> new RuntimeException("Abonnement introuvable"));
+
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!currentUser.getGyms().contains(abonnement.getGym())) {
+            throw new AccessDeniedException("Accès refusé à cet abonnement.");
+        }
+
+        if (abonnement.getStatut() != StatutAbonnement.EN_COURS){
+            throw new RuntimeException("Seul un abonnement en cours peut être resilier.");
+        }
+
+        abonnement.setStatut(StatutAbonnement.RESILIE);
+
+        return abonnementRepository.save(abonnement);
+    }
+
 
     // 2. Création d’un nouvel abonnement avec statut auto
-    public void ajouterAbonnement(AbonnementDTO dto) throws MessagingException {
+    public void ajouterAbonnement(AbonnementDTO dto) throws MessagingException, AccessDeniedException {
 
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
         User membre = userRepository.findById(dto.getMembreId())
                 .orElseThrow(() -> new RuntimeException("Utilisiteur non trouvé."));
         Gym gym = gymRepository.findById(dto.getGymId())
                 .orElseThrow(() -> new RuntimeException("Gym non trouvé:"));
+        if (!membre.getGyms().contains(gym)) {
+            throw new AccessDeniedException("Le membre n'est pas inscrit à ce gym.");
+        }
 
         Abonnement abonnement = new Abonnement();
         abonnement.setMembre(membre);
         abonnement.setGym(gym);
-        abonnement.setType(dto.getType());
+        abonnement.setTypes(TypeAbonnements.INDIVIDUEL);
         abonnement.setPrixAbonnement(dto.getPrixAbonnement());
         abonnement.setNombreDeMois(dto.getNombreDeMois());
         abonnement.setModeDePaiement(dto.getModeDePaiement());
         abonnement.setEnregistrerPar(currentUser);
         abonnement.setDateDebutAbonnement(LocalDate.now());
+        abonnement.setPeriodAbonnement(dto.getPeriodAbonnement());
         abonnement.setDateFinAbonnement(LocalDate.now().plusMonths(dto.getNombreDeMois().longValue()));
         abonnement.setDateRappelFinAbonnement(LocalDate.now()
                 .plusMonths(dto.getNombreDeMois().longValue())
@@ -121,16 +149,21 @@ public class AbonnementService {
 
         abonnementRepository.save(abonnement);
 
-        // 📦 Envoi d’une facture suite à l'ajout
-        abonnementEventService.envoyerFactureParEmail(abonnement.getMembre(),abonnement, "Validaton");
+        //  Envoi d’une facture suite à l'ajout
+        abonnementEventService.envoyerFactureParEmail((User) abonnement.getMembre(),abonnement, "Validaton");
 
     }
 
     // 3. Renouvellement de l'abonnement existant
     @Transactional
-    public Abonnement renouvelerAbonnement(Long id, Integer ajoutMois, Double nouveauxPrix) throws MessagingException {
+    public Abonnement renouvelerAbonnement(Long id, Integer ajoutMois, Double nouveauxPrix) throws MessagingException, AccessDeniedException {
         Abonnement abonnement = abonnementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Abonnement introuvable."));
+
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!currentUser.getGyms().contains(abonnement.getGym())) {
+            throw new AccessDeniedException("Accès refusé à cet abonnement.");
+        }
 
         LocalDate aujourd_hui = LocalDate.now();
 
@@ -143,6 +176,7 @@ public class AbonnementService {
             abonnement.setDateFinAbonnement(nouvelleDateFin);
             abonnement.setDateRappelFinAbonnement(nouvelleDateFin.minusDays(5));
             abonnement.setNombreDeMois(abonnement.getNombreDeMois().add(BigInteger.valueOf(ajoutMois)));
+            abonnement.setPeriodAbonnement(abonnement.getPeriodAbonnement());
 
         }
 
@@ -156,27 +190,34 @@ public class AbonnementService {
             abonnement.setDateFinAbonnement(nouvelleDateFin);
             abonnement.setDateRappelFinAbonnement(nouvelleDateFin.minusDays(5));
             abonnement.setNombreDeMois(BigInteger.valueOf(ajoutMois));
+            abonnement.setPeriodAbonnement(abonnement.getPeriodAbonnement());
         }
 
 
         if (nouveauxPrix != null) {
-            abonnement.setPrixAbonnement(BigDecimal.valueOf(nouveauxPrix));
+            abonnement.setPrixAbonnement(abonnement.getPrixAbonnement().add(BigDecimal.valueOf(nouveauxPrix)));
+
+           // abonnement.setPrixAbonnement(BigDecimal.valueOf(nouveauxPrix));
         }
 
         abonnement.setStatut(calculStatutAbonnemnt(abonnement));
         abonnementRepository.save(abonnement);
 
         // Envoi d’une facture suite au renouvellement
-        abonnementEventService.envoyerFactureParEmail(abonnement.getMembre(),abonnement, "Renouvellement");
+        abonnementEventService.envoyerFactureParEmail((User) abonnement.getMembre(),abonnement, "Renouvellement");
         return abonnement;
     }
 
 
 
     // 4. Mise à jour du statut automatiquement
-    public Abonnement mettreAJourStatutAutomatiquement(Long id){
+    public Abonnement mettreAJourStatutAutomatiquement(Long id) throws AccessDeniedException {
             Abonnement abonnement = abonnementRepository.findById(id)
                     .orElseThrow(()-> new RuntimeException("Abonnement introuvable."));
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!currentUser.getGyms().contains(abonnement.getGym())) {
+            throw new AccessDeniedException("Accès refusé à cet abonnement.");
+        }
             abonnement.setStatut(calculStatutAbonnemnt(abonnement));
             return abonnementRepository.save(abonnement);
     }
@@ -213,10 +254,15 @@ public class AbonnementService {
     }
 
     // 5. Changement de plan d’abonnement avec calcul du reste
-    public ResponseEntity<String> gererChangementAbonnement(Long idAbonnement, BigDecimal nouveauAbonnement, LocalDate dateChangement){
+    public ResponseEntity<String> gererChangementAbonnement(Long idAbonnement, BigDecimal nouveauAbonnement, LocalDate dateChangement) throws AccessDeniedException {
 
             Abonnement abonnement = abonnementRepository.findById(idAbonnement)
                     .orElseThrow(()-> new RuntimeException("Abonnement introuvable."));
+
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!currentUser.getGyms().contains(abonnement.getGym())) {
+            throw new AccessDeniedException("Accès refusé à cet abonnement.");
+        }
 
             BigDecimal ancienAbonnement = abonnement.getPrixAbonnement();
             if (nouveauAbonnement.compareTo(ancienAbonnement)<0){
@@ -263,15 +309,47 @@ public class AbonnementService {
 
     //  6.  Afficher tout le abonnement
     public List<Abonnement> getAllAbonnement(){
-            return abonnementRepository.findAll();
-    }
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        return abonnementRepository.findByGymIn(currentUser.getGyms());    }
 
     //  7.  L'historique des abonnement d'un membre
-    public List<Abonnement> getHistoriqueAbonnementParMembre(Long membreId){
+    public List<Abonnement> getHistoriqueAbonnementParMembre(Long membreId) throws AccessDeniedException {
         User membre = userRepository.findById(membreId)
                 .orElseThrow(()-> new RuntimeException("Membre introuvable."));
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!currentUser.getGyms().contains(membre.getGym())) {
+            throw new AccessDeniedException("Accès refusé à l'historique de ce membre.");
+        }
+
         return abonnementRepository.findByMembreOrderByDateDebutAbonnementDesc(membre);
     }
 
+    private boolean estMembreDuStaff(User user) {
+        Role role = user.getRole();
+        return role == Role.ADMIN || role == Role.RECEPTIONNISTE || role == Role.GERANT;
+    }
+
+
+    //  8.  Supprimer abonnement
+    public void supprimerAbonnement(Long membreId) throws AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!estMembreDuStaff(currentUser)){
+            throw new AccessDeniedException("Seul les membres du staff peuvent supprimer un membre");
+        }
+
+        User membre = userRepository.findById(membreId)
+                .orElseThrow(() -> new RuntimeException("Utilisiteur non trouvé."));
+        if (!membre.getGyms().contains(membre.getGyms())) {
+            throw new AccessDeniedException("Le membre n'est pas inscrit à ce gym.");
+        }
+
+        Abonnement abonnement = abonnementRepository.findById(membreId)
+                .orElseThrow(()->new RuntimeException("Abonnement introuvable"));
+
+        if (abonnement.getStatut() != StatutAbonnement.EXPIRE || abonnement.getStatut() != StatutAbonnement.RESILIE){
+            throw new RuntimeException("Impossible de supprimer un abonnement dont le staut est actif ou bientôt expirer");
+        }
+    }
 
 }
+

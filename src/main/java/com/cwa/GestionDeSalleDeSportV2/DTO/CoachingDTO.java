@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
 
 @Data
 public class CoachingDTO {
-    @NotNull(message = "L'ID de la salle de sport est requis")
     private Long gymId;
 
     @NotNull(message = "L'ID du client est requis")
@@ -19,15 +18,18 @@ public class CoachingDTO {
     private Long coachId;
 
     @NotNull(message = "La date de début est requise")
-    private LocalDateTime startDate;
+    private LocalDateTime dateDebut;
 
     @NotNull(message = "La date de fin est requise")
-    private LocalDateTime endDate;
+    private LocalDateTime dateFin;
 
-    private BigDecimal cost;
+    private BigDecimal prix;
 
     @NotBlank(message = "Le nom du cours est requis")
-    private String courseName;
+    private String nomCours;
+
+    @NotBlank(message = "La description du cours est requis")
+    private String description;
 
 
     public Long getGymId() {
@@ -54,35 +56,43 @@ public class CoachingDTO {
         this.coachId = coachId;
     }
 
-    public LocalDateTime getStartDate() {
-        return startDate;
+    public LocalDateTime getDateDebut() {
+        return dateDebut;
     }
 
-    public void setStartDate(LocalDateTime startDate) {
-        this.startDate = startDate;
+    public void setDateDebut(LocalDateTime dateDebut) {
+        this.dateDebut = dateDebut;
     }
 
-    public LocalDateTime getEndDate() {
-        return endDate;
+    public LocalDateTime getDateFin() {
+        return dateFin;
     }
 
-    public void setEndDate(LocalDateTime endDate) {
-        this.endDate = endDate;
+    public void setDateFin(LocalDateTime dateFin) {
+        this.dateFin = dateFin;
     }
 
-    public BigDecimal getCost() {
-        return cost;
+    public BigDecimal getPrix() {
+        return prix;
     }
 
-    public void setCost(BigDecimal cost) {
-        this.cost = cost;
+    public void setPrix(BigDecimal prix) {
+        this.prix = prix;
     }
 
-    public String getCourseName() {
-        return courseName;
+    public String getNomCours() {
+        return nomCours;
     }
 
-    public void setCourseName(String courseName) {
-        this.courseName = courseName;
+    public void setNomCours(String nomCours) {
+        this.nomCours = nomCours;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

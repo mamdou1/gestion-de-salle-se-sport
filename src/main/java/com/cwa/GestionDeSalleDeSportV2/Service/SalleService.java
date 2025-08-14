@@ -37,26 +37,40 @@ public class SalleService {
         return salleRepository.save(salle);
     }
 
+    private void verificationAccesSalle(User staff, Gym gym, String action){
+        if (!userRepository.existsById(staff.getId()) || !staff.getGyms().contains(gym)){
+            throw new RuntimeException("Accès refusé : l'utilisateur n'est pas autorisé à " + action + "cette salle");
+        }
+    }
+
     //  2.  Consulter toutes les salles d’un gym
-    public List<Salle> ListerSalleParGym(Gym gym){
+    public List<Salle> ListerSalleParGym(User staff ,Gym gym){
+        verificationAccesSalle(staff, gym, "Consulter");
         return salleRepository.findByGym(gym);
     }
 
     //  3.  Trouver une salle par ID (getById)
-    public Salle getSalleById(Long id){
-        return salleRepository.findById(id)
+    public Salle getSalleById(User staff ,Long id){
+        Salle salle = salleRepository.findById(id)
                 .orElseThrow(()->new RuntimeException("Salle introuvable"));
+        verificationAccesSalle(staff, salle.getGym(), "accéder à");
+        return salle;
     }
 
     //  4.  Modifier une salle
-    public Salle modifierSalle(Long id, String nouveauNom){
-        Salle salle = salleRepository.findSalleById(id);
+    public Salle modifierSalle(User staff, Long id, String nouveauNom){
+        Salle salle = salleRepository.findById(id)
+                        .orElseThrow(()->new RuntimeException("Salle introuvable"));
+        verificationAccesSalle(staff, salle.getGym(), "modifier");
         salle.setNom(nouveauNom);
         return salleRepository.save(salle);
     }
 
     //  5.  Supprimer une salle
-    public void supprimerSalle(Long salleId){
+    public void supprimerSalle(User staff, Long salleId){
+        Salle salle = salleRepository.findById(salleId)
+                .orElseThrow(()->new RuntimeException("Salle introuvable"));
+        verificationAccesSalle(staff, salle.getGym(), "supprimer");
         salleRepository.deleteById(salleId);
     }
 }

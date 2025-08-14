@@ -1,6 +1,6 @@
 package com.cwa.GestionDeSalleDeSportV2.Entity;
 
-import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.EventType;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutEvent;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -19,18 +19,18 @@ public class Evenement {
     private Gym gym;
 
     @Column(nullable = false)
-    private String title;
+    private String nom;
 
     private String description;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private EventType eventType;
+    private StatutEvent statutEvent;
 
     @Column(nullable = false)
-    private LocalDateTime startDate;
+    private LocalDateTime dateDebut;
 
-    private LocalDateTime endDate;
+    private LocalDateTime dateFin;
 
     @ManyToOne
     @JoinColumn(name = "created_by_id", nullable = false)
@@ -53,12 +53,12 @@ public class Evenement {
         this.gym = gym;
     }
 
-    public String getTitle() {
-        return title;
+    public String getNom() {
+        return nom;
     }
 
-    public void setTitle(String title) {
-        this.title = title;
+    public void setNom(String nom) {
+        this.nom = nom;
     }
 
     public String getDescription() {
@@ -69,28 +69,28 @@ public class Evenement {
         this.description = description;
     }
 
-    public EventType getEventType() {
-        return eventType;
+    public StatutEvent getStatutEvent() {
+        return statutEvent;
     }
 
-    public void setEventType(EventType eventType) {
-        this.eventType = eventType;
+    public void setStatutEvent(StatutEvent statutEvent) {
+        this.statutEvent = statutEvent;
     }
 
-    public LocalDateTime getStartDate() {
-        return startDate;
+    public LocalDateTime getDateDebut() {
+        return dateDebut;
     }
 
-    public void setStartDate(LocalDateTime startDate) {
-        this.startDate = startDate;
+    public void setDateDebut(LocalDateTime dateDebut) {
+        this.dateDebut = dateDebut;
     }
 
-    public LocalDateTime getEndDate() {
-        return endDate;
+    public LocalDateTime getDateFin() {
+        return dateFin;
     }
 
-    public void setEndDate(LocalDateTime endDate) {
-        this.endDate = endDate;
+    public void setDateFin(LocalDateTime dateFin) {
+        this.dateFin = dateFin;
     }
 
     public User getCreatedBy() {

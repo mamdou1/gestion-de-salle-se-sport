@@ -9,6 +9,8 @@ import com.cwa.GestionDeSalleDeSportV2.Repository.AbonnementRepository;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
+
+import java.util.ArrayList;
 import java.util.List;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
@@ -38,8 +40,8 @@ public class DocumentService {
 
         BigDecimal montantAbonnement = abonnement.getPrixAbonnement();
         BigDecimal fraisInscription = abonnement.getMembre().getFraisInscription(); // recuperation du frais d'inscription
-        List<Abonnement> historique = abonnement.getMembre().getAbonnements();
-        Boolean estPremierAbonnement = historique.size() == 1;
+        List<Abonnement> historique = abonnement.getMembre().getAbonnements() != null ? abonnement.getMembre().getAbonnements() : new ArrayList<>();
+        Boolean estPremierAbonnement = historique.isEmpty() || historique.size() == 1;  // Vérifie si c'est le premier ou aucun abonnement
 
         document.add(new Paragraph("Facture de l'abonnement")
                 .setTextAlignment(TextAlignment.CENTER)
@@ -49,7 +51,8 @@ public class DocumentService {
 
         document.add(new Paragraph("Prenom : " + abonnement.getMembre().getNom()));
         document.add(new Paragraph("Nom : " + abonnement.getMembre().getPrenom()));
-        document.add(new Paragraph("Type : " + abonnement.getType()));
+        document.add(new Paragraph("Type : " + abonnement.getTypes()));
+        document.add(new Paragraph("Périod : " + abonnement.getPeriodAbonnement()));
         document.add(new Paragraph("Durée : " + abonnement.getNombreDeMois() + " mois"));
         if (estPremierAbonnement && fraisInscription != null && fraisInscription.compareTo(BigDecimal.ZERO) > 0){
             document.add(new Paragraph("Frais d'inscription" + fraisInscription + "FCFA" ));

@@ -1,5 +1,6 @@
 package com.cwa.GestionDeSalleDeSportV2.Entity;
 
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Categorie;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,12 +30,11 @@ public class Produit {
 
     private String imageUrl;
 
-    @ManyToOne
-    private CategorieProduit categorie;
+    @Enumerated(EnumType.STRING)
+    private Categorie categorie;
 
     @ManyToOne
-    private Promotion promotion;
-
+    private Gym gym;
 
     public Long getId() {
         return id;
@@ -84,19 +84,19 @@ public class Produit {
         this.imageUrl = imageUrl;
     }
 
-    public CategorieProduit getCategorie() {
+    public Gym getGym() {
+        return gym;
+    }
+
+    public void setGym(Gym gym) {
+        this.gym = gym;
+    }
+
+    public Categorie getCategorie() {
         return categorie;
     }
 
-    public void setCategorie(CategorieProduit categorie) {
+    public void setCategorie(Categorie categorie) {
         this.categorie = categorie;
-    }
-
-    public Promotion getPromotion() {
-        return promotion;
-    }
-
-    public void setPromotion(Promotion promotion) {
-        this.promotion = promotion;
     }
 }

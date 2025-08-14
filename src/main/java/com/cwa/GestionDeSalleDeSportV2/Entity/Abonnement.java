@@ -1,11 +1,8 @@
 package com.cwa.GestionDeSalleDeSportV2.Entity;
 
 
-import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutAbonnement;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeAbonnement;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.*;
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -44,8 +41,8 @@ public class Abonnement {
     @Enumerated(EnumType.STRING)
     private StatutAbonnement statut;
 
-    @Enumerated(EnumType.STRING)
-    private TypeAbonnement type;
+//    @Enumerated(EnumType.STRING)
+//    private TypeAbonnement type;
 
     private LocalDate dateDebutAbonnement;
 
@@ -67,6 +64,11 @@ public class Abonnement {
     @JsonBackReference
     private Famille famille;
 
+    @Enumerated(EnumType.STRING)
+    private PeriodAbonnement periodAbonnement;
+
+    @Enumerated(EnumType.STRING)
+    private TypeAbonnements types;
 
 
     public Long getId() {
@@ -109,13 +111,6 @@ public class Abonnement {
         this.statut = statut;
     }
 
-    public TypeAbonnement getType() {
-        return type;
-    }
-
-    public void setType(TypeAbonnement type) {
-        this.type = type;
-    }
 
     public LocalDate getDateDebutAbonnement() {
         return dateDebutAbonnement;
@@ -179,6 +174,22 @@ public class Abonnement {
 
     public void setFamille(Famille famille) {
         this.famille = famille;
+    }
+
+    public PeriodAbonnement getPeriodAbonnement() {
+        return periodAbonnement;
+    }
+
+    public void setPeriodAbonnement(PeriodAbonnement periodAbonnement) {
+        this.periodAbonnement = periodAbonnement;
+    }
+
+    public TypeAbonnements getTypes() {
+        return types;
+    }
+
+    public void setTypes(TypeAbonnements types) {
+        this.types = types;
     }
 }
 

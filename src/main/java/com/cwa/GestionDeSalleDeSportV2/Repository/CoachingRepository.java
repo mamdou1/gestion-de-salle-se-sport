@@ -7,5 +7,5 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface CoachingRepository extends JpaRepository<Coaching, Long> {
-    List<Coaching> findByGymIdAndStartDateGreaterThanEqualAndEndDateLessThanEqual(Long gymId, LocalDateTime start, LocalDateTime end);
+    List<Coaching> findByGymIdAndDateDebutGreaterThanEqualAndDateFinLessThanEqual(Long gymId, LocalDateTime start, LocalDateTime end);
 }

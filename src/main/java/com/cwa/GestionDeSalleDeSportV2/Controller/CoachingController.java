@@ -1,6 +1,7 @@
 package com.cwa.GestionDeSalleDeSportV2.Controller;
 
 import com.cwa.GestionDeSalleDeSportV2.DTO.CoachingDTO;
+import com.cwa.GestionDeSalleDeSportV2.DTO.CoachingUpdateDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.CoachingViewDTO;
 import com.cwa.GestionDeSalleDeSportV2.Service.CoachingService;
 import jakarta.validation.Valid;
@@ -32,7 +33,7 @@ public class CoachingController {
 
     //  2.  Met à jour une session
     @PutMapping("/mettre_a-jour/{id}")
-    public ResponseEntity<CoachingViewDTO> mettreAJourCoaching(@PathVariable Long id, @Valid @RequestBody CoachingDTO dto) {
+    public ResponseEntity<CoachingViewDTO> mettreAJourCoaching(@PathVariable Long id, @Valid @RequestBody CoachingUpdateDTO dto) {
         CoachingViewDTO updated = coachingService.mettreAJourCoaching(id, dto);
         return ResponseEntity.ok(updated);
     }

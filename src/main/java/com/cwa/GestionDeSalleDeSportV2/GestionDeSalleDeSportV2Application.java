@@ -6,7 +6,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-public class GestionDeSalleDeSportV2Application {
+public class   GestionDeSalleDeSportV2Application {
 
 	public static void main(String[] args) {
 		SpringApplication.run(GestionDeSalleDeSportV2Application.class, args);

@@ -37,25 +37,29 @@ public class Gym {
     private  String telephone;
 
     //  orphanRemoval = true : supprime les users orphelins si on les retire de la liste
+    @OneToMany (mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonBackReference
+    private List<User> propritaires;
+
     @OneToMany(mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
-    private List<User> users;
+    private List<DemandeInscription> demandes;
 
-    // 🏢 Liste des salles du gym
+    //  Liste des salles du gym
     @OneToMany(mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<Salle> salles;
 
-    // 🔐 Liste des casiers du gym
+    //  Liste des casiers du gym
     @OneToMany(mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<Casier> casiers;
 
-    // 📅 Liste des événements du gym
+    //  Liste des événements du gym
 //    @OneToMany(mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private List<Evenement> evenements;
 
-    // 🧑‍🏫 Liste des programmes (coaching) du gym
+    //  Liste des programmes (coaching) du gym
 //    @OneToMany(mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private List<Programme> programmes;
 
@@ -102,12 +106,20 @@ public class Gym {
         this.telephone = telephone;
     }
 
-    public List<User> getUsers() {
-        return users;
+    public List<User> getPropritaires() {
+        return propritaires;
     }
 
-    public void setUsers(List<User> users) {
-        this.users = users;
+    public void setPropritaires(List<User> propritaires) {
+        this.propritaires = propritaires;
+    }
+
+    public List<DemandeInscription> getDemandes() {
+        return demandes;
+    }
+
+    public void setDemandes(List<DemandeInscription> demandes) {
+        this.demandes = demandes;
     }
 
     public List<Salle> getSalles() {

@@ -27,7 +27,7 @@ public class AbonnementController {
 
     // 1.  Ajout 'dun abonnement par le staff
     @PostMapping("/valider")
-    public ResponseEntity<String> validerAbonnement(@Valid @RequestBody AbonnementDTO dto) throws MessagingException {
+    public ResponseEntity<String> validerAbonnement(@Valid @RequestBody AbonnementDTO dto) throws MessagingException, AccessDeniedException {
         abonnementService.ajouterAbonnement(dto);
         return new  ResponseEntity<>("Abonnement valider avec succès !", HttpStatus.CREATED);
     }
@@ -40,7 +40,7 @@ public class AbonnementController {
 
     //  3.  Renouvellement de l'abonnement
     @PostMapping("/renouvellement/{id}")
-    public ResponseEntity<String> renouvelerAbonnement(@RequestBody RenouvelerAbonnementDTO dto, @PathVariable Long id) throws MessagingException {
+    public ResponseEntity<String> renouvelerAbonnement(@RequestBody RenouvelerAbonnementDTO dto, @PathVariable Long id) throws MessagingException, AccessDeniedException {
         abonnementService.renouvelerAbonnement(id, dto.getAjoutMois(), dto.getNouveauAbonnement());
         return new ResponseEntity<>("Abonnement renouveller avec succès.", HttpStatus.CREATED);
     }
@@ -48,37 +48,50 @@ public class AbonnementController {
     //  4.  changement de plan d'abonnement (calcul montant à payer)
     @PostMapping("/changement-plan/{id}")
     public ResponseEntity<String> gererChangementPlan(LocalDate dateChangement /* formt "yyyy-MM-dd"*/ ,@PathVariable Long id,
-                                                      @RequestParam BigDecimal nouveauAbonnement){
+                                                      @RequestParam BigDecimal nouveauAbonnement) throws AccessDeniedException {
         abonnementService.gererChangementAbonnement(id, nouveauAbonnement,dateChangement);
         return new ResponseEntity<>("Changement reussie.", HttpStatus.CREATED);
     }
 
     // 5.  Mettre un abonnement en pause
     @PutMapping("/pause/{id}")
-    public ResponseEntity<Abonnement> mettreEnPause(int joursAbsence, @PathVariable Long idAbonnement) {
+    public ResponseEntity<Abonnement> mettreEnPause(int joursAbsence, @PathVariable Long idAbonnement) throws AccessDeniedException {
         Abonnement abonnement = abonnementService.mettreEnPause(idAbonnement, joursAbsence);
         return ResponseEntity.ok(abonnement);
     }
 
+    @PutMapping("/resilier/{id}")
+    public ResponseEntity<String> resilierAbonnement(@PathVariable Long id) throws AccessDeniedException {
+        abonnementService.resilierAbonnement(id);
+        return new ResponseEntity<>("l'abonnement à été resilier avec succès.", HttpStatus.OK);
+    }
+
     //  6.  Reprendre l'abonnement
     @PutMapping("/reprendre/{id}")
-    public ResponseEntity<Abonnement> reprendreAbonnement(@PathVariable Long idAbonnement) {
+    public ResponseEntity<Abonnement> reprendreAbonnement(@PathVariable Long idAbonnement) throws AccessDeniedException {
         Abonnement abonnement = abonnementService.reprendreAbonnement(idAbonnement);
         return ResponseEntity.ok(abonnement);
     }
     //  7.  Mis à jour du statut d'un abonnement
     @PutMapping("/mis-a-jour-statut/{id}")
-    public ResponseEntity<String> mettreAJourStatut(@PathVariable Long id){
+    public ResponseEntity<String> mettreAJourStatut(@PathVariable Long id) throws AccessDeniedException {
         abonnementService.mettreAJourStatutAutomatiquement(id);
         return new ResponseEntity<>("Abonnement mis à jour avec succès", HttpStatus.CREATED);
     }
 
     //  8.  L'historique des abonnements d'un membre
     @GetMapping("/historique/{id}")
-    public ResponseEntity<List<Abonnement>> getHistoriqueAbonnementParMembre(@PathVariable Long id){
+    public ResponseEntity<List<Abonnement>> getHistoriqueAbonnementParMembre(@PathVariable Long id) throws AccessDeniedException {
 
         List<Abonnement> historique  = abonnementService.getHistoriqueAbonnementParMembre(id);
         return ResponseEntity.ok(historique );
+    }
+
+    //  9.  Supprimer un membre
+    @DeleteMapping
+    public ResponseEntity<String> supprimerAbonnement(@PathVariable Long membreId) throws AccessDeniedException {
+        abonnementService.supprimerAbonnement(membreId);
+        return new ResponseEntity<>("Membre supprimer avec succès.", HttpStatus.OK);
     }
 
 }

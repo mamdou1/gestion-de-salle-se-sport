@@ -2,12 +2,16 @@ package com.cwa.GestionDeSalleDeSportV2.DTO;
 
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.PeriodAbonnement;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
 public class FamilleAbonnementDTO {
+
+    @NotNull(message = "Period de l'abonnement requis")
+    private PeriodAbonnement periodAbonnement;
 
     @NotNull(message = "L'ID de la famille est obligatoire")
     private Long familleId;
@@ -31,6 +35,15 @@ public class FamilleAbonnementDTO {
     @NotNull( message = "Le mode payement est obligatoire")
     private ModeDePaiement modeDePaiement;
 
+    private Long gymId; // Ajout pour associer à un gym
+
+    public PeriodAbonnement getPeriodAbonnement() {
+        return periodAbonnement;
+    }
+
+    public void setPeriodAbonnement(PeriodAbonnement periodAbonnement) {
+        this.periodAbonnement = periodAbonnement;
+    }
 
     public Long getFamilleId() {
         return familleId;
@@ -78,5 +91,13 @@ public class FamilleAbonnementDTO {
 
     public void setModeDePaiement(ModeDePaiement modeDePaiement) {
         this.modeDePaiement = modeDePaiement;
+    }
+
+    public Long getGymId() {
+        return gymId;
+    }
+
+    public void setGymId(Long gymId) {
+        this.gymId = gymId;
     }
 }

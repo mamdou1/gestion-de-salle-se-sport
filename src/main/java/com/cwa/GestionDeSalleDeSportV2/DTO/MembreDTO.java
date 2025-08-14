@@ -2,27 +2,54 @@ package com.cwa.GestionDeSalleDeSportV2.DTO;
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Genre;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public class MembreDTO {
 
     private Long MembreId;
+
+    @NotBlank(message = "Le nom est obligatoire")
     private String nomMembre;
+
+    @NotBlank(message = "Le prénom est obligatoire")
     private String prenomMembre;
+
+    @Email(message = "L'email doit être valide")
+    @NotBlank(message = "L'email est obligatoire")
     private String emailMembre;
+
+    @NotBlank(message = "Le numéro de téléphone est obligatoire")
     private String numeroTelephoneMembre;
+
+    @NotBlank(message = "L'adresse est obligatoire")
     private String adresseMembre;
+
+    @NotNull(message = "Le genre est obligatoire")
     private Genre genreMembre;
+
+    @NotBlank(message = "La date de naissance est obligatoire")
     private String getDate_de_naissanceMembre;
+
+    @NotNull(message = "Le rôle est obligatoire")
     private Role role;
+
+    @NotBlank(message = "Le mot de passe est obligatoire")
     private String passwordMembre;
+
+    @NotNull(message = "Les frais d'inscription sont obligatoires")
     private BigDecimal fraisInscriptionMembre;
-    //@NotNull(message = "L'ID du chef de famille est obligatoire")
+
     private Long chefFamilleId;
 
+    private Long gymId;
+
+    private List<Long> gymsIds;
 
     public Long getMembreId() {
         return MembreId;
@@ -118,5 +145,21 @@ public class MembreDTO {
 
     public void setChefFamilleId(Long chefFamilleId) {
         this.chefFamilleId = chefFamilleId;
+    }
+
+    public Long getGymId() {
+        return gymId;
+    }
+
+    public void setGymId(Long gymId) {
+        this.gymId = gymId;
+    }
+
+    public List<Long> getGymsIds() {
+        return gymsIds;
+    }
+
+    public void setGymsIds(List<Long> gymsIds) {
+        this.gymsIds = gymsIds;
     }
 }

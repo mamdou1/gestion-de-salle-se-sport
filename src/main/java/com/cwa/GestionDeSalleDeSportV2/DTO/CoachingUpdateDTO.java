@@ -1,40 +1,18 @@
 package com.cwa.GestionDeSalleDeSportV2.DTO;
 
-import lombok.Data;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
-public class CoachingViewDTO {
-    private Long id;
-    private Long gymId;
+public class CoachingUpdateDTO {
+
     private Long clientId;
-    private String nomClient;
     private Long coachId;
-    private String nomCoach;
     private LocalDateTime dateDebut;
     private LocalDateTime dateFin;
     private BigDecimal prix;
     private String nomCours;
     private String description;
 
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Long getGymId() {
-        return gymId;
-    }
-
-    public void setGymId(Long gymId) {
-        this.gymId = gymId;
-    }
 
     public Long getClientId() {
         return clientId;
@@ -50,22 +28,6 @@ public class CoachingViewDTO {
 
     public void setCoachId(Long coachId) {
         this.coachId = coachId;
-    }
-
-    public String getNomClient() {
-        return nomClient;
-    }
-
-    public void setNomClient(String nomClient) {
-        this.nomClient = nomClient;
-    }
-
-    public String getNomCoach() {
-        return nomCoach;
-    }
-
-    public void setNomCoach(String nomCoach) {
-        this.nomCoach = nomCoach;
     }
 
     public LocalDateTime getDateDebut() {

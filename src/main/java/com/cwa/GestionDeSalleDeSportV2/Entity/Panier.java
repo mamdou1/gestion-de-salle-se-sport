@@ -1,39 +1,30 @@
 package com.cwa.GestionDeSalleDeSportV2.Entity;
 
-import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutPanier;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class Panier {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private LocalDateTime dateCreation = LocalDateTime.now();
+
     @ManyToOne
+    @JsonManagedReference
     private User membre;
 
-    private LocalDate dateCreation;
-
     @Enumerated(EnumType.STRING)
-    private StatutPanier statut;
+    private StatutPanier statut = StatutPanier.EN_COURS;
 
-    @Enumerated(EnumType.STRING)
-    private ModeDePaiement modeDePaiement;
-
-    private BigDecimal montantTotal;
+    @OneToMany(mappedBy = "panier", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<LigneVente> lignes;
 
 
     public Long getId() {
@@ -44,20 +35,20 @@ public class Panier {
         this.id = id;
     }
 
+    public LocalDateTime getDateCreation() {
+        return dateCreation;
+    }
+
+    public void setDateCreation(LocalDateTime dateCreation) {
+        this.dateCreation = dateCreation;
+    }
+
     public User getMembre() {
         return membre;
     }
 
     public void setMembre(User membre) {
         this.membre = membre;
-    }
-
-    public LocalDate getDateCreation() {
-        return dateCreation;
-    }
-
-    public void setDateCreation(LocalDate dateCreation) {
-        this.dateCreation = dateCreation;
     }
 
     public StatutPanier getStatut() {
@@ -68,19 +59,11 @@ public class Panier {
         this.statut = statut;
     }
 
-    public ModeDePaiement getModeDePaiement() {
-        return modeDePaiement;
+    public List<LigneVente> getLignes() {
+        return lignes;
     }
 
-    public void setModeDePaiement(ModeDePaiement modeDePaiement) {
-        this.modeDePaiement = modeDePaiement;
-    }
-
-    public BigDecimal getMontantTotal() {
-        return montantTotal;
-    }
-
-    public void setMontantTotal(BigDecimal montantTotal) {
-        this.montantTotal = montantTotal;
+    public void setLignes(List<LigneVente> lignes) {
+        this.lignes = lignes;
     }
 }

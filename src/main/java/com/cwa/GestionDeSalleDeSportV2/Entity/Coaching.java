@@ -28,15 +28,18 @@ public class Coaching {
     private User coach;
 
     @Column(nullable = false)
-    private LocalDateTime startDate;
+    private LocalDateTime dateDebut;
 
     @Column(nullable = false)
-    private LocalDateTime endDate;
+    private LocalDateTime dateFin;
 
-    private BigDecimal cost;
+    private BigDecimal prix;
 
     @Column(nullable = false)
-    private String courseName;
+    private String nomCours;
+
+    @Column(nullable = false)
+    private String description;
 
 
     public Long getId() {
@@ -71,35 +74,43 @@ public class Coaching {
         this.coach = coach;
     }
 
-    public LocalDateTime getStartDate() {
-        return startDate;
+    public LocalDateTime getDateDebut() {
+        return dateDebut;
     }
 
-    public void setStartDate(LocalDateTime startDate) {
-        this.startDate = startDate;
+    public void setDateDebut(LocalDateTime dateDebut) {
+        this.dateDebut = dateDebut;
     }
 
-    public LocalDateTime getEndDate() {
-        return endDate;
+    public LocalDateTime getDateFin() {
+        return dateFin;
     }
 
-    public void setEndDate(LocalDateTime endDate) {
-        this.endDate = endDate;
+    public void setDateFin(LocalDateTime dateFin) {
+        this.dateFin = dateFin;
     }
 
-    public BigDecimal getCost() {
-        return cost;
+    public BigDecimal getPrix() {
+        return prix;
     }
 
-    public void setCost(BigDecimal cost) {
-        this.cost = cost;
+    public void setPrix(BigDecimal prix) {
+        this.prix = prix;
     }
 
-    public String getCourseName() {
-        return courseName;
+    public String getNomCours() {
+        return nomCours;
     }
 
-    public void setCourseName(String courseName) {
-        this.courseName = courseName;
+    public void setNomCours(String nomCours) {
+        this.nomCours = nomCours;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

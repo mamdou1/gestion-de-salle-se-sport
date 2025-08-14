@@ -2,20 +2,42 @@ package com.cwa.GestionDeSalleDeSportV2.DTO;
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Genre;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 
 public class StaffDTO {
 
+    @NotBlank(message = "Le nom est obligatoire")
     private String nomStaff;
+
+    @NotBlank(message = "Le prénom est obligatoire")
     private String prenomStaff;
+
+    @Email(message = "L'email doit être valide")
+    @NotBlank(message = "L'email est obligatoire")
     private String emailStaff;
+
+    @NotBlank(message = "Le numéro de téléphone est obligatoire")
     private String numeroTelephoneStaff;
+
+    @NotBlank(message = "L'adresse est obligatoire")
     private String adresseStaff;
+
+    @NotNull(message = "Le genre est obligatoire")
     private Genre genreStaff;
+
+    @NotBlank(message = "Le mot de passe est obligatoire")
     private String passwordStaff;
+
+    @NotNull(message = "Le rôle est obligatoire")
     private Role roleStaff;
+
+    @NotBlank(message = "La date de naissance est obligatoire")
     private String date_de_naissanceStaff;
+
     public String getNomStaff() {
         return nomStaff;
     }

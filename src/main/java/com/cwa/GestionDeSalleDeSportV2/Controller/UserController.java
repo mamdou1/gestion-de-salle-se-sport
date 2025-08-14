@@ -39,7 +39,7 @@ public class UserController {
 
     //  2.  Ajouter un nouveau membre par le staff autoriser
     @PostMapping("/membre")
-    public ResponseEntity<String> ajouterMembre(@Valid @RequestBody MembreDTO membreDTO) throws MessagingException {
+    public ResponseEntity<String> ajouterMembre(@Valid @RequestBody MembreDTO membreDTO) throws MessagingException, AccessDeniedException {
         User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
         String message = userService.ajouterMembre(membreDTO, staff);
 

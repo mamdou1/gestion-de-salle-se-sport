@@ -22,6 +22,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -36,43 +37,36 @@ public class User implements UserDetails {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "GymId")
-    @JsonBackReference
+    @JoinColumn(name = "gym_principal_id", nullable = false)
+    @JsonManagedReference
     private Gym gym;
 
-    @NotBlank(message = "Le nom est obligatoire")
+    @ManyToMany
+    @JsonManagedReference
+    @JoinTable(
+            name = "user_gyms",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "gym_id")
+    )
+
+    private List<Gym> gyms = new ArrayList<>();
     private String nom;
-
-    @NotBlank(message = "Le prénom est obligatoire")
     private String prenom;
-
-    @NotBlank(message = "L'adresse est obligatoire")
     private String adresse;
-
-    @Email(message = "Un email valide est requis")
-    @Column(unique = true)
     private String email;
-
-    @NotBlank(message = "Le numéro de téléphone est obligatoire")
-    @Column(unique = true)
     private String telephone;
-
-    @NotNull(message = "Le genre est obligatoire")
     @Enumerated(EnumType.STRING)
     private Genre genre;
 
 //    @NotBlank(message = "Le nom d'utilisateur est obligatoire")
 //    @Column(unique = true, nullable = false)
 //    private String username;
-
-    @NotBlank(message = "Le mot de passe est obligatoire")
-    @Column(unique = false, nullable = false)
     private String password;
 
     //@PastOrPresent(message = "La date de naissance ne peut pas être dans le futur")
     private String date_de_naissance;
 
-    @CreationTimestamp
+    @CreationTimestamp // Veut dire que la date est (private LocalDateTime  date_creation = LocalDateTime.now(); )
     private LocalDateTime date_creation;
 
     @NotNull(message = "Le role est obligatoire")
@@ -84,7 +78,7 @@ public class User implements UserDetails {
     private Boolean fraisInscriptionPayer = false;
 
     @OneToMany(mappedBy = "membre", cascade = CascadeType.ALL)
-    private List<Abonnement> abonnements;
+    private List<Abonnement> abonnements = new ArrayList<>();
 
     @Column
     private String telephoneReference; // Numéro de téléphone du chef de famille
@@ -101,9 +95,16 @@ public class User implements UserDetails {
     private Famille famille;
 
     @OneToMany(mappedBy = "destinataire", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @JsonBackReference
     private List<Notification> notifications;
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private List<DemandeInscription> demandes;
 
+    @OneToMany(mappedBy = "membre")
+    @JsonBackReference
+    private List<Vente> ventes; // Historique des ventes pour l'acheteur
 
     @Override
     public boolean isEnabled() {
@@ -125,6 +126,16 @@ public class User implements UserDetails {
         return true;
     }
 
+    // Méthode pour ajouter un gym et synchroniser
+    public void addGym(Gym gymToAdd) {
+        if (!gyms.contains(gymToAdd)) {
+            gyms.add(gymToAdd);
+        }
+        if (this.gym == null) {
+            this.gym = gymToAdd; // Définir comme gym principal si aucun n'est défini
+        }
+    }
+
 
     public Long getId() {
         return id;
@@ -140,6 +151,14 @@ public class User implements UserDetails {
 
     public void setGym(Gym gym) {
         this.gym = gym;
+    }
+
+    public List<Gym> getGyms() {
+        return gyms;
+    }
+
+    public void setGyms(List<Gym> gyms) {
+        this.gyms = gyms;
     }
 
     public String getNom() {
@@ -310,6 +329,22 @@ public class User implements UserDetails {
 
     public void setFamille(Famille famille) {
         this.famille = famille;
+    }
+
+    public List<DemandeInscription> getDemandes() {
+        return demandes;
+    }
+
+    public void setDemandes(List<DemandeInscription> demandes) {
+        this.demandes = demandes;
+    }
+
+    public List<Vente> getVentes() {
+        return ventes;
+    }
+
+    public void setVentes(List<Vente> ventes) {
+        this.ventes = ventes;
     }
 }
 

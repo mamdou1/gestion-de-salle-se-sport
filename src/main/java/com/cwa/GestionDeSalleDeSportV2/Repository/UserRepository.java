@@ -1,6 +1,7 @@
 package com.cwa.GestionDeSalleDeSportV2.Repository;
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutMembre;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -16,4 +17,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByDateRetrait(LocalDate aujourdHui);
 
     List<User> findByRoleIn(List<Role> admin);
+
+    Optional<User> findByTelephoneOrEmail(String telephone, String email);
+
+    List<User> findByStatutAndRole(StatutMembre statutMembre, Role role);
 }

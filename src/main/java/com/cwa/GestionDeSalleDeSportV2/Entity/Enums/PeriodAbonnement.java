@@ -1,11 +1,8 @@
 package com.cwa.GestionDeSalleDeSportV2.Entity.Enums;
 
-public enum TypeAbonnement {
-
+public enum PeriodAbonnement {
     MENSUEL,
     TRIMESTRIEL,
     SEMESTRIEL,
-    FAMILIALE,
     ANNUEL
 }
-
