@@ -1,7 +1,5 @@
 package com.cwa.GestionDeSalleDeSportV2.Repository;
 
-import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutPanier;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Panier;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
