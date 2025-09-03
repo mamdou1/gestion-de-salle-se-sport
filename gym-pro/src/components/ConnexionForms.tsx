@@ -1,9 +1,9 @@
 import { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom"; // Ajout de useNavigate
 
 interface ConnexionFormProps {
   setIsLoggedIn: (value: boolean) => void;
-  setShowRegister: (value: boolean) => void;
 }
 
 interface FormData {
@@ -11,13 +11,14 @@ interface FormData {
   password: string;
 }
 
-function ConnexionForm({ setIsLoggedIn, setShowRegister }: ConnexionFormProps) {
+function ConnexionForm({ setIsLoggedIn }: ConnexionFormProps) {
   const [formData, setFormData] = useState<FormData>({
     telephone: "",
     password: "",
   });
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const navigate = useNavigate(); // Hook pour la navigation
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -118,7 +119,7 @@ function ConnexionForm({ setIsLoggedIn, setShowRegister }: ConnexionFormProps) {
               </a>
               <span
                 className="cursor-pointer hover:underline"
-                onClick={() => setShowRegister(true)}
+                onClick={() => navigate("/inscription")} // Redirige vers /inscription
               >
                 Créer un compte
               </span>

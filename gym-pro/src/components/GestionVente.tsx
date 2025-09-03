@@ -8,6 +8,8 @@ interface Vente {
   montantTotal: number;
   modeDePaiement: string;
   membre: { id: number; nom: string; prenom: string };
+  staff: { id: number; nom: string; prenom: string };
+
   lignes: LigneVente[];
 }
 
@@ -50,7 +52,7 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
   const [selectedVente, setSelectedVente] = useState<Vente | null>(null);
   const [addingVente, setAddingVente] = useState<boolean>(false);
   const [formData, setFormData] = useState<VenteManuelDTO>({
-    modeDePaiement: "ESPECE",
+    modeDePaiement: "CASH",
     produitIds: [],
     quantites: [],
   });
@@ -247,7 +249,7 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
   const prepareAddForm = () => {
     setAddingVente(true);
     setFormData({
-      modeDePaiement: "ESPECE",
+      modeDePaiement: "CASH",
       produitIds: [],
       quantites: [],
     });
@@ -260,15 +262,15 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
       setError("Veuillez sélectionner au moins un produit et une quantité.");
       return;
     }
-    if (
-      !formData.acheteurId &&
-      (!formData.nomAcheteur ||
-        !formData.prenomAcheteur ||
-        !formData.telephoneAcheteur)
-    ) {
-      setError("Veuillez fournir les informations de l'acheteur non-membre.");
-      return;
-    }
+    // if (
+    //   !formData.acheteurId &&
+    //   (!formData.nomAcheteur ||
+    //     !formData.prenomAcheteur ||
+    //     !formData.telephoneAcheteur)
+    // ) {
+    //   setError("Veuillez fournir les informations de l'acheteur non-membre.");
+    //   return;
+    // }
     setAdding(true);
     try {
       await axios.post(
@@ -400,7 +402,7 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-black to-orange-500 flex flex-col">
-      <header className="bg-black text-white flex justify-between items-center px-6 py-4 shadow-md">
+      <header className="fixed w-full top-0 bg-black text-white flex justify-between items-center px-6 py-4 shadow-md">
         <img
           src="./src/assets/logo avec arriere plan supprimer.png"
           alt="logo GYM-PRO"
@@ -443,7 +445,7 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
         </button>
       </header>
 
-      <main className="flex-1 p-6">
+      <main className="flex-1 pt-24 p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">
@@ -595,7 +597,15 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
 
         {/* Modal des détails de la vente */}
         {selectedVente && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeDetails();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-90vh overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Détails de la Vente</h2>
@@ -615,7 +625,7 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
-                      <h3 className="font-semibold text-lg mb-3">
+                      <h3 className="text-orange-500 font-semibold text-lg mb-3">
                         Informations de la vente
                       </h3>
                       <div className="space-y-2">
@@ -637,10 +647,16 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
                           <strong>Mode de Paiement:</strong>{" "}
                           {selectedVente.modeDePaiement}
                         </p>
+                        <p>
+                          <strong>Vente éffectuer par:</strong>{" "}
+                          {selectedVente.staff.nom} {selectedVente.staff.prenom}
+                        </p>
                       </div>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg mb-3">Produits</h3>
+                      <h3 className="text-orange-500 font-semibold text-lg mb-3">
+                        Produits
+                      </h3>
                       <ul className="space-y-2">
                         {selectedVente.lignes.map((ligne) => (
                           <li key={ligne.id}>
@@ -668,7 +684,15 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
 
         {/* Modal d'ajout de vente */}
         {addingVente && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeAddForm();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-90vh overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">
@@ -720,7 +744,6 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
                             value={formData.nomAcheteur || ""}
                             onChange={handleChange}
                             className="w-full p-2 border rounded"
-                            required
                           />
                         </div>
                         <div>
@@ -733,7 +756,6 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
                             value={formData.prenomAcheteur || ""}
                             onChange={handleChange}
                             className="w-full p-2 border rounded"
-                            required
                           />
                         </div>
                         <div>
@@ -746,7 +768,6 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
                             value={formData.telephoneAcheteur || ""}
                             onChange={handleChange}
                             className="w-full p-2 border rounded"
-                            required
                           />
                         </div>
                         <div>
@@ -775,9 +796,9 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
                         className="w-full p-2 border rounded"
                         required
                       >
-                        <option value="ESPECE">Espèces</option>
-                        <option value="CARTE">Carte</option>
-                        <option value="MOBILE">Paiement mobile</option>
+                        <option value="ESPECE">CASH</option>
+                        <option value="CARTE">ORANGE_MONEY</option>
+                        <option value="MOBILE">WAVE</option>
                       </select>
                     </div>
                   </div>

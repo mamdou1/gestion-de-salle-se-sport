@@ -72,7 +72,15 @@ const ConfirmModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        const modal = e.currentTarget.querySelector(".bg-white");
+        if (modal && !modal.contains(e.target as Node)) {
+          onClose();
+        }
+      }}
+    >
       <div className="bg-white rounded-lg p-6 w-full max-w-md">
         <h3 className="text-xl font-semibold mb-4">Confirmation</h3>
         <p className="text-gray-700 mb-6">{message}</p>
@@ -137,8 +145,17 @@ const EventDetailModal = ({
     }
   };
 
+  // Les details d'un Event
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        const modal = e.currentTarget.querySelector(".bg-white");
+        if (modal && !modal.contains(e.target as Node)) {
+          onClose();
+        }
+      }}
+    >
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">
@@ -282,8 +299,18 @@ const CoachingDetailModal = ({
 }) => {
   if (!isOpen || !coaching) return null;
 
+  // Les details d'un coaching
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        const modal = e.currentTarget.querySelector(".bg-white");
+        if (modal && !modal.contains(e.target as Node)) {
+          onClose();
+        }
+      }}
+    >
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">
@@ -326,7 +353,7 @@ const CoachingDetailModal = ({
                 <label className="block text-sm font-medium text-gray-600">
                   Prix
                 </label>
-                <p className="text-gray-700">{coaching.prix} €</p>
+                <p className="text-gray-700">{coaching.prix} FCFA</p>
               </div>
             </div>
           </div>
@@ -504,6 +531,9 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
   const [filter, setFilter] = useState<"tous" | "evenements" | "coachings">(
     "tous"
   );
+
+  const [coachSearch, setCoachSearch] = useState("");
+  const [clientSearch, setClientSearch] = useState("");
 
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -1445,6 +1475,8 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         )}
 
+        {/* Legende */}
+
         <div className="bg-white p-4 rounded-lg shadow-lg mb-6">
           <h3 className="font-semibold mb-3">Légende :</h3>
           <div className="flex flex-wrap gap-4">
@@ -1471,6 +1503,8 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         </div>
 
+        {/* Calendrier */}
+
         <div className="bg-white rounded-lg shadow-lg p-6">
           <Calendar
             localizer={localizer}
@@ -1493,20 +1527,24 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
             selectable
             popup
             onSelectEvent={(calendarEvent) => {
-              const event = evenements.find((e) => e.id === calendarEvent.id);
-              if (event) {
-                openEventDetail(event);
-              } else {
+              if (calendarEvent.resource.type === "coaching") {
                 const coaching = coachings.find(
                   (c) => c.id === calendarEvent.id
                 );
                 if (coaching) {
                   openCoachingDetail(coaching);
                 }
+              } else if (calendarEvent.resource.type === "evenement") {
+                const event = evenements.find((e) => e.id === calendarEvent.id);
+                if (event) {
+                  openEventDetail(event);
+                }
               }
             }}
           />
         </div>
+
+        {/* Liste des evenements */}
 
         <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
           <h3 className="text-xl font-semibold mb-4">
@@ -1600,7 +1638,15 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
 
         {/* Modal d'ajout d'événement */}
         {showAddForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeAddForm();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Ajouter un Événement</h2>
@@ -1684,7 +1730,15 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
 
         {/* Modal d'ajout de coaching */}
         {showAddCoachingForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeAddCoachingForm();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">
@@ -1698,7 +1752,7 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
                 </button>
               </div>
 
-              <form onSubmit={handleAddCoaching} className="space-y-4">
+              <form onSubmit={handleAddCoaching} className="space-y-2">
                 <div>
                   <label className="block text-gray-700">Nom du cours *</label>
                   <input
@@ -1724,38 +1778,74 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
 
                 <div>
                   <label className="block text-gray-700">Coach *</label>
-                  <select
-                    name="coachId"
-                    value={coachingFormData.coachId}
-                    onChange={handleCoachingChange}
-                    className="w-full p-2 border rounded"
-                    required
-                  >
-                    <option value="">Sélectionnez un coach</option>
-                    {coaches.map((coach) => (
-                      <option key={coach.id} value={coach.id}>
-                        {coach.nom} {coach.prenom} - {coach.telephone}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    value={coachSearch}
+                    onChange={(e) => setCoachSearch(e.target.value)}
+                    placeholder="Rechercher un coach..."
+                    className="w-full p-2 border rounded mb-2"
+                  />
+                  <ul className="border rounded max-h-40 overflow-y-auto">
+                    {coaches
+                      .filter((coach) =>
+                        `${coach.nom} ${coach.prenom} ${coach.telephone}`
+                          .toLowerCase()
+                          .includes(coachSearch.toLowerCase())
+                      )
+                      .map((coach) => (
+                        <li
+                          key={coach.id}
+                          onClick={() => {
+                            setCoachingFormData((prev) => ({
+                              ...prev,
+                              coachId: coach.id.toString(),
+                            }));
+                            setCoachSearch(
+                              `${coach.nom} ${coach.prenom} - ${coach.telephone}`
+                            );
+                          }}
+                          className="p-2 hover:bg-gray-100 cursor-pointer"
+                        >
+                          {coach.nom} {coach.prenom} - {coach.telephone}
+                        </li>
+                      ))}
+                  </ul>
                 </div>
 
                 <div>
                   <label className="block text-gray-700">Client *</label>
-                  <select
-                    name="clientId"
-                    value={coachingFormData.clientId}
-                    onChange={handleCoachingChange}
-                    className="w-full p-2 border rounded"
-                    required
-                  >
-                    <option value="">Sélectionnez un client</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.nom} {client.prenom} - {client.telephone}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    placeholder="Rechercher un client..."
+                    className="w-full p-2 border rounded mb-2"
+                  />
+                  <ul className="border rounded max-h-40 overflow-y-auto">
+                    {clients
+                      .filter((client) =>
+                        `${client.nom} ${client.prenom} ${client.telephone}`
+                          .toLowerCase()
+                          .includes(clientSearch.toLowerCase())
+                      )
+                      .map((client) => (
+                        <li
+                          key={client.id}
+                          onClick={() => {
+                            setCoachingFormData((prev) => ({
+                              ...prev,
+                              clientId: client.id.toString(),
+                            }));
+                            setClientSearch(
+                              `${client.nom} ${client.prenom} - ${client.telephone}`
+                            );
+                          }}
+                          className="p-2 hover:bg-gray-100 cursor-pointer"
+                        >
+                          {client.nom} {client.prenom} - {client.telephone}
+                        </li>
+                      ))}
+                  </ul>
                 </div>
 
                 <div>
@@ -1815,10 +1905,17 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
             </div>
           </div>
         )}
-
         {/* Modal d'édition d'événement */}
         {showEditForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeEditForm();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Modifier un Événement</h2>
@@ -1902,7 +1999,15 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
 
         {/* Modal d'édition de coaching */}
         {showEditCoachingForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeEditCoachingForm();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">

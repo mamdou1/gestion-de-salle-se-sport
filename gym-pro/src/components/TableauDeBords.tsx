@@ -12,10 +12,39 @@ interface CardData {
   onClick: () => void;
 }
 
+const getStaffIdFromToken = (
+  token: string | null
+): { id: number; role: string } => {
+  if (!token) return { id: 0, role: "" };
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const fullRole = payload.role || "";
+
+    // Extraire le nom du rôle sans le prefix "ROLE_"
+    const roleWithoutPrefix = fullRole.startsWith("ROLE_")
+      ? fullRole.substring(5)
+      : fullRole;
+
+    return {
+      id: payload.staffId || payload.id || 0,
+      role: roleWithoutPrefix,
+    };
+  } catch (error) {
+    console.error("Erreur lors du décodage du token:", error);
+    return { id: 0, role: "" };
+  }
+};
+
 function TableauDeBord({ setIsLoggedIn }: TableauDeBordProps) {
   const [query, setQuery] = useState<string>("");
   const [showGradient, setShowGradient] = useState<boolean>(false);
   const navigate = useNavigate();
+
+  const token =
+    localStorage.getItem("authToken") || localStorage.getItem("token");
+  const { id: staffId, role } = getStaffIdFromToken(token);
+
+  console.log("Rôle extrait (sans prefix):", role);
 
   // 🗂️ Contenu des cartes
   const cardsData: CardData[] = [
@@ -35,12 +64,13 @@ function TableauDeBord({ setIsLoggedIn }: TableauDeBordProps) {
       titre: "Planning",
       description: "Organisez vos coachings et évènements.",
       boutonTexte: "Voir planning",
-      onClick: () => navigate("/evenements"), // Mise à jour pour rediriger vers /evenements
+      onClick: () => navigate("/evenements"),
     },
   ];
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("authToken");
     setIsLoggedIn(false);
   };
 
@@ -75,51 +105,19 @@ function TableauDeBord({ setIsLoggedIn }: TableauDeBordProps) {
           className="object-contain"
         />
 
-        {/* Liens de navigation */}
+        {/* Liens de navigation conditionnels */}
         <nav className="flex space-x-6 font-bold font-inter">
-          <a href="#" className="underline text-orange-500 text-xl transition">
-            Tableau de bord
-          </a>
-          <a
-            href="/membres"
-            onClick={(e) => {
-              e.preventDefault();
-              navigate("/membres");
-            }}
-            className="hover:underline hover:text-orange-500 text-xl transition"
-          >
-            Gestion des membres
-          </a>
-
-          <a
-            href="/evenements"
-            onClick={(e) => {
-              e.preventDefault();
-              navigate("/evenements");
-            }}
-            className="text-white hover:underline hover:text-orange-500 text-xl transition"
-          >
-            Planning
-          </a>
-
-          {/* Menu Planning */}
-          {/* <div className="relative group">
-            <a
-              href="/evenements"
+          {role === "RECEPTIONNISTE" ? (
+            <>
+              <a
+                href="/membres"
                 onClick={(e) => {
                   e.preventDefault();
-                  navigate("/evenements");
+                  navigate("/membres");
                 }}
-              className="text-white hover:text-orange-500 text-xl transition"
-            >
-              Planning
-            </a>
-            <div className="absolute left-0 mt-1 hidden group-hover:block bg-black border border-orange-600 rounded shadow-lg z-10 text-xs">
-              <a
-                href="#"
-                className="block px-4 py-2 text-white hover:text-orange-400"
+                className="hover:underline hover:text-orange-500 text-xl transition"
               >
-                Coaching
+                Gestion des membres
               </a>
               <a
                 href="/evenements"
@@ -127,110 +125,290 @@ function TableauDeBord({ setIsLoggedIn }: TableauDeBordProps) {
                   e.preventDefault();
                   navigate("/evenements");
                 }}
-                className="block px-4 py-2 text-white hover:text-orange-400"
+                className="text-white hover:underline hover:text-orange-500 text-xl transition"
               >
-                Évènement
+                Planning
               </a>
-            </div>
-          </div> */}
 
-          {/* Menu Service */}
-          <div className="relative group">
-            <a
-              href="#"
-              className="text-white hover:underline hover:text-orange-500 text-xl transition"
-            >
-              Service
-            </a>
-            <div className="absolute left-0 mt-1 hidden group-hover:block bg-black border border-orange-600 rounded shadow-lg z-10 text-xs">
+              <div className="relative group">
+                <a
+                  href="#"
+                  className="text-white hover:underline hover:text-orange-500 text-xl transition"
+                >
+                  Service
+                </a>
+                <div className="absolute left-0 mt-1 hidden group-hover:block w-64 bg-black border border-orange-600 rounded shadow-lg z-10 text-xs">
+                  <a
+                    href="/abonnements"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/abonnements");
+                    }}
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Abonnement
+                  </a>
+                  <a
+                    href="/casiers"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/casiers");
+                    }}
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Casier
+                  </a>
+                  <a
+                    href="/salles"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/salles");
+                    }}
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Salle
+                  </a>
+                </div>
+              </div>
+
+              <div className="relative group">
+                <a
+                  href="#"
+                  className="text-white hover:underline hover:text-orange-500 text-xl transition"
+                >
+                  Boutique
+                </a>
+                <div className="absolute left-0 mt-1 hidden group-hover:block w-64 bg-black border border-orange-600 rounded shadow-lg z-10 text-xs">
+                  <a
+                    href="/produits"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/produits");
+                    }}
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Produit
+                  </a>
+                  <a
+                    href="/ventes"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/ventes");
+                    }}
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Vente
+                  </a>
+                </div>
+              </div>
+            </>
+          ) : role === "ADMIN" || role === "GERANT" ? (
+            <>
               <a
-                href="/abonnements"
+                href="/"
                 onClick={(e) => {
                   e.preventDefault();
-                  navigate("/abonnements");
+                  navigate("/");
                 }}
-                className="block px-4 py-2 text-white hover:text-orange-400"
+                className="underline text-orange-500 text-xl transition"
+              >
+                Tableau de bord
+              </a>
+              <a
+                href="/membres"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate("/membres");
+                }}
+                className="hover:underline hover:text-orange-500 text-xl transition"
+              >
+                Gestion des membres
+              </a>
+              <a
+                href="/evenements"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate("/evenements");
+                }}
+                className="text-white hover:underline hover:text-orange-500 text-xl transition"
+              >
+                Planning
+              </a>
+
+              <div className="relative group">
+                <a
+                  href="#"
+                  className="text-white hover:underline hover:text-orange-500 text-xl transition"
+                >
+                  Service
+                </a>
+                <div className="absolute left-0 mt-1 hidden group-hover:block w-64 bg-black border border-orange-600 rounded shadow-lg z-10 text-xs">
+                  <a
+                    href="/abonnements"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/abonnements");
+                    }}
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Abonnement
+                  </a>
+                  <a
+                    href="/casiers"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/casiers");
+                    }}
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Casier
+                  </a>
+                  <a
+                    href="/salles"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/salles");
+                    }}
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Salle
+                  </a>
+                </div>
+              </div>
+
+              <div className="relative group">
+                <a
+                  href="#"
+                  className="text-white hover:underline hover:text-orange-500 text-xl transition"
+                >
+                  Boutique
+                </a>
+                <div className="absolute left-0 mt-1 hidden group-hover:block w-64 bg-black border border-orange-600 rounded shadow-lg z-10 text-xs">
+                  <a
+                    href="/produits"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/produits");
+                    }}
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Produit
+                  </a>
+                  <a
+                    href="/ventes"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/ventes");
+                    }}
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Vente
+                  </a>
+                </div>
+              </div>
+              <div className="relative group">
+                <a
+                  href="#"
+                  className="text-white hover:underline hover:text-orange-500 text-xl transition"
+                >
+                  Administration
+                </a>
+                <div className="absolute left-0 mt-1 hidden group-hover:block w-64 bg-black border border-orange-600 rounded shadow-lg z-10 text-xs">
+                  <a
+                    href="/staffs"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/staffs");
+                    }}
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Gestion du staff
+                  </a>
+                  <a
+                    href="#"
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Transaction
+                  </a>
+                </div>
+              </div>
+            </>
+          ) : role === "COACH" ? (
+            <>
+              <a
+                href="/evenements"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate("/evenements");
+                }}
+                className="text-white hover:underline hover:text-orange-500 text-xl transition"
+              >
+                Planning
+              </a>
+            </>
+          ) : role === "ADMIN_PRINCIPAL" ? (
+            <>
+              <a
+                href="/abonnements-gyms"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate("/abonnements-gyms");
+                }}
+                className="text-white hover:underline hover:text-orange-500 text-xl transition"
               >
                 Abonnement
               </a>
+            </>
+          ) : (
+            <>
               <a
-                href="#"
-                className="block px-4 py-2 text-white hover:text-orange-400"
-              >
-                Casier
-              </a>
-              <a
-                href="/salles"
+                href="/"
                 onClick={(e) => {
                   e.preventDefault();
-                  navigate("/salles");
+                  navigate("/");
                 }}
-                className="block px-4 py-2 text-white hover:text-orange-400"
+                className="underline text-orange-500 text-xl transition"
               >
-                Salle
+                Tableau de bord
               </a>
-            </div>
-          </div>
-
-          {/* Menu Boutique */}
-          <div className="relative group">
-            <a
-              href="#"
-              className="text-white hover:underline hover:text-orange-500 text-xl transition"
-            >
-              Boutique
-            </a>
-            <div className="absolute left-0 mt-1 hidden group-hover:block bg-black border border-orange-600 rounded shadow-lg z-10 text-xs">
               <a
-                href="/produits"
+                href="/evenements"
                 onClick={(e) => {
                   e.preventDefault();
-                  navigate("/produits");
+                  navigate("/evenements");
                 }}
-                className="block px-4 py-2 text-white hover:text-orange-400"
+                className="text-white hover:underline hover:text-orange-500 text-xl transition"
               >
-                Produit
+                Planning
               </a>
-              <a
-                href="/ventes"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate("/ventes");
-                }}
-                className="block px-4 py-2 text-white hover:text-orange-400"
-              >
-                Vente
-              </a>
-            </div>
-          </div>
-
-          {/* Menu Autres */}
-          <div className="relative group">
-            <a
-              href="#"
-              className="text-white hover:underline hover:text-orange-500 text-xl transition"
-            >
-              Administration
-            </a>
-            <div className="absolute left-0 mt-1 hidden group-hover:block w-64 bg-black border border-orange-600 rounded shadow-lg z-10 text-xs">
-              <a
-                href="/staffs"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate("/staffs");
-                }}
-                className="block px-4 py-2 text-white hover:text-orange-400"
-              >
-                Gestion du staff
-              </a>
-              <a
-                href="#"
-                className="block px-4 py-2 text-white hover:text-orange-400"
-              >
-                Transaction
-              </a>
-            </div>
-          </div>
+              <div className="relative group">
+                <a
+                  href="#"
+                  className="text-white hover:underline hover:text-orange-500 text-xl transition"
+                >
+                  Administration
+                </a>
+                <div className="absolute left-0 mt-1 hidden group-hover:block w-64 bg-black border border-orange-600 rounded shadow-lg z-10 text-xs">
+                  <a
+                    href="/staffs"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/staffs");
+                    }}
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Gestion du staff
+                  </a>
+                  <a
+                    href="#"
+                    className="block px-4 py-2 text-white hover:text-orange-400"
+                  >
+                    Transaction
+                  </a>
+                </div>
+              </div>
+            </>
+          )}
         </nav>
 
         {/* Déconnexion */}

@@ -8,6 +8,7 @@ interface Membre {
   prenom: string;
   email: string;
   telephone: string;
+  genre: "HOMME" | "FEMME";
   gym?: any;
   gyms?: any[];
 }
@@ -49,10 +50,12 @@ interface Abonnement {
 
 interface FormData {
   membreId: string;
-  typeDeServiceId: string;
+  typeDeServiceId?: number; // Modifié en number optionnel
   nombreDeMois: string;
   modeDePaiement: string;
   periodAbonnement: string;
+  prixAbonnement: number;
+  genreMembre: "HOMME" | "FEMME";
 }
 
 interface RenouvelerFormData {
@@ -81,10 +84,12 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
   const [success, setSuccess] = useState<string>("");
   const [formData, setFormData] = useState<FormData>({
     membreId: "",
-    typeDeServiceId: "",
+    typeDeServiceId: undefined, // Initialisé à undefined
     nombreDeMois: "",
     modeDePaiement: "",
     periodAbonnement: "MENSUEL",
+    prixAbonnement: 0,
+    genreMembre: "HOMME",
   });
   const [renouvelerFormData, setRenouvelerFormData] =
     useState<RenouvelerFormData>({
@@ -104,7 +109,6 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     setIsLoggedIn(false);
   };
 
-  // Récupérer tous les abonnements
   const fetchAbonnements = async () => {
     try {
       const response = await axios.get<any[]>(
@@ -117,15 +121,16 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
         }
       );
       console.log("Réponse API abonnements:", response.data);
+
       const abonnementsData = response.data.map((abonnement: any) => ({
         id: abonnement.id,
-        membreId: abonnement.membre?.id || abonnement.membreId, // Utilise membre.id si disponible, sinon membreId
+        membreId: abonnement.membre?.id || abonnement.membreId,
         membre: abonnement.membre,
         typeDeService: Array.isArray(abonnement.typeDeService)
-          ? abonnement.typeDeService // Garde le tableau tel quel
+          ? abonnement.typeDeService
           : abonnement.typeDeService
-          ? [abonnement.typeDeService] // Convertit un objet unique en tableau
-          : [], // Tableau vide si undefined
+          ? [abonnement.typeDeService]
+          : [],
         prix: abonnement.prix || abonnement.prixAbonnement,
         dateDebutAbonnement: abonnement.dateDebutAbonnement,
         dateFinAbonnement: abonnement.dateFinAbonnement,
@@ -148,7 +153,6 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  // Récupérer tous les membres
   const fetchMembres = async () => {
     try {
       const response = await axios.get<Membre[]>(
@@ -166,7 +170,6 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  // Récupérer tous les types de service
   const fetchTypesService = async () => {
     try {
       const response = await axios.get<TypeDeService[]>(
@@ -187,7 +190,6 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  // Récupérer l'historique d'un membre
   const fetchHistorique = async (membreId: number) => {
     if (!membreId || isNaN(membreId)) {
       setError("ID du membre invalide.");
@@ -209,10 +211,10 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
         membreId: abonnement.membreId,
         membre: abonnement.membre,
         typeDeService: Array.isArray(abonnement.typeDeService)
-          ? abonnement.typeDeService // Garde le tableau tel quel
+          ? abonnement.typeDeService
           : abonnement.typeDeService
-          ? [abonnement.typeDeService] // Convertit un objet unique en tableau
-          : [], // Tableau vide si undefined
+          ? [abonnement.typeDeService]
+          : [],
         prix: abonnement.prix || abonnement.prixAbonnement,
         dateDebutAbonnement: abonnement.dateDebutAbonnement,
         dateFinAbonnement: abonnement.dateFinAbonnement,
@@ -234,21 +236,21 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  // Ajouter un nouvel abonnement
   const handleAddAbonnement = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdding(true);
-    console.log("Soumission du formulaire avec données:", formData); // Log des données
+    console.log("Soumission du formulaire avec données:", formData);
 
     try {
       await axios.post(
         "http://localhost:8080/api/abonnements/ajouter",
         {
           membreId: parseInt(formData.membreId),
-          typeDeServiceId: parseInt(formData.typeDeServiceId),
+          typeDeServiceId: formData.typeDeServiceId, // Utilise directement la valeur (number ou undefined)
           nombreDeMois: parseInt(formData.nombreDeMois),
           modeDePaiement: formData.modeDePaiement,
           periodAbonnement: formData.periodAbonnement,
+          prixAbonnement: formData.prixAbonnement,
         },
         {
           headers: {
@@ -262,10 +264,12 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
       setShowAddForm(false);
       setFormData({
         membreId: "",
-        typeDeServiceId: "",
+        typeDeServiceId: undefined,
         nombreDeMois: "",
         modeDePaiement: "",
         periodAbonnement: "MENSUEL",
+        prixAbonnement: 0,
+        genreMembre: "HOMME",
       });
       fetchAbonnements();
       setTimeout(() => setSuccess(""), 3000);
@@ -278,7 +282,6 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  // Mettre en pause un abonnement
   const handleMettreEnPause = async (id: number) => {
     if (!joursAbsence || parseInt(joursAbsence) < 7) {
       setError("Le nombre de jours d'absence doit être d'au moins 7.");
@@ -313,7 +316,6 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  // Reprendre un abonnement
   const handleReprendre = async (id: number) => {
     setUpdating(true);
     try {
@@ -343,7 +345,6 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  // Renouveler un abonnement
   const handleRenouveler = async (id: number) => {
     setUpdating(true);
     try {
@@ -380,7 +381,6 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  // Résilier un abonnement
   const handleResilier = async (id: number) => {
     setUpdating(true);
     try {
@@ -410,7 +410,6 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  // Afficher les détails d'un abonnement
   const showAbonnementDetails = async (id: number) => {
     try {
       const response = await axios.get<any>(
@@ -452,7 +451,36 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      const updatedFormData = { ...prev, [name]: value };
+
+      if (name === "membreId") {
+        const selectedMembre = membres.find((m) => m.id === parseInt(value));
+        if (selectedMembre) {
+          updatedFormData.genreMembre = selectedMembre.genre;
+        }
+      }
+
+      return updatedFormData;
+    });
+  };
+
+  const handleTypeDeServiceChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const typeId = parseInt(e.target.value); // Convertir en number
+    const selectedType = typesService.find((type) => type.id === typeId);
+    if (selectedType) {
+      const frais =
+        formData.genreMembre === "HOMME"
+          ? selectedType.tarifHomme
+          : selectedType.tarifFemme || selectedType.tarifUnique;
+      setFormData((prev) => ({
+        ...prev,
+        typeDeServiceId: typeId,
+        prixAbonnement: frais,
+      }));
+    }
   };
 
   const handleRenouvelerChange = (
@@ -466,10 +494,12 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     setShowAddForm(false);
     setFormData({
       membreId: "",
-      typeDeServiceId: "",
+      typeDeServiceId: undefined,
       nombreDeMois: "",
       modeDePaiement: "",
       periodAbonnement: "MENSUEL",
+      prixAbonnement: 0,
+      genreMembre: "HOMME",
     });
     setError("");
   };
@@ -571,7 +601,6 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
           </button>
         </div>
 
-        {/* Messages d'alerte */}
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
@@ -583,7 +612,6 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         )}
 
-        {/* Tableau des abonnements */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -725,7 +753,6 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         )}
 
-        {/* Bouton d'actualisation */}
         <div className="mt-6 flex justify-center">
           <button
             onClick={fetchAbonnements}
@@ -735,9 +762,16 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
           </button>
         </div>
 
-        {/* Modal d'ajout d'abonnement */}
         {showAddForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeAddForm();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Nouvel Abonnement</h2>
@@ -761,8 +795,9 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
                   >
                     <option value="">Sélectionnez un membre</option>
                     {membres.map((membre) => (
-                      <option key={membre.id} value={membre.id}>
-                        {membre.nom} {membre.prenom} - {membre.email}
+                      <option key={membre.id} value={membre.id.toString()}>
+                        {membre.nom} {membre.prenom} - {membre.email} (
+                        {membre.genre})
                       </option>
                     ))}
                   </select>
@@ -774,14 +809,14 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
                   </label>
                   <select
                     name="typeDeServiceId"
-                    value={formData.typeDeServiceId}
-                    onChange={handleChange}
+                    value={formData.typeDeServiceId?.toString() || ""}
+                    onChange={handleTypeDeServiceChange}
                     className="w-full p-2 border rounded"
                     required
                   >
                     <option value="">Sélectionnez un type de service</option>
                     {typesService.map((service) => (
-                      <option key={service.id} value={service.id}>
+                      <option key={service.id} value={service.id.toString()}>
                         {service.nom} -{" "}
                         {service.tarifUnique ||
                           `${service.tarifHomme}/${service.tarifFemme}`}{" "}
@@ -802,6 +837,17 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
                     onChange={handleChange}
                     className="w-full p-2 border rounded"
                     required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-700">Prix abonnement</label>
+                  <input
+                    type="number"
+                    name="prixAbonnement"
+                    value={formData.prixAbonnement}
+                    readOnly
+                    className="w-full p-2 border rounded bg-gray-100"
                   />
                 </div>
 
@@ -865,9 +911,16 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         )}
 
-        {/* Modal des détails de l'abonnement */}
         {showDetails && selectedAbonnement && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeDetails();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Détails de l'Abonnement</h2>
@@ -1006,9 +1059,16 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         )}
 
-        {/* Modal de renouvellement d'abonnement */}
         {showRenouvelerForm && selectedAbonnement && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeRenouvelerForm();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Renouveler l'Abonnement</h2>
@@ -1096,9 +1156,16 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         )}
 
-        {/* Modal d'historique des abonnements */}
         {showHistorique && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeHistorique();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-90vh overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">

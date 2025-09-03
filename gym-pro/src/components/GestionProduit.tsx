@@ -2,6 +2,52 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
+// Composant Modal de confirmation pour la suppression
+const ConfirmModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  message,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  message: string;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        const modal = e.currentTarget.querySelector(".bg-white");
+        if (modal && !modal.contains(e.target as Node)) {
+          onClose();
+        }
+      }}
+    >
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <h3 className="text-xl font-semibold mb-4">Confirmation</h3>
+        <p className="text-gray-700 mb-6">{message}</p>
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="bg-black text-orange-500 px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={onConfirm}
+            className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-400 transition-colors font-bold"
+          >
+            Confirmer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface Produit {
   id: number;
   nom: string;
@@ -47,6 +93,15 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
   const [success, setSuccess] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const productsPerPage = 10;
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    id: number | null;
+    message: string;
+  }>({
+    isOpen: false,
+    id: null,
+    message: "",
+  });
   const navigate = useNavigate();
 
   const token = localStorage.getItem("token");
@@ -97,11 +152,7 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  // fonction pour supprimer un produit
   const handleDeleteProduit = async (id: number) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) {
-      return;
-    }
     try {
       await axios.delete(`http://localhost:8080/api/produits/supprimer/${id}`, {
         headers: {
@@ -110,8 +161,8 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
         },
       });
       setSuccess("Produit supprimé avec succès !");
-      setSelectedProduit(null); // Ferme la modal des détails si ouverte
-      fetchProduit(); // Rafraîchit la liste
+      setSelectedProduit(null);
+      fetchProduit();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err: any) {
       setError(
@@ -120,6 +171,21 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
         }`
       );
     }
+  };
+
+  const openConfirmModal = (id: number, message: string) => {
+    setConfirmModal({ isOpen: true, id, message });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal({ isOpen: false, id: null, message: "" });
+  };
+
+  const confirmDelete = () => {
+    if (confirmModal.id) {
+      handleDeleteProduit(confirmModal.id);
+    }
+    closeConfirmModal();
   };
 
   const prepareEditForm = (produit: Produit) => {
@@ -450,8 +516,11 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
                         onClick={(e) => {
-                          e.stopPropagation(); // Empêche le clic sur la ligne d'ouvrir les détails
-                          handleDeleteProduit(produit.id);
+                          e.stopPropagation();
+                          openConfirmModal(
+                            produit.id,
+                            `Êtes-vous sûr de vouloir supprimer le produit "${produit.nom}" ? Cette action est irréversible.`
+                          );
                         }}
                         className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition-colors"
                       >
@@ -503,7 +572,15 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
         </div>
 
         {selectedProduit && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeDetails();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-90vh overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Détails du Produit</h2>
@@ -584,7 +661,15 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
         )}
 
         {editingProduit && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeEditForm();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-90vh overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Modifier le Produit</h2>
@@ -696,7 +781,15 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
         )}
 
         {addingProduit && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              const modal = e.currentTarget.querySelector(".bg-white");
+              if (modal && !modal.contains(e.target as Node)) {
+                closeAddForm();
+              }
+            }}
+          >
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-90vh overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">
@@ -807,6 +900,15 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
               </form>
             </div>
           </div>
+        )}
+
+        {confirmModal.isOpen && (
+          <ConfirmModal
+            isOpen={confirmModal.isOpen}
+            onClose={closeConfirmModal}
+            onConfirm={confirmDelete}
+            message={confirmModal.message}
+          />
         )}
       </main>
     </div>

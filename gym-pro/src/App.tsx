@@ -15,6 +15,8 @@ import GestionVente from "./components/GestionVente";
 import GestionAbonnement from "./components/GestionAbonnement";
 import GestionStaff from "./components/GestionStaff";
 import GestionSalle from "./components/GestionSalle";
+import GestionCasier from "./components/GestionCasier";
+import GestionGymAbonnement from "./components/GestionGymAbonnement";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -26,12 +28,7 @@ function App() {
           path="/connexion"
           element={
             !isLoggedIn ? (
-              <ConnexionForm
-                setIsLoggedIn={setIsLoggedIn}
-                setShowRegister={(show) => {
-                  if (show) window.location.href = "/inscription";
-                }}
-              />
+              <ConnexionForm setIsLoggedIn={setIsLoggedIn} />
             ) : (
               <Navigate to="/" replace />
             )
@@ -41,12 +38,7 @@ function App() {
           path="/inscription"
           element={
             !isLoggedIn ? (
-              <InscriptionForm
-                setIsLoggedIn={setIsLoggedIn}
-                setShowRegister={(show) => {
-                  if (!show) window.location.href = "/connexion";
-                }}
-              />
+              <InscriptionForm setIsLoggedIn={setIsLoggedIn} /> // Affiche le formulaire d'inscription
             ) : (
               <Navigate to="/" replace />
             )
@@ -127,6 +119,26 @@ function App() {
           element={
             isLoggedIn ? (
               <GestionSalle setIsLoggedIn={setIsLoggedIn} />
+            ) : (
+              <Navigate to="/connexion" replace />
+            )
+          }
+        />
+        <Route
+          path="/casiers"
+          element={
+            isLoggedIn ? (
+              <GestionCasier setIsLoggedIn={setIsLoggedIn} />
+            ) : (
+              <Navigate to="/connexion" replace />
+            )
+          }
+        />
+        <Route
+          path="/abonnements-gyms"
+          element={
+            isLoggedIn ? (
+              <GestionGymAbonnement setIsLoggedIn={setIsLoggedIn} />
             ) : (
               <Navigate to="/connexion" replace />
             )

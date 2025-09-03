@@ -2,6 +2,52 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
+// Composant Modal de confirmation pour la suppression
+const ConfirmModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  message,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  message: string;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        const modal = e.currentTarget.querySelector(".bg-white");
+        if (modal && !modal.contains(e.target as Node)) {
+          onClose();
+        }
+      }}
+    >
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <h3 className="text-xl font-semibold mb-4">Confirmation</h3>
+        <p className="text-gray-700 mb-6">{message}</p>
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="bg-black text-orange-500 px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={onConfirm}
+            className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-400 transition-colors font-bold"
+          >
+            Confirmer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface Salle {
   id: number;
   nom: string;
@@ -10,6 +56,7 @@ interface Salle {
 interface FormData {
   nom: string;
 }
+
 interface TableauDeBordProps {
   setIsLoggedIn: (value: boolean) => void;
 }
@@ -27,12 +74,21 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
   const [detailLoading, setDetailLoading] = useState<boolean>(false);
   const [updating, setUpdating] = useState<boolean>(false);
   const [adding, setAdding] = useState<boolean>(false);
-  const [error, setError] = useState<String>("");
+  const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
 
   // Etat pour la pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [sallesPerPage, setSallesPerPage] = useState<number>(10);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    id: number | null;
+    message: string;
+  }>({
+    isOpen: false,
+    id: null,
+    message: "",
+  });
   const navigate = useNavigate();
 
   // Mon token JWT
@@ -86,7 +142,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  //  Préparer le formulaire de modification
+  // Préparer le formulaire de modification
   const prepareEditForm = (salle: Salle) => {
     setEditingSalle(salle);
     setFormData({
@@ -102,7 +158,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
     });
   };
 
-  // Modifier le non d'une salle
+  // Modifier le nom d'une salle
   const handleUpdateSalle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSalle) return;
@@ -136,12 +192,8 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  //  Supprimer une salle
+  // Supprimer une salle
   const handleDeleteSalle = async (id: number) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette salle ?")) {
-      return;
-    }
-
     try {
       const response = await axios.delete(
         `http://localhost:8080/api/salles/${id}`,
@@ -153,19 +205,19 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
         }
       );
       setSuccess("Salle supprimé avec succès !");
-      setSelectedSalle(null); // Ferme la modal des détails si ouverte
-      fetchSalles(); // Rafraît la liste
+      setSelectedSalle(null);
+      fetchSalles();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err: any) {
       setError(
-        `Erreur lors de la supression ${
+        `Erreur lors de la suppression ${
           err.response?.data.message || err.message
         }`
       );
     }
   };
 
-  //  Ajouter une salle
+  // Ajouter une salle
   const handleAddSalle = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -215,13 +267,13 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
     setAddingSalle(false);
   };
 
-  //Calcul le nombre de salle à afficher
+  // Calcul le nombre de salle à afficher
   const indexOfLastSalle = currentPage * sallesPerPage;
   const indexOfFirstSalle = indexOfLastSalle - sallesPerPage;
   const currentSalle = salles.slice(indexOfFirstSalle, indexOfLastSalle);
   const totalPages = Math.ceil(salles.length / sallesPerPage);
 
-  //  Pagination : Changer de page
+  // Pagination : Changer de page
   const handlePreviousPage = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
@@ -234,12 +286,28 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
     }
   };
 
-  //  Gérer le changement du nombre de salle par page
+  // Gérer le changement du nombre de salle par page
   const handleSallesPerPageChange = (
     e: React.ChangeEvent<HTMLSelectElement>
   ) => {
     setSallesPerPage(Number(e.target.value));
-    setCurrentPage(1); // Réinitialiser à la premiérepage
+    setCurrentPage(1); // Réinitialiser à la première page
+  };
+
+  // Gestion du modal de confirmation
+  const openConfirmModal = (id: number, message: string) => {
+    setConfirmModal({ isOpen: true, id, message });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal({ isOpen: false, id: null, message: "" });
+  };
+
+  const confirmDelete = () => {
+    if (confirmModal.id) {
+      handleDeleteSalle(confirmModal.id);
+    }
+    closeConfirmModal();
   };
 
   useEffect(() => {
@@ -260,9 +328,9 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
         <div className="text-red-500 text-xl">{error}</div>
         <button
           onClick={() => window.location.reload()}
-          className="ml-4 bd-orange-500 text-white px-4 py-2 rounded"
+          className="ml-4 bg-orange-500 text-white px-4 py-2 rounded"
         >
-          Réssayer
+          Réessayer
         </button>
       </div>
     );
@@ -270,7 +338,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-black to-orange-500 flex flex-col">
-      <header className="bg-black text-white flex justify-between items-center px-6 py-4 shadow-md">
+      <header className="fixed top-0 w-full  bg-black text-white flex justify-between items-center px-6 py-4 shadow-md z-50">
         <img
           src="./src/assets/logo avec arriere plan supprimer.png"
           alt="logo GYM-PRO"
@@ -278,46 +346,39 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
           height={54}
           className="object-contain"
         />
-
-        {/* Liens de navigation */}
         <nav className="flex space-x-6 font-bold font-inter">
-          <a
-            href="#"
-            className="hover:underline hover:text-orange-500 text-xl transition"
+          <button
+            onClick={() => navigate("/")}
+            className="hover:underline hover:text-orange-500 text-xl transition cursor-pointer text-white bg-transparent border-none"
           >
             Tableau de bord
-          </a>
-
-          {/* Menu Autres */}
+          </button>
+          <button
+            className="text-white hover:text-orange-500 text-xl transition cursor-pointer bg-transparent border-none"
+            onClick={() => window.location.reload()} // Recharge la page
+          >
+            Planning
+          </button>
           <div className="relative group">
-            <a
-              href="#"
-              className="text-white hover:underline hover:text-orange-500 text-xl transition"
-            >
+            <button className="text-white hover:text-orange-500 text-xl transition cursor-pointer bg-transparent border-none">
               Administration
-            </a>
+            </button>
             <div className="absolute left-0 mt-1 hidden group-hover:block w-64 bg-black border border-orange-600 rounded shadow-lg z-10 text-xs">
-              <a
-                href="/staffs"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate("/staffs");
-                }}
-                className="block px-4 py-2 text-white hover:text-orange-400"
+              <button
+                onClick={() => navigate("/membres")}
+                className="block w-full text-left px-4 py-2 text-white hover:text-orange-400 cursor-pointer"
               >
+                Gestion des membres
+              </button>
+              <button className="block w-full text-left px-4 py-2 text-white hover:text-orange-400 cursor-pointer">
                 Gestion du staff
-              </a>
-              <a
-                href="#"
-                className="block px-4 py-2 text-white hover:text-orange-400"
-              >
+              </button>
+              <button className="block w-full text-left px-4 py-2 text-white hover:text-orange-400 cursor-pointer">
                 Transaction
-              </a>
+              </button>
             </div>
           </div>
         </nav>
-
-        {/* Déconnexion */}
         <button
           onClick={handleLogout}
           className="bg-white text-orange-600 font-semibold px-4 py-2 rounded hover:bg-orange-100 transition"
@@ -333,8 +394,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
               Gestion des salles
             </h1>
             <p className="text-gray-400">
-              {salles.length} membre{salles.length !== 1 ? "s" : ""} du staff
-              trouvé
+              {salles.length} salle{salles.length !== 1 ? "s" : ""} trouvé
               {salles.length !== 1 ? "s" : ""} dans votre salle de sport
             </p>
           </div>
@@ -362,7 +422,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
         {salles.length > 0 && (
           <div className="mb-4 flex flex-col md:flex-row justify-between items-center space-y-2 md:space-y-0">
             <div className="flex items-center space-x-2">
-              <span className="text-white">Staff par page:</span>
+              <span className="text-white">Salles par page:</span>
               <select
                 value={sallesPerPage}
                 onChange={handleSallesPerPageChange}
@@ -378,12 +438,12 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
             <div className="text-white">
               Affichage de {indexOfFirstSalle + 1} à{" "}
               {Math.min(indexOfLastSalle, salles.length)} sur {salles.length}{" "}
-              membres du staff
+              salles
             </div>
           </div>
         )}
 
-        {/* Tableau du staff */}
+        {/* Tableau des salles */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -391,6 +451,9 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
                     Nom de la salle
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -406,6 +469,20 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
                         {salle.nom}
                       </div>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openConfirmModal(
+                            salle.id,
+                            `Êtes-vous sûr de vouloir supprimer la salle "${salle.nom}" ? Cette action est irréversible.`
+                          );
+                        }}
+                        className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition-colors"
+                      >
+                        Supprimer
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -415,7 +492,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
 
         {/* Pagination en bas */}
         {salles.length > 0 && (
-          <div className="mt-6 flex flex-col md:flexRow justify-between items-center space-y-4 md:space-y-0">
+          <div className="mt-6 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="text-white">
               Page {currentPage} sur {totalPages}
             </div>
@@ -475,7 +552,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
 
         {salles.length === 0 && (
           <div className="text-center py-8 text-gray-500 bg-white rounded-lg mt-4">
-            Aucun membre du staff trouvé dans la base de données.
+            Aucune salle trouvée dans la base de données.
           </div>
         )}
 
@@ -489,7 +566,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
           </button>
         </div>
 
-        {/* Modal des détails du membre du staff */}
+        {/* Modal des détails de la salle */}
         {selectedSalle && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-90vh overflow-y-auto">
@@ -513,7 +590,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
                     <div>
                       <div className="space-y-2">
                         <p>
-                          <strong>Nom :</strong> {selectedSalle.nom}{" "}
+                          <strong>Nom :</strong> {selectedSalle.nom}
                         </p>
                       </div>
                     </div>
@@ -542,7 +619,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         )}
 
-        {/* Modal de modification du membre du staff */}
+        {/* Modal de modification de la salle */}
         {editingSalle && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-90vh overflow-y-auto">
@@ -562,7 +639,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
                     <label className="block text-gray-700">Nom</label>
                     <input
                       type="text"
-                      name="nomStaff"
+                      name="nom"
                       value={formData.nom}
                       onChange={handleChange}
                       className="w-full p-2 border rounded"
@@ -591,7 +668,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         )}
 
-        {/* Modal d'ajout de membre du staff */}
+        {/* Modal d'ajout de salle */}
         {addingSalle && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-90vh overflow-y-auto">
@@ -613,7 +690,7 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
                     <label className="block text-gray-700">Nom *</label>
                     <input
                       type="text"
-                      name="nomStaff"
+                      name="nom"
                       value={formData.nom}
                       onChange={handleChange}
                       className="w-full p-2 border rounded"
@@ -640,6 +717,16 @@ function GestionSalle({ setIsLoggedIn }: TableauDeBordProps) {
               </form>
             </div>
           </div>
+        )}
+
+        {/* Modal de confirmation de suppression */}
+        {confirmModal.isOpen && (
+          <ConfirmModal
+            isOpen={confirmModal.isOpen}
+            onClose={closeConfirmModal}
+            onConfirm={confirmDelete}
+            message={confirmModal.message}
+          />
         )}
       </main>
     </div>
