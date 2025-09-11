@@ -316,7 +316,7 @@ function GestionCasier({ setIsLoggedIn }: TableauDeBordProps) {
     indexOfLastItem
   );
   const totalPages = Math.ceil(filteredCasiers.length / itemsPerPage);
-
+  // commit
   useEffect(() => {
     if (!token) {
       navigate("/connexion");
