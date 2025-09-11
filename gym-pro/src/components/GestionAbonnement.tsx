@@ -33,7 +33,7 @@ interface Abonnement {
   id: number;
   membreId: number;
   membre: Membre;
-  typeDeService: TypeDeService[]; // Changé en tableau
+  typeDeService: TypeDeService[];
   prix: number;
   dateDebutAbonnement: string;
   dateFinAbonnement: string;
@@ -50,7 +50,7 @@ interface Abonnement {
 
 interface FormData {
   membreId: string;
-  typeDeServiceId?: number; // Modifié en number optionnel
+  typeDeServiceId?: number;
   nombreDeMois: string;
   modeDePaiement: string;
   periodAbonnement: string;
@@ -84,7 +84,7 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
   const [success, setSuccess] = useState<string>("");
   const [formData, setFormData] = useState<FormData>({
     membreId: "",
-    typeDeServiceId: undefined, // Initialisé à undefined
+    typeDeServiceId: undefined,
     nombreDeMois: "",
     modeDePaiement: "",
     periodAbonnement: "MENSUEL",
@@ -100,6 +100,11 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
   const [historique, setHistorique] = useState<Abonnement[]>([]);
   const [showHistorique, setShowHistorique] = useState<boolean>(false);
   const [joursAbsence, setJoursAbsence] = useState<string>("7");
+  const [membreSearch, setMembreSearch] = useState<string>("");
+  const [filteredMembres, setFilteredMembres] = useState<Membre[]>([]);
+  const [query, setQuery] = useState<string>("");
+  const [filterTypeService, setFilterTypeService] = useState<string>("");
+  const [filterStatut, setFilterStatut] = useState<string>("");
 
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
@@ -246,7 +251,7 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
         "http://localhost:8080/api/abonnements/ajouter",
         {
           membreId: parseInt(formData.membreId),
-          typeDeServiceId: formData.typeDeServiceId, // Utilise directement la valeur (number ou undefined)
+          typeDeServiceId: formData.typeDeServiceId,
           nombreDeMois: parseInt(formData.nombreDeMois),
           modeDePaiement: formData.modeDePaiement,
           periodAbonnement: formData.periodAbonnement,
@@ -468,7 +473,7 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
   const handleTypeDeServiceChange = (
     e: React.ChangeEvent<HTMLSelectElement>
   ) => {
-    const typeId = parseInt(e.target.value); // Convertir en number
+    const typeId = parseInt(e.target.value);
     const selectedType = typesService.find((type) => type.id === typeId);
     if (selectedType) {
       const frais =
@@ -522,6 +527,45 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
     setShowHistorique(false);
     setHistorique([]);
   };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+  };
+
+  const handleFilterTypeServiceChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setFilterTypeService(e.target.value);
+  };
+
+  const handleFilterStatutChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setFilterStatut(e.target.value);
+  };
+
+  const filteredAbonnements = abonnements.filter((abonnement) => {
+    const matchesQuery =
+      !query ||
+      `${abonnement.membre.nom} ${abonnement.membre.prenom} ${
+        abonnement.typeDeService[0]?.nom || ""
+      } ${abonnement.modePaiement} ${abonnement.dateDebutAbonnement} ${
+        abonnement.dateFinAbonnement
+      } ${abonnement.statut}`
+        .toLowerCase()
+        .includes(query.toLowerCase());
+
+    const matchesFilterTypeService =
+      !filterTypeService ||
+      abonnement.typeDeService.some(
+        (service) => service.nom === filterTypeService
+      );
+
+    const matchesFilterStatut =
+      !filterStatut || abonnement.statut === filterStatut;
+
+    return matchesQuery && matchesFilterTypeService && matchesFilterStatut;
+  });
 
   useEffect(() => {
     fetchAbonnements();
@@ -612,6 +656,49 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         )}
 
+        <div className="flex flex-wrap gap-24 mb-10 px-10">
+          <form
+            onSubmit={(e) => e.preventDefault()}
+            className="flex items-center space-x-2"
+          >
+            <input
+              type="text"
+              placeholder="Rechercher..."
+              value={query}
+              onChange={handleSearchChange}
+              className="px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black w-64"
+            />
+          </form>
+          <div className="flex items-center space-x-2">
+            <select
+              value={filterTypeService}
+              onChange={handleFilterTypeServiceChange}
+              className="px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black w-64"
+            >
+              <option value="">Tous les types de service</option>
+              {typesService.map((service) => (
+                <option key={service.id} value={service.nom}>
+                  {service.nom}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filterStatut}
+              onChange={handleFilterStatutChange}
+              className="px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black w-64"
+            >
+              <option value="">Tous les statuts</option>
+              <option value="EN_COURS">En cours</option>
+              <option value="EN_PAUSE">En pause</option>
+              <option value="EXPIRE">Expiré</option>
+              <option value="RESILIE">Résilié</option>
+              <option value="BIENTOT_EXPIRE">Bientôt expiré</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Tableau */}
+
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -644,7 +731,7 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {abonnements.map((abonnement) => (
+                {filteredAbonnements.map((abonnement) => (
                   <tr
                     key={abonnement.id}
                     className="hover:bg-gray-100 cursor-pointer transition-colors"
@@ -747,9 +834,9 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         </div>
 
-        {abonnements.length === 0 && (
+        {filteredAbonnements.length === 0 && (
           <div className="text-center py-8 text-gray-500 bg-white rounded-lg mt-4">
-            Aucun abonnement trouvé dans la base de données.
+            Aucun abonnement trouvé avec les filtres appliqués.
           </div>
         )}
 
@@ -786,21 +873,46 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
               <form onSubmit={handleAddAbonnement} className="space-y-4">
                 <div>
                   <label className="block text-gray-700">Membre *</label>
-                  <select
-                    name="membreId"
-                    value={formData.membreId}
-                    onChange={handleChange}
-                    className="w-full p-2 border rounded"
+                  <input
+                    type="text"
+                    value={membreSearch || ""}
+                    onChange={(e) => {
+                      const searchTerm = e.target.value;
+                      setMembreSearch(searchTerm);
+                      const filteredMembres = membres.filter((membre) =>
+                        `${membre.nom} ${membre.prenom} ${membre.email} ${membre.telephone}`
+                          .toLowerCase()
+                          .includes(searchTerm.toLowerCase())
+                      );
+                      setFilteredMembres(filteredMembres);
+                    }}
+                    placeholder="Rechercher un membre..."
+                    className="w-full p-2 border rounded mb-2"
                     required
-                  >
-                    <option value="">Sélectionnez un membre</option>
-                    {membres.map((membre) => (
-                      <option key={membre.id} value={membre.id.toString()}>
-                        {membre.nom} {membre.prenom} - {membre.email} (
-                        {membre.genre})
-                      </option>
-                    ))}
-                  </select>
+                  />
+                  {filteredMembres.length > 0 && (
+                    <ul className="border rounded max-h-40 overflow-y-auto">
+                      {filteredMembres.map((membre) => (
+                        <li
+                          key={membre.id}
+                          onClick={() => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              membreId: membre.id.toString(),
+                            }));
+                            setMembreSearch(
+                              `${membre.nom} ${membre.prenom} - ${membre.email}`
+                            );
+                            setFilteredMembres([]);
+                          }}
+                          className="p-2 hover:bg-gray-100 cursor-pointer"
+                        >
+                          {membre.nom} {membre.prenom} - {membre.email} (
+                          {membre.genre})
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <div>
@@ -900,7 +1012,7 @@ function GestionAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
                   </button>
                   <button
                     type="submit"
-                    disabled={adding}
+                    disabled={adding || !formData.membreId}
                     className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-400 transition-colors font-bold"
                   >
                     {adding ? "Ajout en cours..." : "Ajouter"}

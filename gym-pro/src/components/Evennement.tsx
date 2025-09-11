@@ -1369,6 +1369,8 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
         onDelete={prepareDeleteCoaching}
       />
 
+      {/* Header */}
+
       <header className="fixed top-0 w-full  bg-black text-white flex justify-between items-center px-6 py-4 shadow-md z-50">
         <img
           src="./src/assets/logo avec arriere plan supprimer.png"
@@ -1739,7 +1741,7 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
               }
             }}
           >
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md ">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">
                   Ajouter une Séance de Coaching
@@ -1752,7 +1754,10 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
                 </button>
               </div>
 
-              <form onSubmit={handleAddCoaching} className="space-y-2">
+              <form
+                onSubmit={handleAddCoaching}
+                className="space-y-1 max-h-[80vh] overflow-y-auto"
+              >
                 <div>
                   <label className="block text-gray-700">Nom du cours *</label>
                   <input
@@ -1889,7 +1894,7 @@ function Evenement({ setIsLoggedIn }: TableauDeBordProps) {
                   <button
                     type="button"
                     onClick={closeAddCoachingForm}
-                    className="bg-black text-orange-500 px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+                    className="bg-black text-orange-500 px-4 py-2 rounded hover:bg-gray-600 transition-colors font-bold"
                   >
                     Annuler
                   </button>

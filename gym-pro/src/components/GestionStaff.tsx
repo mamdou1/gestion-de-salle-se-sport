@@ -61,6 +61,10 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
   const [staffsPerPage, setStaffsPerPage] = useState<number>(10);
   const navigate = useNavigate();
 
+  // États pour les filtres
+  const [query, setQuery] = useState<string>("");
+  const [filterRole, setFilterRole] = useState<string>("");
+
   // Votre token JWT
   const token = localStorage.getItem("token");
 
@@ -236,6 +240,14 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+  };
+
+  const handleFilterRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilterRole(e.target.value);
+  };
+
   const closeDetails = () => {
     setSelectedStaff(null);
   };
@@ -249,10 +261,23 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
   };
 
   // Pagination : Calculer les membres du staff à afficher
+  const filteredStaffs = staffs.filter((staff) => {
+    const matchesQuery =
+      !query ||
+      `${staff.nom} ${staff.prenom} ${staff.email} ${staff.telephone} ${staff.adresse} ${staff.role}`
+        .toLowerCase()
+        .includes(query.toLowerCase());
+    const matchesFilterRole = !filterRole || staff.role === filterRole;
+    return matchesQuery && matchesFilterRole;
+  });
+
   const indexOfLastStaff = currentPage * staffsPerPage;
   const indexOfFirstStaff = indexOfLastStaff - staffsPerPage;
-  const currentStaffs = staffs.slice(indexOfFirstStaff, indexOfLastStaff);
-  const totalPages = Math.ceil(staffs.length / staffsPerPage);
+  const currentStaffs = filteredStaffs.slice(
+    indexOfFirstStaff,
+    indexOfLastStaff
+  );
+  const totalPages = Math.ceil(filteredStaffs.length / staffsPerPage);
 
   // Pagination : Changer de page
   const handlePreviousPage = () => {
@@ -380,7 +405,7 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         )}
 
-        {/* Contrôles de pagination en haut */}
+        {/* Contrôles de pagination et filtres en haut */}
         {staffs.length > 0 && (
           <div className="mb-4 flex flex-col md:flex-row justify-between items-center space-y-2 md:space-y-0">
             <div className="flex items-center space-x-2">
@@ -399,11 +424,40 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
 
             <div className="text-white">
               Affichage de {indexOfFirstStaff + 1} à{" "}
-              {Math.min(indexOfLastStaff, staffs.length)} sur {staffs.length}{" "}
-              membres du staff
+              {Math.min(indexOfLastStaff, filteredStaffs.length)} sur{" "}
+              {filteredStaffs.length} membres du staff
             </div>
           </div>
         )}
+
+        {/* Filtres */}
+        <div className="flex flex-wrap gap-24 mb-10 px-10">
+          <form
+            onSubmit={(e) => e.preventDefault()}
+            className="flex items-center space-x-2"
+          >
+            <input
+              type="text"
+              placeholder="Rechercher..."
+              value={query}
+              onChange={handleSearchChange}
+              className="px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black w-64"
+            />
+          </form>
+          <div className="flex items-center space-x-2">
+            <select
+              value={filterRole}
+              onChange={handleFilterRoleChange}
+              className="px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black w-64"
+            >
+              <option value="">Tous les rôles</option>
+              <option value="ADMIN">Administrateur</option>
+              <option value="GERANT">Gérant</option>
+              <option value="COACH">Coach</option>
+              <option value="RECEPTIONNISTE">Réceptionniste</option>
+            </select>
+          </div>
+        </div>
 
         {/* Tableau du staff */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">

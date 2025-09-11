@@ -485,6 +485,8 @@ function GestionGymAbonnement({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         )}
 
+        {/* Tableau */}
+
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <table className="w-full">
             <thead className="bg-orange-500 text-white">

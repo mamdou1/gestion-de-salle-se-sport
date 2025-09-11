@@ -7,7 +7,7 @@ interface Vente {
   dateVente: string;
   montantTotal: number;
   modeDePaiement: string;
-  membre: { id: number; nom: string; prenom: string };
+  membre: { id: number; nom: string; prenom: string } | null;
   staff: { id: number; nom: string; prenom: string };
 
   lignes: LigneVente[];
@@ -74,6 +74,11 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
   });
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
+
+  const [query, setQuery] = useState<string>("");
+  const [filterProduit, setFilterProduit] = useState<string>("");
+  const [membreSearch, setMembreSearch] = useState<string>("");
+  const [filteredMembres, setFilteredMembres] = useState<Membre[]>([]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -392,6 +397,33 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
     fetchData();
   }, []);
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+  };
+
+  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilterProduit(e.target.value);
+  };
+
+  const filteredVentes = ventes.filter((vente) => {
+    const matchesQuery =
+      !query ||
+      vente.lignes.some((ligne) =>
+        ligne.produit.nom.toLowerCase().includes(query.toLowerCase())
+      ) ||
+      (vente.membre &&
+        `${vente.membre.nom} ${vente.membre.prenom}`
+          .toLowerCase()
+          .includes(query.toLowerCase())) ||
+      vente.modeDePaiement.toLowerCase().includes(query.toLowerCase());
+
+    const matchesFilter =
+      !filterProduit ||
+      vente.lignes.some((ligne) => ligne.produit.nom === filterProduit);
+
+    return matchesQuery && matchesFilter;
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -464,6 +496,36 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
           </button>
         </div>
 
+        {/* Nouveau champ de recherche et filtre */}
+        <div className="flex flex-wrap gap-24 mb-10 pt-2">
+          <form
+            onSubmit={(e) => e.preventDefault()}
+            className="flex items-center space-x-2"
+          >
+            <input
+              type="text"
+              placeholder="Rechercher..."
+              value={query}
+              onChange={handleSearchChange}
+              className="px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black w-64"
+            />
+          </form>
+          <div className="flex items-center space-x-2">
+            <select
+              value={filterProduit}
+              onChange={handleFilterChange}
+              className="px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black w-64"
+            >
+              <option value="">Tous les produits</option>
+              {produits.map((produit) => (
+                <option key={produit.id} value={produit.nom}>
+                  {produit.nom}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {/* Statistiques */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow-lg p-4">
@@ -520,7 +582,7 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {currentVentes.map((vente) => (
+                {filteredVentes.map((vente) => (
                   <tr
                     key={vente.id}
                     className="hover:bg-gray-300 cursor-pointer transition-colors odd:bg-gray-100 even:bg-gray-200"
@@ -533,7 +595,9 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {vente.membre.nom} {vente.membre.prenom}
+                        {vente.membre
+                          ? `${vente.membre.nom} ${vente.membre.prenom}`
+                          : "Non-nombre"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -552,6 +616,12 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
             </table>
           </div>
         </div>
+
+        {filteredVentes.length === 0 && (
+          <div className="text-center py-8 text-gray-500 bg-white rounded-lg mt-4">
+            Aucun abonnement trouvé avec les filtres appliqués.
+          </div>
+        )}
 
         {/* Pagination */}
         {ventes.length > 0 && (
@@ -636,8 +706,10 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
                           ).toLocaleDateString()}
                         </p>
                         <p>
-                          <strong>Acheteur:</strong> {selectedVente.membre.nom}{" "}
-                          {selectedVente.membre.prenom}
+                          <strong>Acheteur:</strong>{" "}
+                          {selectedVente.membre
+                            ? `${selectedVente.membre.nom} ${selectedVente.membre.prenom}`
+                            : "Non-membre"}
                         </p>
                         <p>
                           <strong>Montant Total:</strong>{" "}
@@ -717,21 +789,48 @@ function GestionVente({ setIsLoggedIn }: TableauDeBordProps) {
                       <label className="block text-gray-700">
                         Acheteur (membre existant)
                       </label>
-                      <select
-                        name="acheteurId"
-                        value={formData.acheteurId || ""}
-                        onChange={handleChange}
-                        className="w-full p-2 border rounded"
-                      >
-                        <option value="">
-                          Non-membre (saisir manuellement)
-                        </option>
-                        {membres.map((membre) => (
-                          <option key={membre.id} value={membre.id}>
-                            {membre.nom} {membre.prenom}
-                          </option>
-                        ))}
-                      </select>
+                      <input
+                        type="text"
+                        value={membreSearch || ""}
+                        onChange={(e) => {
+                          const searchTerm = e.target.value;
+                          setMembreSearch(searchTerm);
+                          const filteredMembres = membres.filter((membre) =>
+                            `${membre.nom} ${membre.prenom}`
+                              .toLowerCase()
+                              .includes(searchTerm.toLowerCase())
+                          );
+                          setFilteredMembres(filteredMembres);
+                        }}
+                        placeholder="Rechercher un membre..."
+                        className="w-full p-2 border rounded mb-2"
+                      />
+                      {filteredMembres.length > 0 && (
+                        <ul className="border rounded max-h-40 overflow-y-auto">
+                          {filteredMembres.map((membre) => (
+                            <li
+                              key={membre.id}
+                              onClick={() => {
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  acheteurId: membre.id,
+                                  nomAcheteur: undefined,
+                                  prenomAcheteur: undefined,
+                                  telephoneAcheteur: undefined,
+                                  genre: undefined,
+                                }));
+                                setMembreSearch(
+                                  `${membre.nom} ${membre.prenom}`
+                                );
+                                setFilteredMembres([]);
+                              }}
+                              className="p-2 hover:bg-gray-100 cursor-pointer"
+                            >
+                              {membre.nom} {membre.prenom}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
 
                     {!formData.acheteurId && (

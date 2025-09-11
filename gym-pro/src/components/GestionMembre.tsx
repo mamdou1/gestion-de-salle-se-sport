@@ -99,6 +99,11 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
   const [totalPages, setTotalPages] = useState<number>(0);
   const navigate = useNavigate();
 
+  const [membreSearch, setMembreSearch] = useState<string>("");
+  const [filteredMembres, setFilteredMembres] = useState<Membre[]>([]);
+  const [query, setQuery] = useState<string>("");
+  const [filterTypeService, setFilterTypeService] = useState<string>("");
+
   const token = localStorage.getItem("token");
 
   const handleLogout = () => {
@@ -411,6 +416,33 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
     setCurrentPage(0);
   };
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+  };
+
+  const handleFilterTypeServiceChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setFilterTypeService(e.target.value);
+  };
+
+  const filteredMembre = membres.filter((membre) => {
+    const matchesQuery =
+      !query ||
+      `${membre.nom} ${membre.prenom} ${membre.email} ${membre.telephone} ${membre.adresse} ${membre.role}`
+        .toLowerCase()
+        .includes(query.toLowerCase());
+
+    const matchesFilterTypeService =
+      !filterTypeService ||
+      (membre.typeDeService &&
+        membre.typeDeService.some(
+          (service) => service.nom === filterTypeService
+        ));
+
+    return matchesQuery && matchesFilterTypeService;
+  });
+
   useEffect(() => {
     fetchMembres();
     fetchTypesService();
@@ -540,6 +572,36 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
           </div>
         )}
 
+        {/* Filtres */}
+        <div className="flex flex-wrap gap-24 mb-10 px-10">
+          <form
+            onSubmit={(e) => e.preventDefault()}
+            className="flex items-center space-x-2"
+          >
+            <input
+              type="text"
+              placeholder="Rechercher..."
+              value={query}
+              onChange={handleSearchChange}
+              className="px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black w-64"
+            />
+          </form>
+          <div className="flex items-center space-x-2">
+            <select
+              value={filterTypeService}
+              onChange={handleFilterTypeServiceChange}
+              className="px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black w-64"
+            >
+              <option value="">Tous les types de service</option>
+              {typeDeService.map((service) => (
+                <option key={service.id} value={service.nom}>
+                  {service.nom}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {/* Tableau */}
 
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
@@ -571,7 +633,7 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {membres.map((membre) => (
+                {filteredMembre.map((membre) => (
                   <tr
                     key={membre.id}
                     className="hover:bg-gray-300 cursor-pointer transition-colors odd:bg-gray-100 even:bg-gray-200"
