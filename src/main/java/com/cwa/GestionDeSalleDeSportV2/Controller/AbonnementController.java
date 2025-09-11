@@ -26,7 +26,7 @@ public class AbonnementController {
     }
 
     // 1.  Ajout 'dun abonnement par le staff
-    @PostMapping("/valider")
+    @PostMapping("/ajouter")
     public ResponseEntity<String> validerAbonnement(@Valid @RequestBody AbonnementDTO dto) throws MessagingException, AccessDeniedException {
         abonnementService.ajouterAbonnement(dto);
         return new  ResponseEntity<>("Abonnement valider avec succès !", HttpStatus.CREATED);
@@ -34,8 +34,12 @@ public class AbonnementController {
 
     // 2.  Affiche tout les abonnement
     @GetMapping
-    public ResponseEntity<List<Abonnement>> getAllAbonnement(){
-        return ResponseEntity.ok(abonnementService.getAllAbonnement());
+    public ResponseEntity<List<Abonnement>> getAllAbonnement() throws AccessDeniedException {
+        List<Abonnement> abonnements = abonnementService.getAllAbonnement();
+        if (abonnements == null || abonnements.isEmpty()){
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(abonnements);
     }
 
     //  3.  Renouvellement de l'abonnement
@@ -55,8 +59,8 @@ public class AbonnementController {
 
     // 5.  Mettre un abonnement en pause
     @PutMapping("/pause/{id}")
-    public ResponseEntity<Abonnement> mettreEnPause(int joursAbsence, @PathVariable Long idAbonnement) throws AccessDeniedException {
-        Abonnement abonnement = abonnementService.mettreEnPause(idAbonnement, joursAbsence);
+    public ResponseEntity<Abonnement> mettreEnPause(@RequestBody PauseAbonnementDTO dto, @PathVariable Long idAbonnement) throws AccessDeniedException {
+        Abonnement abonnement = abonnementService.mettreEnPause(idAbonnement, dto);
         return ResponseEntity.ok(abonnement);
     }
 
@@ -85,6 +89,11 @@ public class AbonnementController {
 
         List<Abonnement> historique  = abonnementService.getHistoriqueAbonnementParMembre(id);
         return ResponseEntity.ok(historique );
+    }
+
+    @GetMapping("/get_abonnement_by_id/{abonnementId}")
+    public ResponseEntity<Abonnement> getAbonnementById(@PathVariable Long abonnementId) throws AccessDeniedException {
+        return ResponseEntity.ok(abonnementService.getAbonnementById(abonnementId));
     }
 
     //  9.  Supprimer un membre

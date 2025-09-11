@@ -14,6 +14,7 @@ import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -170,8 +171,21 @@ public class CoachingService {
     //      Elle est conçue pour alimenter un calendrier (ex. : FullCalendar) dans le frontend,
     //      en fournissant les coaching pertinents pour une période et une salle données.
 
-    public List<CoachingViewDTO> getCoachingsByGymAndDateRange(Long gymId, LocalDateTime start, LocalDateTime end) {
-        List<Coaching> coachings = coachingRepository.findByGymIdAndDateDebutGreaterThanEqualAndDateFinLessThanEqual(gymId, start, end);
+    public List<CoachingViewDTO> getCoachingsByGymAndDateRange() {
+        checkStaffAccess();
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+
+        Gym gym = currentUser.getGym();
+        if (gym == null) {
+            throw new RuntimeException("Aucune salle de sport associée à l'utilisateur.");
+        }
+
+        verificationAccesGym(currentUser, gym, "consulter les événements de ");
+
+        //  Détermine la plage de dates du mois courant
+        LocalDateTime start = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime end = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth()).atTime(23, 59, 59);
+        List<Coaching> coachings = coachingRepository.findByGymIdAndDateDebutGreaterThanEqualAndDateFinLessThanEqual(gym.getId(), start, end);
         return coachings.stream().map(this::toViewDTO).collect(Collectors.toList());
     }
 

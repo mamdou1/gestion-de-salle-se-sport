@@ -3,8 +3,11 @@ package com.cwa.GestionDeSalleDeSportV2.Service;
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutAbonnement;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutEvent;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Evenement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.AbonnementRepository;
+import com.cwa.GestionDeSalleDeSportV2.Repository.EvenementRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
 import org.springframework.scheduling.annotation.Scheduled;

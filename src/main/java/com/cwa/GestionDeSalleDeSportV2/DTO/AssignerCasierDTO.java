@@ -1,19 +1,21 @@
 package com.cwa.GestionDeSalleDeSportV2.DTO;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public class AssignerCasierDTO {
-    private Long salleId;
+    private Long id;
     private Long membreId;
-    private BigDecimal prix;
+    private LocalDate dateDebut;
 
 
-    public Long getSalleId() {
-        return salleId;
+    public Long getId() {
+        return id;
     }
 
-    public void setSalleId(Long salleId) {
-        this.salleId = salleId;
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public Long getMembreId() {
@@ -24,11 +26,11 @@ public class AssignerCasierDTO {
         this.membreId = membreId;
     }
 
-    public BigDecimal getPrix() {
-        return prix;
+    public LocalDate getDateDebut() {
+        return dateDebut;
     }
 
-    public void setPrix(BigDecimal prix) {
-        this.prix = prix;
+    public void setDateDebut(LocalDate dateDebut) {
+        this.dateDebut = dateDebut;
     }
 }

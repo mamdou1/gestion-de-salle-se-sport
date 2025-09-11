@@ -7,10 +7,7 @@ import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutMembre;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,6 +19,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -37,11 +36,11 @@ public class User implements UserDetails {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "gym_principal_id", nullable = false)
+    @JoinColumn(name = "gym_principal_id", nullable = true)
     @JsonManagedReference
     private Gym gym;
 
-    @ManyToMany
+    @ManyToMany(cascade = CascadeType.ALL)
     @JsonManagedReference
     @JoinTable(
             name = "user_gyms",
@@ -63,13 +62,14 @@ public class User implements UserDetails {
 //    private String username;
     private String password;
 
-    //@PastOrPresent(message = "La date de naissance ne peut pas être dans le futur")
+//    @PastOrPresent(message = "La date de naissance ne peut pas être dans le futur")
+    //@AgeConstraint(min = 16, max = 80, message = "l'âge doit être comprise entre 16 et 80 ans")
     private String date_de_naissance;
 
     @CreationTimestamp // Veut dire que la date est (private LocalDateTime  date_creation = LocalDateTime.now(); )
     private LocalDateTime date_creation;
 
-    @NotNull(message = "Le role est obligatoire")
+    //@NotNull(message = "Le role est obligatoire")
     @Enumerated(EnumType.STRING)
     private Role role;
     private LocalDateTime lastLogin;
@@ -78,6 +78,7 @@ public class User implements UserDetails {
     private Boolean fraisInscriptionPayer = false;
 
     @OneToMany(mappedBy = "membre", cascade = CascadeType.ALL)
+    @JsonBackReference
     private List<Abonnement> abonnements = new ArrayList<>();
 
     @Column
@@ -99,12 +100,40 @@ public class User implements UserDetails {
     private List<Notification> notifications;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference
+    @JsonBackReference
     private List<DemandeInscription> demandes;
 
     @OneToMany(mappedBy = "membre")
     @JsonBackReference
     private List<Vente> ventes; // Historique des ventes pour l'acheteur
+
+    private boolean isVerified = false;
+
+    private String verificationCode;
+
+    private LocalDateTime verificationCodeExpiry;
+
+    @ManyToOne
+    @JoinColumn(name = "type_de_service_id", nullable = true)
+    private TypeDeService typeDeService;
+
+
+    @AssertTrue(message = "L'âge doit être compris entre 16 et 80 ans")
+    public boolean isValidAge() {
+        if (date_de_naissance == null || date_de_naissance.trim().isEmpty()) {
+            return true;
+        }
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            LocalDate birthDate = LocalDate.parse(date_de_naissance, formatter);
+            LocalDate currentDate = LocalDate.now(); // 2025-08-28, 11:21 AM GMT
+            int age = Period.between(birthDate, currentDate).getYears();
+            return age >= 16 && age <= 80;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
 
     @Override
     public boolean isEnabled() {
@@ -345,6 +374,38 @@ public class User implements UserDetails {
 
     public void setVentes(List<Vente> ventes) {
         this.ventes = ventes;
+    }
+
+    public boolean isVerified() {
+        return isVerified;
+    }
+
+    public void setVerified(boolean verified) {
+        isVerified = verified;
+    }
+
+    public String getVerificationCode() {
+        return verificationCode;
+    }
+
+    public void setVerificationCode(String verificationCode) {
+        this.verificationCode = verificationCode;
+    }
+
+    public LocalDateTime getVerificationCodeExpiry() {
+        return verificationCodeExpiry;
+    }
+
+    public void setVerificationCodeExpiry(LocalDateTime verificationCodeExpiry) {
+        this.verificationCodeExpiry = verificationCodeExpiry;
+    }
+
+    public TypeDeService getTypeDeService() {
+        return typeDeService;
+    }
+
+    public void setTypeDeService(TypeDeService typeDeService) {
+        this.typeDeService = typeDeService;
     }
 }
 

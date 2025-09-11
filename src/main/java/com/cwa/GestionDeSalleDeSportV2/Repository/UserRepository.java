@@ -2,7 +2,10 @@ package com.cwa.GestionDeSalleDeSportV2.Repository;
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutMembre;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
@@ -21,4 +24,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByTelephoneOrEmail(String telephone, String email);
 
     List<User> findByStatutAndRole(StatutMembre statutMembre, Role role);
+
+    List<User> findByGymIn(List<Gym> userGyms);
+
+    Page<User> findByGymInAndRoleIn(List<Gym> gyms, List<Role> roles, Pageable pageable);
+
+    User findByEmail(String email);
+
+    User findByEmailIgnoreCase(String email);
 }

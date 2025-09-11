@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.ZonedDateTime;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -41,7 +42,7 @@ public class EvenementController {
     }
 
     //  3.   Supprime un événement
-    @DeleteMapping("/spprimer/{id}")
+    @DeleteMapping("/supprimer/{id}")
     public ResponseEntity<Void> deleteEvenement(@PathVariable Long id) throws MessagingException {
         evenementService.deleteEvenement(id);
         return ResponseEntity.noContent().build();
@@ -58,13 +59,9 @@ public class EvenementController {
     //      (gymId) et se déroulant dans une plage de dates donnée (start et end).
     //      Elle est conçue pour alimenter un calendrier (ex. : FullCalendar) dans le frontend,
     //      en fournissant les événements pertinents pour une période et une salle données.
-    @GetMapping("/gym/{gymId}")
-    public ResponseEntity<List<EvenementViewDTO>> getEvenementsByGymAndDateRange(
-            LocalDateTime start,
-            LocalDateTime end,
-            @PathVariable Long gymId
-    ) {
-        List<EvenementViewDTO> evenements = evenementService.getEvenementsByGymAndDateRange(gymId, start, end);
+    @GetMapping("/liste")
+    public ResponseEntity<List<EvenementViewDTO>> getEvenementsByGymAndDateRange() {
+        List<EvenementViewDTO> evenements = evenementService.getEvenementsByGymAndDateRange();
         return ResponseEntity.ok(evenements);
     }
 }

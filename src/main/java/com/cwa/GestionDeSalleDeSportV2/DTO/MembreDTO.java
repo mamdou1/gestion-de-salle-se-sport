@@ -1,5 +1,6 @@
 package com.cwa.GestionDeSalleDeSportV2.DTO;
 
+import com.cwa.GestionDeSalleDeSportV2.AnotationPersonnaliser.AgeConstraint;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Genre;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import jakarta.validation.constraints.Email;
@@ -7,7 +8,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 
 public class MembreDTO {
@@ -34,16 +34,18 @@ public class MembreDTO {
     private Genre genreMembre;
 
     @NotBlank(message = "La date de naissance est obligatoire")
-    private String getDate_de_naissanceMembre;
+    @AgeConstraint(min = 16, max = 80, message = "l'âge doit être comprise entre 16 et 80 ans")
+    private String date_de_naissanceMembre;
 
-    @NotNull(message = "Le rôle est obligatoire")
     private Role role;
 
-    @NotBlank(message = "Le mot de passe est obligatoire")
     private String passwordMembre;
 
-    @NotNull(message = "Les frais d'inscription sont obligatoires")
+   // @NotNull(message = "Les frais d'inscription sont obligatoires")
     private BigDecimal fraisInscriptionMembre;
+
+    @NotNull(message = "Le type de service est obligatoire")
+    private Long typeDeService;
 
     private Long chefFamilleId;
 
@@ -67,12 +69,12 @@ public class MembreDTO {
         this.role = role;
     }
 
-    public String getGetDate_de_naissanceMembre() {
-        return getDate_de_naissanceMembre;
+    public String getDate_de_naissanceMembre() {
+        return date_de_naissanceMembre;
     }
 
-    public void setGetDate_de_naissanceMembre(String getDate_de_naissanceMembre) {
-        this.getDate_de_naissanceMembre = getDate_de_naissanceMembre;
+    public void setDate_de_naissanceMembre(String date_de_naissanceMembre) {
+        this.date_de_naissanceMembre = date_de_naissanceMembre;
     }
 
     public String getNomMembre() {
@@ -161,5 +163,13 @@ public class MembreDTO {
 
     public void setGymsIds(List<Long> gymsIds) {
         this.gymsIds = gymsIds;
+    }
+
+    public Long getTypeDeService() {
+        return typeDeService;
+    }
+
+    public void setTypeDeService(Long typeDeService) {
+        this.typeDeService = typeDeService;
     }
 }

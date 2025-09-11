@@ -5,7 +5,7 @@ import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.PeriodAbonnement;
 import java.math.BigDecimal;
 
 public class RenouvelerAbonnementDTO {
-    private Long id;
+
     private PeriodAbonnement periodAbonnement;
     private Integer ajoutMois;
     private Double nouveauAbonnement;

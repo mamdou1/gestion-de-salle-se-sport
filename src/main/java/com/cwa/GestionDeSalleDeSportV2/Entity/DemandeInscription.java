@@ -1,18 +1,16 @@
 package com.cwa.GestionDeSalleDeSportV2.Entity;
 
 
-import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Genre;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.PeriodAbonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutMembre;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeAbonnements;
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PastOrPresent;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDate;
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 
 @Entity
@@ -23,43 +21,38 @@ public class DemandeInscription {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String nom;
-
-    private String prenom;
-
-    private String adresse;
-
-    private String email;
-
-    private String telephone;
+    @Enumerated(EnumType.STRING)
+    private PeriodAbonnement periodAbonnement;
 
     @Enumerated(EnumType.STRING)
-    private Genre genre;
+    private TypeAbonnements types = TypeAbonnements.INDIVIDUEL;
 
-    private String password;
+    @ManyToOne
+    @JoinColumn(name = "type_de_service_id", nullable = true)
+    @JsonManagedReference
+    private TypeDeService typeDeService;
 
-    //@PastOrPresent(message = "La date de naissance ne peut pas être dans le futur")
-    private String date_de_naissance;
+    private BigInteger nombreDeMois;
 
     @CreationTimestamp
     private LocalDateTime dateSoumission;
 
     @ManyToOne
     @JoinColumn(name = "gym_id")
-    @JsonBackReference
+    @JsonManagedReference
     private Gym gym;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
-    @JsonBackReference
+    @JsonManagedReference
     private User user; // Lien avec utilisateur existant (si applicable)
-
-    private String raisonRejet; // Raison si rejté
 
     @Enumerated(EnumType.STRING)
     private StatutMembre statut = StatutMembre.EN_ATTENTE_VALIDATION; //Statut
 
     private boolean estValidee = false;
+
+    private String raisonRejet;
 
     public Long getId() {
         return id;
@@ -69,68 +62,36 @@ public class DemandeInscription {
         this.id = id;
     }
 
-    public String getNom() {
-        return nom;
+    public PeriodAbonnement getPeriodAbonnement() {
+        return periodAbonnement;
     }
 
-    public void setNom(String nom) {
-        this.nom = nom;
+    public void setPeriodAbonnement(PeriodAbonnement periodAbonnement) {
+        this.periodAbonnement = periodAbonnement;
     }
 
-    public String getPrenom() {
-        return prenom;
+    public TypeAbonnements getTypes() {
+        return types;
     }
 
-    public void setPrenom(String prenom) {
-        this.prenom = prenom;
+    public void setTypes(TypeAbonnements types) {
+        this.types = types;
     }
 
-    public String getAdresse() {
-        return adresse;
+    public TypeDeService getTypeDeService() {
+        return typeDeService;
     }
 
-    public void setAdresse(String adresse) {
-        this.adresse = adresse;
+    public void setTypeDeService(TypeDeService typeDeService) {
+        this.typeDeService = typeDeService;
     }
 
-    public String getEmail() {
-        return email;
+    public BigInteger getNombreDeMois() {
+        return nombreDeMois;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getTelephone() {
-        return telephone;
-    }
-
-    public void setTelephone(String telephone) {
-        this.telephone = telephone;
-    }
-
-    public Genre getGenre() {
-        return genre;
-    }
-
-    public void setGenre(Genre genre) {
-        this.genre = genre;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getDate_de_naissance() {
-        return date_de_naissance;
-    }
-
-    public void setDate_de_naissance(String date_de_naissance) {
-        this.date_de_naissance = date_de_naissance;
+    public void setNombreDeMois(BigInteger nombreDeMois) {
+        this.nombreDeMois = nombreDeMois;
     }
 
     public LocalDateTime getDateSoumission() {

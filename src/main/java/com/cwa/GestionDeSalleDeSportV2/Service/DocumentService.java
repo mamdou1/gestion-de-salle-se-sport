@@ -1,10 +1,7 @@
 package com.cwa.GestionDeSalleDeSportV2.Service;
 
 
-import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
-import com.cwa.GestionDeSalleDeSportV2.Entity.FactureCollective;
-import com.cwa.GestionDeSalleDeSportV2.Entity.User;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Vente;
+import com.cwa.GestionDeSalleDeSportV2.Entity.*;
 import com.cwa.GestionDeSalleDeSportV2.Repository.AbonnementRepository;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
@@ -38,7 +35,7 @@ public class DocumentService {
         Document document = new Document(pdf);
 
 
-        BigDecimal montantAbonnement = abonnement.getPrixAbonnement();
+        //BigDecimal montantAbonnement = abonnement.getPrixAbonnement();
         BigDecimal fraisInscription = abonnement.getMembre().getFraisInscription(); // recuperation du frais d'inscription
         List<Abonnement> historique = abonnement.getMembre().getAbonnements() != null ? abonnement.getMembre().getAbonnements() : new ArrayList<>();
         Boolean estPremierAbonnement = historique.isEmpty() || historique.size() == 1;  // Vérifie si c'est le premier ou aucun abonnement
@@ -62,6 +59,31 @@ public class DocumentService {
         }
         document.add(new Paragraph("Date d'émission : " + LocalDate.now()));
         document.add(new Paragraph("Enregistré par : " + abonnement.getEnregistrerPar().getPrenom() + " " + abonnement.getEnregistrerPar().getNom()));
+
+        document.close();
+        return out.toByteArray();
+    }
+
+    //  Génère un PDF de facture pour l’abonnement d'une gym donné
+    public byte[] genererFactureAbonnementGym(AbonnementGym abonnementGym) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(out);
+        PdfDocument pdf = new PdfDocument(writer);
+        Document document = new Document(pdf);
+
+
+        document.add(new Paragraph("Facture de l'abonnement")
+                .setTextAlignment(TextAlignment.CENTER)
+                .setFontSize(16)
+                .setBold());
+        document.add(new Paragraph(""));
+
+        document.add(new Paragraph("Nom : " + abonnementGym.getGym().getNom()));
+        document.add(new Paragraph("Périod : " + abonnementGym.getPeriodAbonnement()));
+        document.add(new Paragraph("Durée : " + abonnementGym.getNombreDeMois() + " mois"));
+
+        document.add(new Paragraph("Date d'émission : " + LocalDate.now()));
+        document.add(new Paragraph("Enregistré par : " + abonnementGym.getEnregistrerPar().getPrenom() + " " + abonnementGym.getEnregistrerPar().getNom()));
 
         document.close();
         return out.toByteArray();
@@ -116,19 +138,47 @@ public class DocumentService {
         return out.toByteArray();
     }
 
-//    public byte[] genererFactureVente(Vente vente){
-//
-//        ByteArrayOutputStream out = new ByteArrayOutputStream();
-//        PdfWriter writer = new PdfWriter(out);
-//        PdfDocument pdf = new PdfDocument(writer);
-//        Document doc = new Document(pdf);
-//
-//        doc.add(new Paragraph("Facteur de vente")
-//                .setTextAlignment(TextAlignment.CENTER)
-//                .setFontSize(16)
-//                .setBold());
-//
-//        doc.add(new Paragraph("Client : " +vente.))
-//    }
+    public byte[] genererFactureVente(Vente vente) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(out);
+        PdfDocument pdf = new PdfDocument(writer);
+        Document doc = new Document(pdf);
+
+        // Titre
+        doc.add(new Paragraph("Facture de vente N° : " + vente.getId())
+                .setTextAlignment(TextAlignment.CENTER)
+                .setFontSize(16)
+                .setBold());
+
+        // Informations client
+        doc.add(new Paragraph("Client : " + vente.getMembre().getNom() + " " + vente.getMembre().getPrenom()));
+        doc.add(new Paragraph("Date de vente : " + vente.getDateVente()));
+        doc.add(new Paragraph("Mode de paiement : " + vente.getModeDePaiement()));
+        doc.add(new Paragraph(" ")); // espace
+
+        // Détails des produits
+        doc.add(new Paragraph("🛒 Détails des produits :").setBold());
+
+        for (LigneVente ligne : vente.getLignes()) {
+            String nomProduit = ligne.getProduit().getNom();
+            Integer quantite = ligne.getQuantite();
+            BigDecimal prixUnitaire = ligne.getPrixUnitaire();
+            BigDecimal prixTotal = ligne.getPrixTotal();
+
+            doc.add(new Paragraph("Produit : " + nomProduit));
+            doc.add(new Paragraph("Quantité : " + quantite));
+            doc.add(new Paragraph("Prix unitaire : " + prixUnitaire + " FCFA"));
+            doc.add(new Paragraph("Prix total : " + prixTotal + " FCFA"));
+            doc.add(new Paragraph("----------------------------------------"));
+        }
+
+        // Montant total
+        doc.add(new Paragraph("Montant total : " + vente.getMontantTotal() + " FCFA")
+                .setBold()
+                .setTextAlignment(TextAlignment.RIGHT));
+
+        doc.close();
+        return out.toByteArray();
+    }
 }
 

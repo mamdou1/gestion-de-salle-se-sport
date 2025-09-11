@@ -1,12 +1,21 @@
 package com.cwa.GestionDeSalleDeSportV2.Service;
 
 
+import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
+import com.cwa.GestionDeSalleDeSportV2.DTO.staffsDTO;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutAbonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
+import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
+import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
+import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.AccessDeniedException;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,25 +23,65 @@ import java.util.Map;
 @Service
 public class GymService {
 
+    private final EmailService emailService;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
     private final GymRepository gymRepository;
+    private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
 
-    public GymService(GymRepository gymRepository) {
+    public GymService(EmailService emailService, UserRepository userRepository, PasswordEncoder passwordEncoder, GymRepository gymRepository, UtilisateurActuellementConnecter utilisateurActuellementConnecter) {
+        this.emailService = emailService;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
         this.gymRepository = gymRepository;
+        this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
     }
 
     //  1.  Consulter liste des gym
-    public List<Gym> ConsulterGymListe(){
+    public List<Gym> ConsulterGymListe() throws AccessDeniedException {
+        initializeAccess(true);
+
         List<Gym> gym = gymRepository.findAll();
         return gym;
     }
 
-    //  2.  GetById d'un gym pour voir les details
-    public Gym getGymById(Long gymId){
+    //  2.  GetById d'un Gym pour voir les details
+    public Gym getGymById(Long gymId) throws AccessDeniedException {
+        initializeAccess(true);
+
         Gym gym = gymRepository.findById(gymId)
                 .orElseThrow(()->new RuntimeException("Gym introuvable"));
         return gym;
     }
 
+    //  3. Ajouter un membre à l'équipe technique
+    public User ajouterUnMembreEquipeTech(staffsDTO dto) throws AccessDeniedException, MessagingException {
+
+
+
+        User equipe = new User();
+
+        equipe.setNom(dto.getNomStaff());
+        equipe.setPrenom(dto.getPrenomStaff());
+        equipe.setAdresse(dto.getAdresseStaff());
+        equipe.setGenre(dto.getGenreStaff());
+        equipe.setRole(Role.ADMIN_PRINCIPAL);
+        equipe.setEmail(dto.getEmailStaff());
+        equipe.setDate_creation(LocalDateTime.now());
+        equipe.setDate_de_naissance(dto.getDate_de_naissanceStaff());
+        equipe.setTelephone(dto.getNumeroTelephoneStaff());
+
+        // mdp == mot de passe
+        String mdp = genererMotDePasse(equipe);
+        equipe.setPassword(passwordEncoder.encode(mdp));
+
+        userRepository.save(equipe);
+        emailService.envoyerEmailBienvenu(equipe, mdp);
+
+        return equipe;
+    }
+
+    // Nombre de membre par Gym
     @Transactional
     public Map<Long, Long> getNombreMembresParGym() {
         Map<Long, Long> nombreMembresParGym = new HashMap<>();
@@ -45,6 +94,7 @@ public class GymService {
         return nombreMembresParGym;
     }
 
+    // 4. Nombre de membre par Gym et par statut
     @Transactional
     public Map<Long, Map<StatutAbonnement, Long>> getNombreMembresParStatutEtGym() {
         Map<Long, Map<StatutAbonnement, Long>> result = new HashMap<>();
@@ -66,5 +116,25 @@ public class GymService {
         }
 
         return result;
+    }
+
+
+    private User initializeAccess(boolean requireStaff) throws AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (requireStaff && currentUser.getRole() != Role.ADMIN_PRINCIPAL) {
+            throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
+        }
+        return currentUser;
+    }
+
+    //  2.  Generation du mot de passe
+    private String genererMotDePasse(User user){
+
+        String nom = user.getNom().length() >= 2 ? user.getNom().substring(0, 2) : user.getNom();
+        String prenom = user.getPrenom().length() >= 2 ? user.getPrenom().substring(0, 2) : user.getPrenom();
+        String tel = user.getTelephone().replaceAll("\\D", "");
+        tel = tel.length() >= 4 ? tel.substring(0, 4) : tel;
+
+        return (nom + prenom + tel).toLowerCase();
     }
 }

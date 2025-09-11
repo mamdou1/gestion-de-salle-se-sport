@@ -6,16 +6,18 @@ import com.cwa.GestionDeSalleDeSportV2.DTO.ValidationInscriptionDTO;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.DemandeInscription;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.*;
+import com.cwa.GestionDeSalleDeSportV2.Entity.TypeDeService;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.AbonnementRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.DemandeIncriptionRepository;
+import com.cwa.GestionDeSalleDeSportV2.Repository.TypeDeServiceRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -27,19 +29,21 @@ public class ValidationInscriptionService {
     private final AbonnementEventService abonnementEventService;
     private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
     private final NotificationService notificationService;
+    private final TypeDeServiceRepository typeDeServiceRepository;
 
-    public ValidationInscriptionService(DemandeIncriptionRepository demandeIncriptionRepository, UserRepository userRepository, AbonnementRepository abonnementRepository, PasswordEncoder passwordEncoder, AbonnementEventService abonnementEventService, UtilisateurActuellementConnecter utilisateurActuellementConnecter, NotificationService notificationService) {
+    public ValidationInscriptionService(DemandeIncriptionRepository demandeIncriptionRepository, UserRepository userRepository, AbonnementRepository abonnementRepository, PasswordEncoder passwordEncoder, AbonnementEventService abonnementEventService, UtilisateurActuellementConnecter utilisateurActuellementConnecter, NotificationService notificationService, TypeDeServiceRepository typeDeServiceRepository) {
         this.demandeIncriptionRepository = demandeIncriptionRepository;
         this.userRepository = userRepository;
         this.abonnementRepository = abonnementRepository;
         this.abonnementEventService = abonnementEventService;
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
         this.notificationService = notificationService;
+        this.typeDeServiceRepository = typeDeServiceRepository;
     }
 
-    public void validerInscription(ValidationInscriptionDTO dto) throws MessagingException {
+    public void validerInscription(Long demandeId, ValidationInscriptionDTO dto) throws MessagingException {
         System.out.println("DTO reçu : " + dto);
-        DemandeInscription demande = demandeIncriptionRepository.findById(dto.getDemandeId())
+        DemandeInscription demande = demandeIncriptionRepository.findById(demandeId)
                 .orElseThrow(()-> new RuntimeException("Demande non trouvé."));
 
         if (demande.isEstValidee()){
@@ -47,10 +51,13 @@ public class ValidationInscriptionService {
         }
 
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        User user;
+        User user = demande.getUser();
+        user.setFraisInscription(demande.getTypeDeService().getFraisInscription());
+
+        // Ajouter le gym à la liste des gyms de l'utilisateur s'il en a plusieurs
         if (demande.getUser() != null){
             user = demande.getUser();
-            // Ajouter le gym à la liste des gyms de l'utilisateur
+
             if (!user.getGyms().contains(demande.getGym())){
                 user.addGym(demande.getGym());
                 userRepository.save(user);
@@ -60,27 +67,6 @@ public class ValidationInscriptionService {
             if (!abonnementsEnCours.isEmpty()){
                 throw new RuntimeException("L'utilisateur a déjà un abonnement en cours.");
             }
-        } else {
-            // 1. Créer le User
-            user = new User();
-
-            user.setNom(demande.getNom());
-            user.setPrenom(demande.getPrenom());
-            user.setAdresse(demande.getAdresse());
-            user.setEmail(demande.getEmail());
-            user.setTelephone(demande.getTelephone());
-            user.setGenre(demande.getGenre());
-            user.setRole(Role.MEMBRE);
-            user.setGym(demande.getGym()); // Gym principal
-            user.addGym(demande.getGym()); // Ajouter à gyms
-            user.setDate_de_naissance(demande.getDate_de_naissance());
-            user.setDate_creation(LocalDateTime.now());
-            user.setOnline(false);
-            user.setPassword(demande.getPassword());
-            user.setFraisInscription(dto.getFraisInscription());
-
-            userRepository.save(user);
-            demande.setUser(user);
         }
 
         // 2. Créer l’abonnement
@@ -89,15 +75,19 @@ public class ValidationInscriptionService {
         abonnement.setMembre(user);
         abonnement.setGym(demande.getGym());
         abonnement.setStatut(StatutAbonnement.EN_COURS);
-        abonnement.setTypes(dto.getTypes());
-        abonnement.setPeriodAbonnement(dto.getPeriodAbonnement());
-        abonnement.setNombreDeMois(dto.getNombreDeMois());
+        abonnement.setTypes(demande.getTypes());
+        abonnement.setPeriodAbonnement(demande.getPeriodAbonnement());
+        abonnement.setNombreDeMois(demande.getNombreDeMois());
         abonnement.setModeDePaiement(dto.getModeDePaiement());
-        abonnement.setPrixAbonnement(dto.getPrixAbonnement());
+
+        BigDecimal tarif = getTarif(demande.getUser().getGenre(), demande.getTypeDeService().getId());
+
+        abonnement.setPrixAbonnement(tarif);
         abonnement.setEnregistrerPar(currentUser);
+        abonnement.setTypeDeService(demande.getTypeDeService());
 
         abonnement.setDateDebutAbonnement(LocalDate.now());
-        abonnement.setDateFinAbonnement(LocalDate.now().plusMonths(dto.getNombreDeMois().longValue()));
+        abonnement.setDateFinAbonnement(LocalDate.now().plusMonths(demande.getNombreDeMois().longValue()));
         abonnement.setDateRappelFinAbonnement(abonnement.getDateFinAbonnement().minusDays(5));
 
         abonnementRepository.save(abonnement);
@@ -131,6 +121,21 @@ public class ValidationInscriptionService {
                     true
                     );
         }
+    }
+
+    public BigDecimal getTarif(Genre genre, Long typeDeServiceId){
+        TypeDeService tarif = typeDeServiceRepository.findById(typeDeServiceId)
+                .orElseThrow();
+        if (tarif.getTarifUnique() != null){
+            return tarif.getTarifUnique();
+        }
+
+        if (genre == Genre.HOMME && tarif.getTarifHomme() != null){
+            return tarif.getTarifHomme();
+        } else if (genre == Genre.FEMME && tarif.getTarifFemme() != null) {
+            return tarif.getTarifFemme();
+        }
+        throw new RuntimeException("Aucun tarif défini pour ce service et ce genre.");
     }
 
 }

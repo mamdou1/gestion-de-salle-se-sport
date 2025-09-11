@@ -57,13 +57,9 @@ public class CoachingController {
     //      Elle est conçue pour alimenter un calendrier (ex. : FullCalendar) dans le frontend,
     //      en fournissant les coaching pertinents pour une période et une salle données.
 
-    @GetMapping("/gym/{gymId}")
-    public ResponseEntity<List<CoachingViewDTO>> getCoachingsByGymAndDateRange(
-            LocalDateTime start,
-            LocalDateTime end,
-            @PathVariable Long gymId
-    ) {
-        List<CoachingViewDTO> coachings = coachingService.getCoachingsByGymAndDateRange(gymId, start, end);
+    @GetMapping("/liste")
+    public ResponseEntity<List<CoachingViewDTO>> getCoachingsByGymAndDateRange() {
+        List<CoachingViewDTO> coachings = coachingService.getCoachingsByGymAndDateRange();
         return ResponseEntity.ok(coachings);
     }
 }

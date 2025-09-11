@@ -53,7 +53,6 @@ public class PanierService {
     //  1.  Créer un panier
     public Panier creerPanier() {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        checkStaffAccess();
         Gym gym = currentUser.getGym(); // Utilisation du gym de l'utilisateur
         if (gym == null) {
             throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
@@ -71,7 +70,6 @@ public class PanierService {
         Produit produit = produitRepository.findById(produitId)
                 .orElseThrow(() -> new RuntimeException("Produit introuvable"));
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        checkStaffAccess();
         Gym gym = currentUser.getGym();
         if (gym == null) {
             throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
@@ -97,7 +95,6 @@ public class PanierService {
         LigneVente ligne = ligneVenteRepository.findById(ligneId)
                 .orElseThrow(() -> new RuntimeException("Ligne de vente introuvable"));
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        checkStaffAccess();
         Gym gym = currentUser.getGym();
         if (gym == null) {
             throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
@@ -116,7 +113,6 @@ public class PanierService {
         LigneVente ligne = ligneVenteRepository.findById(ligneId)
                 .orElseThrow(() -> new RuntimeException("Ligne de vente introuvable"));
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        checkStaffAccess();
         Gym gym = currentUser.getGym();
         if (gym == null) {
             throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
@@ -133,7 +129,6 @@ public class PanierService {
         Panier panier = panierRepository.findById(panierId)
                 .orElseThrow(() -> new RuntimeException("Panier introuvable"));
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        checkStaffAccess();
         Gym gym = currentUser.getGym();
         if (gym == null) {
             throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
@@ -155,7 +150,6 @@ public class PanierService {
         Panier panier = panierRepository.findById(panierId)
                 .orElseThrow(() -> new RuntimeException("Panier introuvable."));
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        checkStaffAccess();
         Gym gym = currentUser.getGym();
         if (gym == null) {
             throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
@@ -180,6 +174,16 @@ public class PanierService {
                 "Vente",
                 TypeNotification.VENTE,
                 true
+        );
+        notificationService.notifyGymAndMember(
+                gym,
+                currentUser,
+                "Demande de validation de panier",
+                "Vous avez reçu une demande une nouvelle demande de validation de panier.",
+                "Validation",
+                TypeNotification.VALIDATION_PANIER,
+                false
+
         );
 
         return panierRepository.save(panier);

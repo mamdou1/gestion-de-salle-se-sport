@@ -7,5 +7,6 @@ public enum Role {
     GERANT,
     ADMIN,
     MEMBRE,
-    MEMBRE_TEMPORAIRE
+    MEMBRE_TEMPORAIRE,
+    ADMIN_PRINCIPAL
 }

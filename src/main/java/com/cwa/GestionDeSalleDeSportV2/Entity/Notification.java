@@ -35,7 +35,12 @@ public class Notification {
     @JsonManagedReference
     private User destinataire;
 
+
     private String contexte; // ABONNEMENT, VENTE, STOCK
+
+    @ManyToOne
+    @JoinColumn(name = "gymDestinataire_id", nullable = true)
+    private Gym gymDestinataire; // Lien avec la gym pour multi-salle
 
 
     public Long getId() {
@@ -100,5 +105,13 @@ public class Notification {
 
     public void setContexte(String contexte) {
         this.contexte = contexte;
+    }
+
+    public Gym getGymDestinataire() {
+        return gymDestinataire;
+    }
+
+    public void setGymDestinataire(Gym gymDestinataire) {
+        this.gymDestinataire = gymDestinataire;
     }
 }

@@ -1,5 +1,6 @@
 package com.cwa.GestionDeSalleDeSportV2.DTO;
 
+import com.cwa.GestionDeSalleDeSportV2.AnotationPersonnaliser.AgeConstraint;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Genre;
 
 import java.time.LocalDate;
@@ -10,6 +11,7 @@ public class InscriptionDTO {
     private String adresseGym;
     private String telephoneGym;
     private  String emailGym;
+    private String proprietaireGym;
 
 
     private String nomAdmin;
@@ -17,6 +19,8 @@ public class InscriptionDTO {
     private String adresseAdmin;
     private String emailAdmin;
     private Genre genre;
+
+    @AgeConstraint(min = 16, max = 80, message = "l'âge doit être comprise entre 16 et 80 ans")
     private String date_de_naissance;
 
 
@@ -54,6 +58,14 @@ public class InscriptionDTO {
 
     public void setTelephoneGym(String telephoneGym) {
         this.telephoneGym = telephoneGym;
+    }
+
+    public String getProprietaireGym() {
+        return proprietaireGym;
+    }
+
+    public void setProprietaireGym(String proprietaireGym) {
+        this.proprietaireGym = proprietaireGym;
     }
 
     public String getEmailGym() {

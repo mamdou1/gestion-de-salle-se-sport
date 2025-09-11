@@ -1,10 +1,8 @@
 package com.cwa.GestionDeSalleDeSportV2.Entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.ManyToOne;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import jakarta.persistence.*;
 
 // (exemple de salle vestiere 1, vestiere 2, cardio, altophilie, etc)
 
@@ -18,8 +16,12 @@ public class Salle {
     private String nom;
 
     @ManyToOne
-    @JsonBackReference
+    @JsonManagedReference
     private Gym gym;
+
+    @ManyToOne
+    @JsonBackReference
+    private Casier casier;
 
 
     public Long getId() {
@@ -44,5 +46,13 @@ public class Salle {
 
     public void setGym(Gym gym) {
         this.gym = gym;
+    }
+
+    public Casier getCasier() {
+        return casier;
+    }
+
+    public void setCasier(Casier casier) {
+        this.casier = casier;
     }
 }

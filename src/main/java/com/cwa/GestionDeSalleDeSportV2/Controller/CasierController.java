@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.AccessDeniedException;
 import java.util.List;
 
 @RestController
@@ -27,40 +28,48 @@ public class CasierController {
 
     //  1.  Ajouter un casier à une salle
     @PostMapping("/ajouter")
-    public ResponseEntity<String> ajouterCasierParStaff(@RequestBody CasierDTO dto){
-
-        User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        casierService.AjouterCasier(staff,dto.getSalleId(), dto.getNumeroDeCasier(), dto.getPrix());
+    public ResponseEntity<String> ajouterCasierParStaff(@RequestBody CasierDTO dto) throws AccessDeniedException {
+        casierService.AjouterCasier(dto);
         return new ResponseEntity<>("Casier ajouter avec succès.", HttpStatus.CREATED);
     }
 
     //  2.  Ajouter un casier à un membre dans la salle du staff
     @PostMapping("/assigner")
-    public ResponseEntity<String> assignerCasier(@RequestBody AssignerCasierDTO dto){
-
-        User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();;
-        casierService.assignerCasier(staff, dto.getSalleId(), dto.getMembreId(), dto.getPrix());
+    public ResponseEntity<String> assignerCasier(@RequestBody AssignerCasierDTO dto) throws AccessDeniedException {
+        casierService.assignerCasier(dto);
         return new ResponseEntity<>("Casier assigner avec succès.", HttpStatus.CREATED);
     }
 
     //  3.  Voir les casiers disponibles dans une salle
     @GetMapping("/disponibles/salle/{salleId}")
-    public ResponseEntity<List<Casier>> getCasierDisponibleDansSalle(@PathVariable Long salleId){
-        User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        return ResponseEntity.ok(casierService.getCasierDisponibleDansSalle(staff, salleId));
+    public ResponseEntity<List<Casier>> getCasierDisponibleDansSalle(@PathVariable Long salleId) throws AccessDeniedException {
+        return ResponseEntity.ok(casierService.getCasierDisponibleDansSalle(salleId));
     }
 
     //  4.  Voir tous les casiers (dispo ou occupés) dans une salle
     @GetMapping("/salle/{salleId}")
-    public ResponseEntity<List<Casier>> getTousLesCasiersDisponibleDansSalle(@PathVariable Long salleId){
-        User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        return ResponseEntity.ok(casierService.getTousLesCasiersDisponibleDansSalle(staff, salleId));
+    public ResponseEntity<List<Casier>> getTousLesCasiersDisponibleDansSalle(@PathVariable Long salleId) throws AccessDeniedException {
+        return ResponseEntity.ok(casierService.getTousLesCasiersDisponibleDansSalle(salleId));
     }
 
     //  5.  Tout les casier disponibles dans le gym
     @GetMapping("/gym/{gymId}")
-    public ResponseEntity<List<Casier>> getTousCasierDisponibleDansGym(@PathVariable Long gymId){
-        User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        return ResponseEntity.ok(casierService.getTousCasierDisponibleDansGym(staff, gymId));
+    public ResponseEntity<List<Casier>> getTousCasierDisponibleDansGym(@PathVariable Long gymId) throws AccessDeniedException {
+        return ResponseEntity.ok(casierService.getTousCasierDisponibleDansGym(gymId));
+    }
+
+    //  6.  getCasierById
+    @GetMapping("/{casierId}")
+    public ResponseEntity<Casier> getCasierById(@PathVariable Long casierId) throws AccessDeniedException {
+        Casier casier = casierService.getCasierById(casierId);
+
+        return new ResponseEntity<>(casier, HttpStatus.OK);
+    }
+
+    //  7.  liste Casier
+    @GetMapping
+    public ResponseEntity<List<Casier>> listeCasier() throws AccessDeniedException {
+        List<Casier> casiers = casierService.listeCasier();
+        return new ResponseEntity<>(casiers, HttpStatus.OK);
     }
 }

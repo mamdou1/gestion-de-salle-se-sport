@@ -2,6 +2,7 @@ package com.cwa.GestionDeSalleDeSportV2.Entity;
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutCasier;
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -15,14 +16,18 @@ public class Casier {
     private Long id;
 
     @ManyToOne
-    @JsonBackReference
+    @JsonManagedReference
     private Gym gym;
 
     @ManyToOne
+    @JsonManagedReference
     private Salle salle; // ➕ Salle où se trouve le casier
 
     @ManyToOne
     private User membre; // uniquement membre
+
+    @ManyToOne
+    private User staff;
 
     private String numeroDeCasier; // unique par salle
 
@@ -65,6 +70,14 @@ public class Casier {
 
     public void setMembre(User membre) {
         this.membre = membre;
+    }
+
+    public User getStaff() {
+        return staff;
+    }
+
+    public void setStaff(User staff) {
+        this.staff = staff;
     }
 
     public String getNumeroDeCasier() {

@@ -2,28 +2,40 @@ package com.cwa.GestionDeSalleDeSportV2.Service;
 
 
 import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
-import com.cwa.GestionDeSalleDeSportV2.DTO.FamilleDTO;
-import com.cwa.GestionDeSalleDeSportV2.DTO.MembreDTO;
-import com.cwa.GestionDeSalleDeSportV2.DTO.StaffDTO;
+import com.cwa.GestionDeSalleDeSportV2.DTO.*;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutMembre;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeNotification;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Famille;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
+import com.cwa.GestionDeSalleDeSportV2.Entity.TypeDeService;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.FamilleRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
+import com.cwa.GestionDeSalleDeSportV2.Repository.TypeDeServiceRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.AccessDeniedException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.time.Period;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
+
+    private final Logger logger = LoggerFactory.getLogger(AbonnementService.class);
+
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -31,14 +43,18 @@ public class UserService {
     private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
     private final FamilleRepository familleRepository;
     private final GymRepository gymRepository;
+    private final TypeDeServiceRepository typeDeServiceRepository;
+    private final NotificationService notificationService;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService, UtilisateurActuellementConnecter utilisateurActuellementConnecter, FamilleRepository familleRepository, GymRepository gymRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService, UtilisateurActuellementConnecter utilisateurActuellementConnecter, FamilleRepository familleRepository, GymRepository gymRepository, TypeDeServiceRepository typeDeServiceRepository, NotificationService notificationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
         this.familleRepository = familleRepository;
         this.gymRepository = gymRepository;
+        this.typeDeServiceRepository = typeDeServiceRepository;
+        this.notificationService = notificationService;
     }
 
     //  1.  Vérifie si l'utilisateur peut gérer des membres
@@ -64,6 +80,20 @@ public class UserService {
     public String ajouterStaff(StaffDTO dto, User admin) throws AccessDeniedException, MessagingException {
         if (admin.getRole() != Role.ADMIN){
             throw new AccessDeniedException("Seul un admin peut ajouter des membres du staff.");
+        }
+
+        // 1. Validation de l'âge
+        if (dto.getDate_de_naissanceStaff() != null && !dto.getDate_de_naissanceStaff().trim().isEmpty()) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            LocalDate birthDate = LocalDate.parse(dto.getDate_de_naissanceStaff(), formatter);
+            LocalDate currentDate = LocalDate.now(); // 2025-08-28, 11:21 AM GMT
+            int age = Period.between(birthDate, currentDate).getYears();
+
+            if (age < 16 || age > 80) {
+                throw new RuntimeException("error l'âge doit être compris entre 16 et 80 ans.");
+            }
+        } else {
+            throw new RuntimeException("error la date de naissance est requise.");
         }
 
         User staff = new User();
@@ -102,7 +132,7 @@ public class UserService {
         if (existingUser.isPresent()){
             User membreExistant = existingUser.get();
 
-            // Ajouter le gum du staff s'il n'est pas déjà associé
+            // Ajouter le membre au gym du staff s'il n'est pas déjà associé
             if (!membreExistant.getGyms().contains(staff.getGym())){
                 membreExistant.getGyms().add(staff.getGym());
             }
@@ -122,6 +152,25 @@ public class UserService {
             return "Membe déjà existant. Gym ajouté avec succès.";
         }
 
+//        if (dto.getDate_de_naissanceMembre() != null && !dto.getDate_de_naissanceMembre().trim().isEmpty()) {
+//            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+//            LocalDate birthDate = LocalDate.parse(dto.getDate_de_naissanceMembre(), formatter);
+//            LocalDate currentDate = LocalDate.now(); // 2025-08-28, 11:21 AM GMT
+//            int age = Period.between(birthDate, currentDate).getYears();
+//
+//            if (age < 16 || age > 80) {
+//                throw new RuntimeException("error l'âge doit être compris entre 16 et 80 ans.");
+//            }
+//        } else {
+//            throw new RuntimeException("error la date de naissance est requise.");
+//        }
+
+        TypeDeService typeDeService = typeDeServiceRepository.findById(dto.getTypeDeService())
+                .orElseThrow(()->new RuntimeException("Type de service introuvable."));
+        if (!typeDeService.getGym().equals(staff.getGym())){
+            throw new RuntimeException("Ce type de service ne fait pas partie de ce gym.");
+        }
+
         // Création d'un nouveau membre
         User nouveauMembre = new User();
         nouveauMembre.setNom(dto.getNomMembre());
@@ -133,6 +182,7 @@ public class UserService {
         nouveauMembre.setRole(Role.MEMBRE);
         nouveauMembre.setGym(staff.getGym());
         nouveauMembre.addGym(staff.getGym());
+        nouveauMembre.setTypeDeService(typeDeService);
         if (dto.getGymsIds() != null) {
             dto.getGymsIds().forEach(gymId -> {
                 Gym gym = gymRepository.findById(gymId)
@@ -142,15 +192,28 @@ public class UserService {
         }
 
         nouveauMembre.setDate_creation(LocalDateTime.now());
-        nouveauMembre.setFraisInscription(dto.getFraisInscriptionMembre());
+        nouveauMembre.setFraisInscription(typeDeService.getFraisInscription());
         nouveauMembre.setFraisInscriptionPayer(true);
-        nouveauMembre.setDate_de_naissance(dto.getGetDate_de_naissanceMembre());
+        nouveauMembre.setDate_de_naissance(dto.getDate_de_naissanceMembre());
 
         String mdp = genererMotDePasse(nouveauMembre);
         nouveauMembre.setPassword(passwordEncoder.encode(mdp));
 
         userRepository.save(nouveauMembre);
         emailService.envoyerEmailBienvenu(nouveauMembre, mdp);
+        notificationService.notifyGymAndMember(
+                staff.getGym(),
+                nouveauMembre,
+                "Ajout de menbre",
+                "Ajout d'un nouveau membre suite à son inscription physique à la salle de gym",
+                "Ajout",
+                TypeNotification.INSCRIPTION,
+                false
+
+        );
+
+
+
 
         return "Membre ajouter avec succès !";
     }
@@ -167,7 +230,7 @@ public class UserService {
             throw new AccessDeniedException("Accès refusé.");
         }
 
-        if ((currentUser.getRole() == Role.MEMBRE || currentUser.getRole() == Role.COACH && currentUser.getRole() == Role.RECEPTIONNISTE) && !isSelf){
+        if ((currentUser.getRole() == Role.MEMBRE || currentUser.getRole() == Role.COACH) && !isSelf){
             throw new RuntimeException("Vous pouvez uniquement modifier votre propre profil !");
         }
 
@@ -177,9 +240,36 @@ public class UserService {
         if (dto.getEmailMembre() !=null) membre.setEmail(dto.getEmailMembre());
         if (dto.getAdresseMembre() !=null) membre.setAdresse(dto.getAdresseMembre());
         if (dto.getNumeroTelephoneMembre() !=null) membre.setTelephone(dto.getNumeroTelephoneMembre());
-        if (dto.getGetDate_de_naissanceMembre() !=null) membre.setDate_de_naissance(dto.getGetDate_de_naissanceMembre());
+        if (dto.getDate_de_naissanceMembre() !=null) membre.setDate_de_naissance(dto.getDate_de_naissanceMembre());
 
         userRepository.save(membre);
+        return "Modification effectuée !";
+    }
+
+    public String modifierStaff(Long id, StaffDTO dto, User currentUser) throws AccessDeniedException {
+
+        User staff = userRepository.findById(id)
+                .orElseThrow(()-> new RuntimeException("Membre introuvable !"));
+
+        boolean isSelf = currentUser.getId().equals(staff.getId());
+
+        if (!isSelf && !peutGererMembre(currentUser)){
+            throw new AccessDeniedException("Accès refusé.");
+        }
+
+        if ((currentUser.getRole() == Role.MEMBRE || currentUser.getRole() == Role.COACH && currentUser.getRole() == Role.RECEPTIONNISTE) && !isSelf){
+            throw new RuntimeException("Vous pouvez uniquement modifier votre propre profil !");
+        }
+
+        if (dto.getNomStaff() != null) staff.setNom(dto.getNomStaff());
+        if (dto.getPrenomStaff() !=null) staff.setPrenom(dto.getPrenomStaff());
+        if (dto.getRoleStaff() !=null) staff.setRole(dto.getRoleStaff());
+        if (dto.getEmailStaff() !=null) staff.setEmail(dto.getEmailStaff());
+        if (dto.getAdresseStaff() !=null) staff.setAdresse(dto.getAdresseStaff());
+        if (dto.getNumeroTelephoneStaff() !=null) staff.setTelephone(dto.getNumeroTelephoneStaff());
+        if (dto.getDate_de_naissanceStaff() !=null) staff.setDate_de_naissance(dto.getDate_de_naissanceStaff());
+
+        userRepository.save(staff);
         return "Modification effectuée !";
     }
 
@@ -205,9 +295,122 @@ public class UserService {
         return  membre;
     }
 
-    //  7.  Afficher tout les utilesateur
-    public List<User> getAllUser(){
-        return userRepository.findAll();
+    //  7.  Afficher tout les utilisateur
+    public List<User> getAllUser() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        List<Gym> userGyms = currentUser.getGyms(); // Utilise la liste des gyms
+        if (userGyms == null || userGyms.isEmpty()) {
+            throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
+        }
+
+        // Vérifie l'accès pour le gym principal (optionnel, selon vos besoins)
+        Gym principalGym = currentUser.getGym();
+        if (principalGym != null) {
+            verificationAccesGym(currentUser, principalGym, "consulter la liste des abonnements dans");
+        }
+
+        logger.debug("Recherche des abonnements pour les salles : {}", userGyms); // Utilisation de logger
+        List<User> membres = userRepository.findByGymIn(userGyms);
+        if (membres ==null){
+            logger.warn("Aucun abonnement trouvé pour les salles de l'utilisateur.");
+            return List.of();
+        }
+        return membres;
+    }
+
+    public List<User> getAllMembre() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        List<Gym> userGyms = currentUser.getGyms();
+        if (userGyms == null || userGyms.isEmpty()) {
+            throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
+        }
+
+        Gym principalGym = currentUser.getGym();
+        if (principalGym != null) {
+            verificationAccesGym(currentUser, principalGym, "consulter la liste des membres dans");
+        }
+
+        logger.debug("Recherche des membres pour les salles : {}", userGyms);
+        List<User> users = userRepository.findByGymIn(userGyms);
+        if (users == null) {
+            logger.warn("Aucun membre trouvé pour les salles de l'utilisateur.");
+            return List.of();
+        }
+
+        // Filtrer les utilisateurs dont le rôle est MEMBRE
+        List<User> membres = users.stream()
+                .filter(user -> user.getRole() == Role.MEMBRE || user.getRole() == Role.MEMBRE_TEMPORAIRE)
+                .collect(Collectors.toList());
+
+        if (membres.isEmpty()) {
+            logger.warn("Aucun membre trouvé avec le rôle MEMBRE pour les salles de l'utilisateur.");
+            return List.of();
+        }
+
+        return membres;
+    }
+
+    public Page<User> getAllMembreAvecPagination(Pageable pageable) throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        List<Gym> userGyms = currentUser.getGyms();
+        if (userGyms == null || userGyms.isEmpty()) {
+            throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
+        }
+
+        Gym principalGym = currentUser.getGym();
+        if (principalGym != null) {
+            verificationAccesGym(currentUser, principalGym, "consulter la liste des membres dans");
+        }
+
+        logger.debug("Recherche des membres pour les salles : {}", userGyms);
+        // Utiliser la méthode paginée avec les rôles MEMBRE et MEMBRE_TEMPORAIRE
+        Page<User> usersPage = userRepository.findByGymInAndRoleIn(
+                userGyms,
+                List.of(Role.MEMBRE, Role.MEMBRE_TEMPORAIRE),
+                pageable
+        );
+
+        if (usersPage.isEmpty()) {
+            logger.warn("Aucun membre trouvé pour les salles de l'utilisateur.");
+            return Page.empty(); // Retourne une page vide
+        }
+
+        return usersPage;
+    }
+
+
+
+    public List<User> getAllStaff() throws AccessDeniedException{
+        User currentUser = initializeAccess(true);
+        List<Gym> userGyms = currentUser.getGyms();
+        if (userGyms == null || userGyms.isEmpty()) {
+            throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
+        }
+
+        Gym principalGym = currentUser.getGym();
+        if (principalGym != null) {
+            verificationAccesGym(currentUser, principalGym, "consulter la liste des membres dans");
+        }
+
+        logger.debug("Recherche des membres pour les salles : {}", userGyms);
+        List<User> users = userRepository.findByGymIn(userGyms);
+        if (users == null) {
+            logger.warn("Aucun membre trouvé pour les salles de l'utilisateur.");
+            return List.of();
+        }
+
+        // Filtrer les utilisateurs dont le rôle est MEMBRE
+        List<User> membres = users.stream()
+                .filter(user -> user.getRole() != Role.MEMBRE && user.getRole() != Role.MEMBRE_TEMPORAIRE)
+                .collect(Collectors.toList());
+
+        if (membres.isEmpty()) {
+            logger.warn("Aucun membre trouvé avec le rôle MEMBRE pour les salles de l'utilisateur.");
+            return List.of();
+        }
+
+        return membres;
+
     }
 
     public Gym findGymById(Long id) {
@@ -216,5 +419,44 @@ public class UserService {
 
     public List<Gym> findGymsByIds(List<Long> ids) {
         return gymRepository.findAllById(ids);
+    }
+
+    private User initializeAccess(boolean requireStaff) throws AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (requireStaff && currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.RECEPTIONNISTE && currentUser.getRole() != Role.GERANT) {
+            throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
+        }
+        if (currentUser.getGym() == null && requireStaff) { // Vérification du gym uniquement pour staff
+            throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
+        }
+        return currentUser;
+    }
+
+    private void verificationAccesGym(User staff,
+                                      Gym gym, String action) throws AccessDeniedException {
+        if (!userRepository.existsById(staff.getId()) || !staff.getGyms().contains(gym)) {
+            throw new AccessDeniedException("Accès refusé : l'utilisateur n'est pas autorisé à " + action + " cette gym");
+        }
+    }
+
+    /*
+
+    public ResponseEntity<Map<String, Object>> changerMotDePasse(ChangerMotDePassDTO dto){
+        Map<String, Object> reponse = new HashMap<>();
+
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+
+        currentUser.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        userRepository.save(currentUser);
+
+        reponse.put("message: ", "Mot de passe changer avec succès");
+        return  ResponseEntity.ok(reponse);
+
+    }
+
+     */
+
+    public boolean verifierMotDePasse(String motDePasseSaisi, String motDePasseEncode) {
+        return passwordEncoder.matches(motDePasseSaisi, motDePasseEncode);
     }
 }

@@ -3,6 +3,7 @@ package com.cwa.GestionDeSalleDeSportV2.Entity;
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.*;
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,11 +32,11 @@ public class Abonnement {
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
-    @JsonBackReference
+    @JsonManagedReference
     private User membre;
-
+    @JsonManagedReference
     @ManyToOne
-    @JsonBackReference
+
     private User enregistrerPar; // Le staff qui a effectué l'ajout
 
     @Enumerated(EnumType.STRING)
@@ -70,6 +71,13 @@ public class Abonnement {
     @Enumerated(EnumType.STRING)
     private TypeAbonnements types;
 
+    @ManyToOne
+    @JoinColumn(name = "type_de_service_id", nullable = true)
+    private TypeDeService typeDeService;
+
+    private Integer joursAbsence;
+
+    private LocalDate dateResiliation;
 
     public Long getId() {
         return id;
@@ -190,6 +198,30 @@ public class Abonnement {
 
     public void setTypes(TypeAbonnements types) {
         this.types = types;
+    }
+
+    public TypeDeService getTypeDeService() {
+        return typeDeService;
+    }
+
+    public void setTypeDeService(TypeDeService typeDeService) {
+        this.typeDeService = typeDeService;
+    }
+
+    public Integer getJoursAbsence() {
+        return joursAbsence;
+    }
+
+    public void setJoursAbsence(Integer joursAbsence) {
+        this.joursAbsence = joursAbsence;
+    }
+
+    public LocalDate getDateResiliation() {
+        return dateResiliation;
+    }
+
+    public void setDateResiliation(LocalDate dateResiliation) {
+        this.dateResiliation = dateResiliation;
     }
 }
 

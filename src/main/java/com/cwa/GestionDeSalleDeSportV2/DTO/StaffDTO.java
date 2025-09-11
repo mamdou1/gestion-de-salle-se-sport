@@ -29,7 +29,6 @@ public class StaffDTO {
     @NotNull(message = "Le genre est obligatoire")
     private Genre genreStaff;
 
-    @NotBlank(message = "Le mot de passe est obligatoire")
     private String passwordStaff;
 
     @NotNull(message = "Le rôle est obligatoire")

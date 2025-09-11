@@ -3,18 +3,14 @@ package com.cwa.GestionDeSalleDeSportV2.Service;
 
 import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
 import com.cwa.GestionDeSalleDeSportV2.DTO.*;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
+import com.cwa.GestionDeSalleDeSportV2.Entity.*;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.*;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
-import com.cwa.GestionDeSalleDeSportV2.Entity.User;
-import com.cwa.GestionDeSalleDeSportV2.Repository.AbonnementRepository;
-import com.cwa.GestionDeSalleDeSportV2.Repository.FamilleRepository;
-import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
-import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
+import com.cwa.GestionDeSalleDeSportV2.Repository.*;
 import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 
@@ -30,35 +26,29 @@ import java.util.List;
 @Service
 public class AbonnementService {
 
+    private final Logger logger = LoggerFactory.getLogger(AbonnementService.class);
+
     private final AbonnementRepository abonnementRepository;
-    private final FamilleRepository familleRepository;
-    private final FactureCollectiveService factureCollectiveService;
-    private final EmailService emailService;
-    private final NotificationService notificationService;
-    private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
-    private final UserService userService;
     private final GymRepository gymRepository;
     private final AbonnementEventService abonnementEventService;
     private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
+    private final TypeDeServiceRepository typeDeServiceRepository;
+    private final ValidationInscriptionService validationInscriptionService;
 
-    public AbonnementService(AbonnementRepository abonnementRepository, FamilleRepository familleRepository, FactureCollectiveService factureCollectiveService, EmailService emailService, NotificationService notificationService, PasswordEncoder passwordEncoder, UserRepository userRepository, UserService userService, GymRepository gymRepository, AbonnementEventService abonnementEventService, UtilisateurActuellementConnecter utilisateurActuellementConnecter) {
+    public AbonnementService(AbonnementRepository abonnementRepository, UserRepository userRepository, GymRepository gymRepository, AbonnementEventService abonnementEventService, UtilisateurActuellementConnecter utilisateurActuellementConnecter, TypeDeServiceRepository typeDeServiceRepository, ValidationInscriptionService validationInscriptionService) {
         this.abonnementRepository = abonnementRepository;
-        this.familleRepository = familleRepository;
-        this.factureCollectiveService = factureCollectiveService;
-        this.emailService = emailService;
-        this.notificationService = notificationService;
-        this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
-        this.userService = userService;
         this.gymRepository = gymRepository;
         this.abonnementEventService = abonnementEventService;
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
+        this.typeDeServiceRepository = typeDeServiceRepository;
+        this.validationInscriptionService = validationInscriptionService;
     }
 
     // 1. Mettre un abonnement en pause / reprendre
-    public Abonnement mettreEnPause(Long idAbonnement, int joursAbsence) throws AccessDeniedException {
-        if (joursAbsence < 7) {
+    public Abonnement mettreEnPause(Long idAbonnement, PauseAbonnementDTO dto) throws AccessDeniedException {
+        if (dto.getJoursAbsence() < 7) {
             throw new IllegalArgumentException("Le nombre de jours d'absence doit être supérieur ou égal à 7 pour mettre l'abonnement en pause.");
         }
 
@@ -76,6 +66,7 @@ public class AbonnementService {
 
         abonnement.setStatut(StatutAbonnement.EN_PAUSE);
         abonnement.setDatePauseAbonnement(LocalDate.now());
+        abonnement.setJoursAbsence(dto.getJoursAbsence());
 
         return abonnementRepository.save(abonnement);
     }
@@ -95,6 +86,7 @@ public class AbonnementService {
 
         abonnement.setStatut(StatutAbonnement.EN_COURS);
         abonnement.setDatePauseAbonnement(null);
+        abonnement.setJoursAbsence(null);
 
         return abonnementRepository.save(abonnement);
     }
@@ -113,6 +105,13 @@ public class AbonnementService {
         }
 
         abonnement.setStatut(StatutAbonnement.RESILIE);
+        abonnement.setPrixAbonnement(null);
+        abonnement.setDateDebutAbonnement(null);
+        abonnement.setDateFinAbonnement(null);
+
+        LocalDate aujourd_hui = LocalDate.now();
+
+        abonnement.setDateResiliation(aujourd_hui);
 
         return abonnementRepository.save(abonnement);
     }
@@ -124,17 +123,20 @@ public class AbonnementService {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
         User membre = userRepository.findById(dto.getMembreId())
                 .orElseThrow(() -> new RuntimeException("Utilisiteur non trouvé."));
-        Gym gym = gymRepository.findById(dto.getGymId())
-                .orElseThrow(() -> new RuntimeException("Gym non trouvé:"));
+        Gym gym = currentUser.getGym();
         if (!membre.getGyms().contains(gym)) {
             throw new AccessDeniedException("Le membre n'est pas inscrit à ce gym.");
+        }
+        TypeDeService typeDeService = typeDeServiceRepository.findById(dto.getTypeDeServiceId())
+                .orElseThrow(() -> new RuntimeException("Type de service non trouvé."));
+        if (!typeDeService.getGym().equals(gym)) {
+            throw new AccessDeniedException("Le type de service n'appartient pas à ce gym.");
         }
 
         Abonnement abonnement = new Abonnement();
         abonnement.setMembre(membre);
         abonnement.setGym(gym);
         abonnement.setTypes(TypeAbonnements.INDIVIDUEL);
-        abonnement.setPrixAbonnement(dto.getPrixAbonnement());
         abonnement.setNombreDeMois(dto.getNombreDeMois());
         abonnement.setModeDePaiement(dto.getModeDePaiement());
         abonnement.setEnregistrerPar(currentUser);
@@ -146,6 +148,21 @@ public class AbonnementService {
                 .minusDays(5));
         abonnement.setStatut(StatutAbonnement.EN_COURS);
         abonnement.setStatut(calculStatutAbonnemnt(abonnement));
+        abonnement.setTypeDeService(membre.getTypeDeService());
+        
+//        Genre genre = membre.getGenre();
+//        BigDecimal prix = BigDecimal.ZERO;
+//        if (typeDeService.getTarifUnique() != null){
+//            prix = typeDeService.getTarifUnique();
+//        } else if (genre == Genre.HOMME && typeDeService.getTarifHomme() != null) {
+//            prix = typeDeService.getTarifHomme();
+//        } else if (genre == Genre.FEMME && typeDeService.getTarifFemme() != null){
+//            prix = typeDeService.getTarifHomme();
+//        } else  {
+//            throw new RuntimeException("Aucun tarif défini pour ce service et ce genre.");
+//        }
+        BigDecimal prix= validationInscriptionService.getTarif(membre.getGenre(), typeDeService.getId());
+        abonnement.setPrixAbonnement(prix);
 
         abonnementRepository.save(abonnement);
 
@@ -195,9 +212,12 @@ public class AbonnementService {
 
 
         if (nouveauxPrix != null) {
-            abonnement.setPrixAbonnement(abonnement.getPrixAbonnement().add(BigDecimal.valueOf(nouveauxPrix)));
+            BigDecimal prixActuel = abonnement.getPrixAbonnement() != null
+                    ? abonnement.getPrixAbonnement()
+                    : BigDecimal.ZERO;
 
-           // abonnement.setPrixAbonnement(BigDecimal.valueOf(nouveauxPrix));
+            abonnement.setPrixAbonnement(prixActuel.add(BigDecimal.valueOf(nouveauxPrix)));
+
         }
 
         abonnement.setStatut(calculStatutAbonnemnt(abonnement));
@@ -214,43 +234,52 @@ public class AbonnementService {
     public Abonnement mettreAJourStatutAutomatiquement(Long id) throws AccessDeniedException {
             Abonnement abonnement = abonnementRepository.findById(id)
                     .orElseThrow(()-> new RuntimeException("Abonnement introuvable."));
+
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+
         if (!currentUser.getGyms().contains(abonnement.getGym())) {
             throw new AccessDeniedException("Accès refusé à cet abonnement.");
         }
-            abonnement.setStatut(calculStatutAbonnemnt(abonnement));
+
+        StatutAbonnement nouveauStatut = calculStatutAbonnemnt(abonnement);
+
+        if (!abonnement.getStatut().equals(nouveauStatut)) {
+            abonnement.setStatut(nouveauStatut);
+            abonnement = abonnementRepository.save(abonnement);
+            System.out.println("✅ Statut mis à jour : " + nouveauStatut);
+        } else {
+            System.out.println("ℹ️ Statut inchangé : " + abonnement.getStatut());
+        }
             return abonnementRepository.save(abonnement);
     }
 
     public StatutAbonnement calculStatutAbonnemnt(Abonnement abonnement) {
+
         LocalDate aujourd_hui = LocalDate.now();
 
-        // 1. Si l'abonnement a ete resilier manuellement
-        //  2. Si l'abonnement a ete mis en pause
         if (abonnement.getStatut() == StatutAbonnement.RESILIE ||
-            abonnement.getStatut() == StatutAbonnement.EN_PAUSE){
+                abonnement.getStatut() == StatutAbonnement.EN_PAUSE) {
             return abonnement.getStatut();
         }
 
-        // 3. Actif (entre date_debut et date_rappel)
-        if (abonnement.getDateDebutAbonnement() != null && abonnement.getDateRappelFinAbonnement() != null &&
-                (aujourd_hui.equals(abonnement.getDateDebutAbonnement()) || aujourd_hui.isAfter(abonnement.getDateDebutAbonnement()))
-        && aujourd_hui.isBefore(abonnement.getDateRappelFinAbonnement())){
+        LocalDate debut = abonnement.getDateDebutAbonnement();
+        LocalDate rappelFin = abonnement.getDateRappelFinAbonnement();
+        LocalDate fin = abonnement.getDateFinAbonnement();
+
+        if (debut != null && rappelFin != null &&
+                !aujourd_hui.isBefore(debut) && aujourd_hui.isBefore(rappelFin)) {
             return StatutAbonnement.EN_COURS;
         }
 
-        // 4. Bientôt expiré (exactement à date_rappel_fin_abonnement)
-        if (abonnement.getDateRappelFinAbonnement() != null && aujourd_hui.equals(abonnement.getDateFinAbonnement())){
+        if (rappelFin != null && aujourd_hui.isEqual(rappelFin)) {
             return StatutAbonnement.BIENTOT_EXPIRE;
         }
 
-        // 5. Si l'abonnement est expiré (date actuelle > date de fin)
-        if (abonnement.getDateFinAbonnement() != null && aujourd_hui.isAfter(abonnement.getDateFinAbonnement())){
+        if (fin != null && aujourd_hui.isAfter(fin)) {
             return StatutAbonnement.EXPIRE;
         }
 
-        // 6. Sinon, considéré comme Résilié
-        return StatutAbonnement.EN_COURS;
+        return StatutAbonnement.RESILIE;
     }
 
     // 5. Changement de plan d’abonnement avec calcul du reste
@@ -308,9 +337,19 @@ public class AbonnementService {
     }
 
     //  6.  Afficher tout le abonnement
-    public List<Abonnement> getAllAbonnement(){
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        return abonnementRepository.findByGymIn(currentUser.getGyms());    }
+    public List<Abonnement> getAllAbonnement() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        List<Gym> userGyms = currentUser.getGyms(); // Utilise la liste des gyms
+
+        List<Abonnement> abonnements = abonnementRepository.findByGymIn(userGyms);
+        return abonnements;
+    }
+
+    public Abonnement getAbonnementById(Long abonnementId) throws AccessDeniedException {
+        initializeAccess(true);
+        return abonnementRepository.findById(abonnementId)
+                .orElseThrow(()->new RuntimeException("Abonnement introuvable"));
+    }
 
     //  7.  L'historique des abonnement d'un membre
     public List<Abonnement> getHistoriqueAbonnementParMembre(Long membreId) throws AccessDeniedException {
@@ -348,6 +387,24 @@ public class AbonnementService {
 
         if (abonnement.getStatut() != StatutAbonnement.EXPIRE || abonnement.getStatut() != StatutAbonnement.RESILIE){
             throw new RuntimeException("Impossible de supprimer un abonnement dont le staut est actif ou bientôt expirer");
+        }
+    }
+
+    private User initializeAccess(boolean requireStaff) throws AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (requireStaff && currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.RECEPTIONNISTE && currentUser.getRole() != Role.GERANT) {
+            throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
+        }
+        if (currentUser.getGym() == null && requireStaff) { // Vérification du gym uniquement pour staff
+            throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
+        }
+        return currentUser;
+    }
+
+    private void verificationAccesGym(User staff,
+                                      Gym gym, String action) throws AccessDeniedException {
+        if (!userRepository.existsById(staff.getId()) || !staff.getGyms().contains(gym)) {
+            throw new AccessDeniedException("Accès refusé : l'utilisateur n'est pas autorisé à " + action + " cette gym");
         }
     }
 

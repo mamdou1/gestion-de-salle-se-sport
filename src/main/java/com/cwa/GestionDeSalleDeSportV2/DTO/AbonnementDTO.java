@@ -17,16 +17,11 @@ public class AbonnementDTO {
     @NotNull(message = "Period d'abonnement requis")
     private PeriodAbonnement periodAbonnement;
 
-//    @NotNull(message = "Type d'abonnement requis")
-//    private TypeAbonnement type;
-
-    @NotNull(message = "Type d'abonnement requis")
     private TypeAbonnements types;
 
     @NotNull(message = "Nombre de mois requis")
     private BigInteger nombreDeMois;
 
-    @NotNull(message = "Prix requis")
     @DecimalMin(value = "0.0", inclusive = false, message = "Le prix doit être positif")
     private BigDecimal prixAbonnement;
 
@@ -36,8 +31,10 @@ public class AbonnementDTO {
     @NotNull(message = "ID du membre requis")
     private Long membreId;
 
-    @NotNull(message = "ID de la salle requis")
     private Long gymId;
+
+    @NotNull(message = "ID du type de service requis")
+    private Long typeDeServiceId;
 
     public PeriodAbonnement getPeriodAbonnement() {
         return periodAbonnement;
@@ -47,13 +44,6 @@ public class AbonnementDTO {
         this.periodAbonnement = periodAbonnement;
     }
 
-//    public TypeAbonnement getType() {
-//        return type;
-//    }
-//
-//    public void setType(TypeAbonnement type) {
-//        this.type = type;
-//    }
 
     public TypeAbonnements getTypes() {
         return types;
@@ -101,5 +91,13 @@ public class AbonnementDTO {
 
     public void setGymId(Long gymId) {
         this.gymId = gymId;
+    }
+
+    public Long getTypeDeServiceId() {
+        return typeDeServiceId;
+    }
+
+    public void setTypeDeServiceId(Long typeDeServiceId) {
+        this.typeDeServiceId = typeDeServiceId;
     }
 }

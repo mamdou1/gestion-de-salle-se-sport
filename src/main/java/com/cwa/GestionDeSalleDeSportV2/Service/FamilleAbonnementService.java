@@ -258,7 +258,7 @@ public class FamilleAbonnementService {
         membre.setTelephone(dto.getNumeroTelephoneMembre());
         membre.setGenre(dto.getGenreMembre());
         membre.setAdresse(dto.getAdresseMembre());
-        membre.setDate_de_naissance(dto.getGetDate_de_naissanceMembre());
+        membre.setDate_de_naissance(dto.getDate_de_naissanceMembre());
         membre.setFraisInscription(dto.getFraisInscriptionMembre());
         membre.setFraisInscriptionPayer(false);
         membre.setRole(Role.MEMBRE);

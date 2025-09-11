@@ -42,17 +42,17 @@ public class Gym {
     private List<User> propritaires;
 
     @OneToMany(mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference
+    @JsonBackReference
     private List<DemandeInscription> demandes;
 
     //  Liste des salles du gym
     @OneToMany(mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference
+    @JsonBackReference
     private List<Salle> salles;
 
     //  Liste des casiers du gym
     @OneToMany(mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference
+    @JsonBackReference
     private List<Casier> casiers;
 
     //  Liste des événements du gym

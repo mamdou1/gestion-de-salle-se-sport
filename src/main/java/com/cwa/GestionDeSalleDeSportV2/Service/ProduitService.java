@@ -79,7 +79,7 @@ public class ProduitService {
         return produit;
     }
 
-    private User initializeAccess(boolean requireStaff) throws AccessDeniedException {
+    public User initializeAccess(boolean requireStaff) throws AccessDeniedException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
         if (requireStaff && currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.RECEPTIONNISTE && currentUser.getRole() != Role.GERANT) {
             throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");

@@ -14,6 +14,12 @@ import com.cwa.GestionDeSalleDeSportV2.Repository.EvenementRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
+import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +30,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class EvenementService {
+
+    private final Logger logger = LoggerFactory.getLogger(EvenementService.class);
 
     private final EvenementRepository evenementRepository;
     private final UserRepository userRepository;
@@ -191,9 +199,77 @@ public class EvenementService {
     //      Elle est conçue pour alimenter un calendrier (ex. : FullCalendar) dans le frontend,
     //      en fournissant les événements pertinents pour une période et une salle données.
 
-    public List<EvenementViewDTO> getEvenementsByGymAndDateRange(Long gymId, LocalDateTime start, LocalDateTime end) {
-        List<Evenement> evenements = evenementRepository.findByGymIdAndDateDebutGreaterThanEqualAndDateFinLessThanEqual(gymId, start, end);
+    public List<EvenementViewDTO> getEvenementsByGymAndDateRange() {
+        checkStaffAccess();
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+
+        Gym gym = currentUser.getGym();
+        if (gym == null) {
+            throw new RuntimeException("Aucune salle de sport associée à l'utilisateur.");
+        }
+
+        verificationAccesGym(currentUser, gym, "consulter les événements de ");
+
+        //  Détermine la plage de dates du mois courant
+        LocalDateTime start = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime end = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth()).atTime(23, 59, 59);
+
+        List<Evenement> evenements = evenementRepository
+                .findByGymIdAndDateDebutGreaterThanEqualAndDateFinLessThanEqual(gym.getId(), start, end);
+
+        // 🔁 Transforme en DTO
         return evenements.stream().map(this::toViewDTO).collect(Collectors.toList());
+    }
+
+    public StatutEvent calculStatutEvent(Evenement evenement){
+        LocalDateTime aujourd_hui = LocalDateTime.now();
+
+        //  1.  Terminer (date de fin depacer)
+        if (evenement.getDateFin() != null && aujourd_hui.isAfter(evenement.getDateFin())){
+            return StatutEvent.TERMINER;
+        }
+
+        //  2.  En attente (avant date de debut)
+        if (evenement.getDateDebut() != null && aujourd_hui.isBefore(evenement.getDateDebut())){
+            return StatutEvent.EN_ATTENTE;
+        }
+
+        return StatutEvent.EN_COURS;
+
+    }
+
+    @Transactional
+    @Scheduled(cron = "0 0 6 * * *") // Exécute tous les jours à 6h00 (optionnel)
+    public void verifierStatutEvennement() throws MessagingException{
+        logger.info("Démarrage de la vérification des statut des événement à {}", LocalDateTime.now());
+        List<Evenement> evenements = evenementRepository.findAll();
+        for (Evenement evenement : evenements ){
+            StatutEvent nouveauStatut = calculStatutEvent(evenement);
+            if (evenement.getStatutEvent() != nouveauStatut){
+                logger.debug("Mis à jour du statut de l'événement {} de {} à {}", evenement.getId(), evenement.getStatutEvent(), nouveauStatut);
+                evenement.setStatutEvent(nouveauStatut);
+                evenementRepository.save(evenement);
+                notificationService.notification(
+                        null,
+                        "Mise à jour de l'événement",
+                        "Le statut de l'événement '" + evenement.getNom() +"' a changer à : " +nouveauStatut,
+                        "Evénement",
+                        TypeNotification.EVENEMENT,
+                        false
+                );
+            }else {
+                logger.debug("Aucun changement de statut pour l'événement {}", evenement.getId());
+            }
+        }
+        logger.info("Fin de la vérification des statuts des évéenement.");
+    }
+
+    // Exécute la vérification au démarrage de l'application
+    @EventListener(ContextRefreshedEvent.class)
+    @Transactional
+    public void auDemarrageDeLApplication() throws MessagingException{
+        logger.info("Vérification des statuts des événements au démarrage de l'application à {}", LocalDateTime.now());
+        verifierStatutEvennement(); // Réutilisons la logique existante
     }
 
     //  8.  Convertie une entitee Evenement ent objet EvenementDTO

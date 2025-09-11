@@ -44,16 +44,9 @@ public class LigneVente {
     @Enumerated(EnumType.STRING)
     private StatutLigne statut = StatutLigne.PANIER;
 
-    @PrePersist
-    @PreUpdate
     public void calculerPrixTotal(){
-        if (produit != null && prixUnitaire != null && quantite != null){
-            if (produit.getQuantiteEnStock() != null && produit.getQuantiteEnStock() < quantite){
-                throw new RuntimeException("Quantité en stock insuffisante pour le produit : " + produit.getNom());
-            }
+        if (prixUnitaire != null && quantite != null){
             prixTotal = prixUnitaire.multiply(BigDecimal.valueOf(quantite));
-            // ise à jour de la quantité en stock
-            produit.setQuantiteEnStock(produit.getQuantiteEnStock() - quantite);
         }
     }
 
