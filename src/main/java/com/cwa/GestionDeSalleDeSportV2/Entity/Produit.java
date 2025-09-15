@@ -36,6 +36,10 @@ public class Produit {
     @ManyToOne
     private Gym gym;
 
+    @Lob
+    @Column(name = "photo", columnDefinition = "LONGBLOB")
+    private byte[] photo;
+
     public Long getId() {
         return id;
     }
@@ -98,5 +102,13 @@ public class Produit {
 
     public void setCategorie(Categorie categorie) {
         this.categorie = categorie;
+    }
+
+    public byte[] getPhoto() {
+        return photo;
+    }
+
+    public void setPhoto(byte[] photo) {
+        this.photo = photo;
     }
 }

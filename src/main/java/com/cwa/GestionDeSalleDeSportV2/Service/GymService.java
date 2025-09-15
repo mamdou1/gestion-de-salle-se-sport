@@ -2,6 +2,7 @@ package com.cwa.GestionDeSalleDeSportV2.Service;
 
 
 import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
+import com.cwa.GestionDeSalleDeSportV2.DTO.InscriptionDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.staffsDTO;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutAbonnement;
@@ -44,6 +45,13 @@ public class GymService {
         List<Gym> gym = gymRepository.findAll();
         return gym;
     }
+
+//    public Gym modifierGym(InscriptionDTO dto, Long gymId) throws AccessDeniedException {
+//        User admin = initializeAccessGym(true);
+//        Gym gym = gymRepository.findById(gymId)
+//                .orElseThrow(()->new RuntimeException("Gym non trouvé."));
+//
+//    }
 
     //  2.  GetById d'un Gym pour voir les details
     public Gym getGymById(Long gymId) throws AccessDeniedException {
@@ -123,6 +131,17 @@ public class GymService {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
         if (requireStaff && currentUser.getRole() != Role.ADMIN_PRINCIPAL) {
             throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
+        }
+        return currentUser;
+    }
+
+    public User initializeAccessGym(boolean requireStaff) throws AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (requireStaff && currentUser.getRole() != Role.ADMIN) {
+            throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
+        }
+        if (currentUser.getGym() == null && requireStaff) { // Vérification du gym uniquement pour staff
+            throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
         }
         return currentUser;
     }

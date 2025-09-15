@@ -9,7 +9,9 @@ import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.ProduitRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.util.List;
 
@@ -26,22 +28,34 @@ public class ProduitService {
         this.userRepository = userRepository;
     }
 
-    public Produit ajouterProduit(ProduitDTO dto) throws AccessDeniedException {
+    public Produit ajouterProduit(ProduitDTO dto, MultipartFile file) throws IOException {
         User currentUser = initializeAccess(true);
         Gym gym = currentUser.getGym();
+
         verificationAccesGym(currentUser, gym, "ajouter un produit dans");
+
         Produit produit = new Produit();
         produit.setNom(dto.getNom());
         produit.setDescription(dto.getDescription());
         produit.setPrixUnitaire(dto.getPrixUnitaire());
         produit.setQuantiteEnStock(dto.getQuantiteEnStock());
-        produit.setImageUrl(dto.getImageUrl());
+//        produit.setImageUrl(dto.getImageUrl());
         produit.setCategorie(dto.getCategorie());
         produit.setGym(gym);
+
+        if (file != null && !file.isEmpty()){
+            produit.setPhoto(file.getBytes()); //  Conversion du MultipartFile en byte[]
+        }
         return produitRepository.save(produit);
     }
 
-    public Produit modifierProduit(Long id, ProduitDTO dto) throws AccessDeniedException {
+    public byte[] getPhotoProduit(Long id){
+        Produit produit = produitRepository.findById(id)
+                .orElseThrow(()->new RuntimeException("Produit non trouvé."));
+        return produit.getPhoto();
+    }
+
+    public Produit modifierProduit(Long id, ProduitDTO dto, MultipartFile file) throws IOException {
         User currentUser = initializeAccess(true);
         Produit produit = produitRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Produit introuvable"));
@@ -50,8 +64,13 @@ public class ProduitService {
         produit.setDescription(dto.getDescription());
         produit.setPrixUnitaire(dto.getPrixUnitaire());
         produit.setQuantiteEnStock(dto.getQuantiteEnStock());
-        produit.setImageUrl(dto.getImageUrl());
+//        produit.setImageUrl(dto.getImageUrl());
         produit.setCategorie(dto.getCategorie());
+
+        if (file != null && !file.isEmpty()){
+            produit.setPhoto(file.getBytes()); //  Conversion du MultipartFile en byte[]
+        }
+
         return produitRepository.save(produit);
     }
 
@@ -96,3 +115,4 @@ public class ProduitService {
         }
     }
 }
+

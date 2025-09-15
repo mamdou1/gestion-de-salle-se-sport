@@ -10,10 +10,13 @@ import com.cwa.GestionDeSalleDeSportV2.Service.AuthService;
 import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.Map;
 
 @RestController
@@ -29,9 +32,25 @@ public class AuthController {
     }
 
     @PostMapping("/inscription")
-    public ResponseEntity<Map<String, Object>> inscriptionAdmin(@RequestBody InscriptionDTO dto){
-        return authService.inscriptionAdmin(dto);
+    public ResponseEntity<Map<String, Object>> inscriptionAdmin(@RequestBody InscriptionDTO dto, MultipartFile image) throws IOException {
+        return authService.inscriptionAdmin(dto, image);
     }
+//
+//    @GetMapping("/photo/{id}")
+//    public ResponseEntity<byte[]> getPhotoProduitGym(@PathVariable Long id){
+//        byte[] image = authService.getPhotoProduitGym(id);
+//        return ResponseEntity.ok()
+//                .header(HttpHeaders.CONTENT_TYPE, "image/jpeg") //  ou "image/png"
+//                .body(image);
+//    }
+//
+//    @GetMapping("/photo/{id}")
+//    public ResponseEntity<byte[]> getPhotoProduitAdmin(@PathVariable Long id){
+//        byte[] image = authService.getPhotoProduitAdmin(id);
+//        return ResponseEntity.ok()
+//                .header(HttpHeaders.CONTENT_TYPE, "image/jpeg") //  ou "image/png"
+//                .body(image);
+//    }
 
     @PostMapping("/connexion")
     public ResponseEntity<Map<String, Object>> connexion(@Valid @RequestBody ConnexionDTO dto){

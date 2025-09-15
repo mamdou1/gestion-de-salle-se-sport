@@ -3,13 +3,9 @@ package com.cwa.GestionDeSalleDeSportV2.Service;
 
 import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
 import com.cwa.GestionDeSalleDeSportV2.DTO.*;
+import com.cwa.GestionDeSalleDeSportV2.Entity.*;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutMembre;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeNotification;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Famille;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
-import com.cwa.GestionDeSalleDeSportV2.Entity.TypeDeService;
-import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.FamilleRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.TypeDeServiceRepository;
@@ -19,10 +15,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -77,7 +74,7 @@ public class UserService {
 
 
     //  3.  Ajouter nouveau staff
-    public String ajouterStaff(StaffDTO dto, User admin) throws AccessDeniedException, MessagingException {
+    public String ajouterStaff(StaffDTO dto, User admin, MultipartFile file) throws IOException, MessagingException {
         if (admin.getRole() != Role.ADMIN){
             throw new AccessDeniedException("Seul un admin peut ajouter des membres du staff.");
         }
@@ -110,6 +107,10 @@ public class UserService {
         staff.setGym(admin.getGym()); // Gym principal
         staff.addGym(admin.getGym()); // Ajouter à gyms
 
+        if (file != null && !file.isEmpty()){
+            staff.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+        }
+
         //  mdp == mot de passe
         String mdp = genererMotDePasse(staff);
         staff.setPassword(passwordEncoder.encode(mdp));
@@ -121,8 +122,14 @@ public class UserService {
 
     }
 
+    public byte[] getPhotoProduitStaff(Long id){
+        User user = userRepository.findById(id)
+                .orElseThrow(()->new RuntimeException("Produit non trouvé."));
+        return user.getProfil();
+    }
+
     //  4.  Ajout d'un membre par le Staff a qui de droit(par Réceptionniste, Gérant, Admin)
-    public String ajouterMembre(MembreDTO dto, User staff) throws MessagingException, AccessDeniedException {
+    public Optional<User> ajouterMembre(MembreDTO dto, User staff, MultipartFile file) throws MessagingException, IOException {
         if (!peutGererMembre(staff)){
             throw new AccessDeniedException("Seul le staff authorisé peut ajouter un membre.");
         }
@@ -149,7 +156,7 @@ public class UserService {
             }
 
             userRepository.save(membreExistant);
-            return "Membe déjà existant. Gym ajouté avec succès.";
+            return existingUser;
         }
 
 //        if (dto.getDate_de_naissanceMembre() != null && !dto.getDate_de_naissanceMembre().trim().isEmpty()) {
@@ -199,6 +206,10 @@ public class UserService {
         String mdp = genererMotDePasse(nouveauMembre);
         nouveauMembre.setPassword(passwordEncoder.encode(mdp));
 
+        if (file != null && !file.isEmpty()){
+            nouveauMembre.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+        }
+
         userRepository.save(nouveauMembre);
         emailService.envoyerEmailBienvenu(nouveauMembre, mdp);
         notificationService.notifyGymAndMember(
@@ -212,14 +223,17 @@ public class UserService {
 
         );
 
+        return Optional.of(nouveauMembre);
+    }
 
-
-
-        return "Membre ajouter avec succès !";
+    public byte[] getPhotoProduitMembre(Long id){
+        User user = userRepository.findById(id)
+                .orElseThrow(()->new RuntimeException("Produit non trouvé."));
+        return user.getProfil();
     }
 
     //  5.  Modification des info du compte
-    public String modifierMembre(Long id, MembreDTO dto, User currentUser) throws AccessDeniedException {
+    public String modifierMembre(Long id, MembreDTO dto, User currentUser, MultipartFile file) throws IOException {
 
         User membre = userRepository.findById(id)
                 .orElseThrow(()-> new RuntimeException("Membre introuvable !"));
@@ -241,12 +255,16 @@ public class UserService {
         if (dto.getAdresseMembre() !=null) membre.setAdresse(dto.getAdresseMembre());
         if (dto.getNumeroTelephoneMembre() !=null) membre.setTelephone(dto.getNumeroTelephoneMembre());
         if (dto.getDate_de_naissanceMembre() !=null) membre.setDate_de_naissance(dto.getDate_de_naissanceMembre());
+        if (file != null && !file.isEmpty()){
+            membre.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+        }
+
 
         userRepository.save(membre);
         return "Modification effectuée !";
     }
 
-    public String modifierStaff(Long id, StaffDTO dto, User currentUser) throws AccessDeniedException {
+    public String modifierStaff(Long id, StaffDTO dto, User currentUser, MultipartFile file) throws IOException {
 
         User staff = userRepository.findById(id)
                 .orElseThrow(()-> new RuntimeException("Membre introuvable !"));
@@ -268,6 +286,9 @@ public class UserService {
         if (dto.getAdresseStaff() !=null) staff.setAdresse(dto.getAdresseStaff());
         if (dto.getNumeroTelephoneStaff() !=null) staff.setTelephone(dto.getNumeroTelephoneStaff());
         if (dto.getDate_de_naissanceStaff() !=null) staff.setDate_de_naissance(dto.getDate_de_naissanceStaff());
+        if (file != null && !file.isEmpty()){
+            staff.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+        }
 
         userRepository.save(staff);
         return "Modification effectuée !";

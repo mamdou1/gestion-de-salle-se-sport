@@ -27,8 +27,8 @@ public class ProduitDTO {
     @Positive(message = "La quantité en stock doit être positive")
     private Integer quantiteEnStock;
 
-    @Size(max = 255, message = "L'URL de l'image ne doit pas dépasser 255 caractères")
-    private String imageUrl;
+//    @Size(max = 255, message = "L'URL de l'image ne doit pas dépasser 255 caractères")
+//    private String imageUrl;
 
     @NotNull(message = "La catégorie est obligatoire")
     @Enumerated(EnumType.STRING)
@@ -42,7 +42,7 @@ public class ProduitDTO {
         this.description = description;
         this.prixUnitaire = prixUnitaire;
         this.quantiteEnStock = quantiteEnStock;
-        this.imageUrl = imageUrl;
+//        this.imageUrl = imageUrl;
         this.categorie = categorie;
     }
 
@@ -79,13 +79,13 @@ public class ProduitDTO {
         this.quantiteEnStock = quantiteEnStock;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
-    }
-
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
-    }
+//    public String getImageUrl() {
+//        return imageUrl;
+//    }
+//
+//    public void setImageUrl(String imageUrl) {
+//        this.imageUrl = imageUrl;
+//    }
 
     public Categorie getCategorie() {
         return categorie;

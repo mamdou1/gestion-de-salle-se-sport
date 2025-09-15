@@ -8,6 +8,7 @@ import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeNotification;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Notification;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Produit;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Jwt.JwtUtils;
 import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
@@ -23,7 +24,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -52,7 +55,7 @@ public class AuthService {
         this.emailService = emailService;
     }
 
-    public ResponseEntity<Map<String, Object>> inscriptionAdmin(InscriptionDTO dto) {
+    public ResponseEntity<Map<String, Object>> inscriptionAdmin(InscriptionDTO dto, MultipartFile file) throws IOException {
         Map<String, Object> response = new HashMap<>();
 
         try {
@@ -63,6 +66,11 @@ public class AuthService {
         gym.setAdresse(dto.getAdresseGym());
         gym.setEmail(dto.getEmailGym());
         gym.setTelephone(dto.getTelephoneGym());
+//        gym.setDescription(dto.getDescription());
+//
+//        if (file != null && file.isEmpty()){
+//            gym.setPhoto(file.getBytes()); //  Conversion du MultipartFile en byte[]
+//        }
 
             gymRepository.save(gym);
 
@@ -79,6 +87,10 @@ public class AuthService {
       //  admin.setOnline(false);
         admin.setGym(gym);
         admin.getGyms().add(gym);
+
+//            if (file != null && file.isEmpty()){
+//                admin.setPhoto(file.getBytes()); //  Conversion du MultipartFile en byte[]
+//            }
 
         // . Telephone et mot de passe
         admin.setTelephone(dto.getTelephoneAdmin());
@@ -126,6 +138,18 @@ public class AuthService {
             return ResponseEntity.status(400).body(response);
         }
     }
+
+//    public byte[] getPhotoProduitGym (Long id){
+//        Gym gym = gymRepository.findById(id)
+//                .orElseThrow(()->new RuntimeException("Produit non trouvé."));
+//        return gym.getPhoto();
+//    }
+//
+//    public byte[] getPhotoProduitAdmin (Long id){
+//        User user = userRepository.findById(id)
+//                .orElseThrow(()->new RuntimeException("Produit non trouvé."));
+//        return user.getPhoto();
+//    }
 
     public ResponseEntity<Map<String, Object>> connexion(ConnexionDTO dto) {
         Map<String, Object> response = new HashMap<>();

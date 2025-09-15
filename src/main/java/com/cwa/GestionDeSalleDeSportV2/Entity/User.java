@@ -117,6 +117,10 @@ public class User implements UserDetails {
     @JoinColumn(name = "type_de_service_id", nullable = true)
     private TypeDeService typeDeService;
 
+    @Lob
+    @Column(name = "profil", columnDefinition = "LONGBLOB")
+    private byte[] profil;
+
 
     @AssertTrue(message = "L'âge doit être compris entre 16 et 80 ans")
     public boolean isValidAge() {
@@ -406,6 +410,14 @@ public class User implements UserDetails {
 
     public void setTypeDeService(TypeDeService typeDeService) {
         this.typeDeService = typeDeService;
+    }
+
+    public byte[] getProfil() {
+        return profil;
+    }
+
+    public void setProfil(byte[] profil) {
+        this.profil = profil;
     }
 }
 

@@ -2,8 +2,6 @@ package com.cwa.GestionDeSalleDeSportV2.Controller;
 
 
 import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
-import com.cwa.GestionDeSalleDeSportV2.DTO.ChangerMotDePassDTO;
-import com.cwa.GestionDeSalleDeSportV2.DTO.FamilleDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.MembreDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.StaffDTO;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
@@ -13,14 +11,19 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/users")
@@ -36,37 +39,60 @@ public class UserController {
 
     //  1.  Ajouter un nouveau staff par l'admin
     @PostMapping("/ajouter/staff")
-    public ResponseEntity<String> ajouterStaff(@Valid @RequestBody StaffDTO staffDTO) throws AccessDeniedException, MessagingException {
+    public ResponseEntity<String> ajouterStaff(@Valid @ModelAttribute StaffDTO staffDTO, @RequestParam(required = false)MultipartFile file) throws IOException, MessagingException { // , MultipartFile image
         User admin = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        String message = userService.ajouterStaff(staffDTO, admin);
+        String message = userService.ajouterStaff(staffDTO, admin, file); // , image
 
         return new  ResponseEntity<>(message, HttpStatus.CREATED);
     }
 
+//    @GetMapping("/photo/{id}")
+//    public ResponseEntity<byte[]> getPhoto(@PathVariable Long id){
+//        byte[] image = userService.getPhotoProduitMembre(id);
+//        return ResponseEntity.ok()
+//                .header(HttpHeaders.CONTENT_TYPE, "image/jpeg") //  ou "image/png"
+//                .body(image);
+//    }
+
     //  2.  Ajouter un nouveau membre par le staff autoriser
     @PostMapping("/ajouter/membre")
-    public ResponseEntity<String> ajouterMembre(@Valid @RequestBody MembreDTO membreDTO) throws MessagingException, AccessDeniedException {
+    public ResponseEntity<Optional<User>> ajouterMembre(@Valid @ModelAttribute MembreDTO membreDTO, @RequestParam(required = false)MultipartFile file) throws MessagingException, IOException {
         User staff = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        String message = userService.ajouterMembre(membreDTO, staff);
+        Optional<User> user = userService.ajouterMembre(membreDTO, staff, file);
 
-        return new ResponseEntity<>(message, HttpStatus.CREATED);
+        return new ResponseEntity<>(user, HttpStatus.CREATED);
     }
 
     //  3.  Modifier un membre par le staff autoriser
-    @PutMapping("/modifier-membre/{id}")
-    public ResponseEntity<String> modifierMembre(@PathVariable Long id, @RequestBody MembreDTO membreDTO) throws AccessDeniedException {
+    @PutMapping(value = "/modifier-membre/{id}",  consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> modifierMembre(@ModelAttribute MembreDTO membreDTO, @RequestPart(required = false)MultipartFile file, @PathVariable Long id) throws IOException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        String message = userService.modifierMembre(id, membreDTO, currentUser);
+        String message = userService.modifierMembre(id, membreDTO, currentUser, file);
 
         return new ResponseEntity<>(message, HttpStatus.CREATED);
     }
 
     @PutMapping("/modifier-staff/{id}")
-    public ResponseEntity<String> modifierStaff(@PathVariable Long id, @RequestBody StaffDTO dto) throws AccessDeniedException {
+    public ResponseEntity<String> modifierStaff(@PathVariable Long id, @ModelAttribute StaffDTO dto, @RequestParam(required = false)MultipartFile file) throws IOException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        String message = userService.modifierStaff(id, dto, currentUser);
+        String message = userService.modifierStaff(id, dto, currentUser, file);
 
         return new ResponseEntity<>(message, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/photo/staff/{id}")
+    public ResponseEntity<byte[]> getPhotoProduitStaff(@PathVariable Long id){
+        byte[] image = userService.getPhotoProduitStaff(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, "image/jpeg") //  ou "image/png"
+                .body(image);
+    }
+    @GetMapping("/photo/membre/{id}")
+    public ResponseEntity<byte[]> getPhotoProduitMembre(@PathVariable Long id){
+        byte[] image = userService.getPhotoProduitMembre(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, "image/jpeg") //  ou "image/png"
+                .body(image);
     }
 
     //  4.  Consultation d’un profil

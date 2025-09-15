@@ -55,6 +55,12 @@ public class Gym {
     @JsonBackReference
     private List<Casier> casiers;
 
+//    @Lob
+//    @Column(name = "photo", columnDefinition = "LONGBLOB")
+//    private byte[] photo;
+//
+//    private String description;
+
     //  Liste des événements du gym
 //    @OneToMany(mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private List<Evenement> evenements;
@@ -137,4 +143,20 @@ public class Gym {
     public void setCasiers(List<Casier> casiers) {
         this.casiers = casiers;
     }
+
+//    public byte[] getPhoto() {
+//        return photo;
+//    }
+//
+//    public void setPhoto(byte[] photo) {
+//        this.photo = photo;
+//    }
+//
+//    public String getDescription() {
+//        return description;
+//    }
+//
+//    public void setDescription(String description) {
+//        this.description = description;
+//    }
 }

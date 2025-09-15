@@ -3,10 +3,13 @@ package com.cwa.GestionDeSalleDeSportV2.Controller;
 import com.cwa.GestionDeSalleDeSportV2.DTO.ProduitDTO;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Produit;
 import com.cwa.GestionDeSalleDeSportV2.Service.ProduitService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.util.List;
 
@@ -22,15 +25,23 @@ public class ProduitController {
 
     // 1. Ajouter un produit
     @PostMapping("/ajouter")
-    public ResponseEntity<Produit> ajouterProduit(@RequestBody ProduitDTO dto) throws AccessDeniedException {
-        Produit produit = produitService.ajouterProduit(dto);
+    public ResponseEntity<Produit> ajouterProduit(@ModelAttribute ProduitDTO dto, @RequestParam(required = false)MultipartFile file) throws IOException {
+        Produit produit = produitService.ajouterProduit(dto, file);
         return new ResponseEntity<>(produit, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/photo/{id}")
+    public ResponseEntity<byte[]> getPhoto(@PathVariable Long id){
+        byte[] image = produitService.getPhotoProduit(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, "image/jpeg") //  ou "image/png"
+                .body(image);
     }
 
     // 2. Modifier un produit
     @PutMapping("/modifier/{id}")
-    public ResponseEntity<Produit> modifierProduit(@PathVariable Long id, @RequestBody ProduitDTO dto) throws AccessDeniedException {
-        Produit produit = produitService.modifierProduit(id, dto);
+    public ResponseEntity<Produit> modifierProduit(@PathVariable Long id, @ModelAttribute ProduitDTO dto, @RequestParam(required = false)MultipartFile file) throws IOException {
+        Produit produit = produitService.modifierProduit(id, dto, file);
         return ResponseEntity.ok(produit);
     }
 
@@ -55,3 +66,4 @@ public class ProduitController {
         return ResponseEntity.ok(produit);
     }
 }
+
