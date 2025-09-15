@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+//import defaultImage from "../assets/produits-gym.png";
 
 interface Staff {
   id: number;
@@ -15,6 +16,7 @@ interface Staff {
   date_creation: string;
   gymId?: number;
   gymsIds?: number[];
+  profil?: string | null | undefined; // Ajout pour stocker l'image en base64 (optionnel)
 }
 
 interface FormData {
@@ -27,6 +29,7 @@ interface FormData {
   date_de_naissanceStaff: string;
   passwordStaff: string;
   roleStaff: string;
+  photo?: File | null; // Ajout pour gérer le téléversement d'image
 }
 
 interface TableauDeBordProps {
@@ -48,6 +51,7 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
     date_de_naissanceStaff: "",
     passwordStaff: "",
     roleStaff: "RECEPTIONNISTE",
+    photo: null,
   });
   const [loading, setLoading] = useState<boolean>(true);
   const [detailLoading, setDetailLoading] = useState<boolean>(false);
@@ -85,7 +89,11 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
           },
         }
       );
-      setStaffs(response.data);
+      const staffsData = response.data.map((staff: any) => ({
+        ...staff,
+        profil: staff.profil ? `data:image/jpeg;base64,${staff.profil}` : null, // Conversion en base64 pour affichage
+      }));
+      setStaffs(staffsData);
       setLoading(false);
     } catch (err: any) {
       setError("Erreur lors de la récupération du staff.");
@@ -107,7 +115,12 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
           },
         }
       );
-      setSelectedStaff(response.data);
+      setSelectedStaff({
+        ...response.data,
+        profil: response.data.profil
+          ? `data:image/jpeg;base64,${response.data.profil}`
+          : null,
+      });
     } catch (err: any) {
       setError(
         "Erreur lors de la récupération des détails du membre du staff."
@@ -131,6 +144,7 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
       date_de_naissanceStaff: staff.date_de_naissance || "",
       passwordStaff: "", // Mot de passe vide pour l'édition
       roleStaff: staff.role || "RECEPTIONNISTE",
+      photo: null, // Réinitialiser la photo pour modification
     });
   };
 
@@ -147,6 +161,7 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
       date_de_naissanceStaff: "",
       passwordStaff: "",
       roleStaff: "RECEPTIONNISTE",
+      photo: null, // Réinitialiser la photo pour modification
     });
   };
 
@@ -156,24 +171,34 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
     if (!editingStaff) return;
 
     setUpdating(true);
+    const formDataToSend = new FormData();
+    formDataToSend.append("nomStaff", formData.nomStaff);
+    formDataToSend.append("prenomStaff", formData.prenomStaff);
+    formDataToSend.append("emailStaff", formData.emailStaff);
+    formDataToSend.append(
+      "numeroTelephoneStaff",
+      formData.numeroTelephoneStaff
+    );
+    formDataToSend.append("adresseStaff", formData.adresseStaff || ""); // Valeur par défaut
+    formDataToSend.append("genreStaff", formData.genreStaff);
+    formDataToSend.append(
+      "date_de_naissanceStaff",
+      formData.date_de_naissanceStaff || ""
+    );
+    // if (formData.passwordStaff) {
+    //   formDataToSend.append("passwordStaff", formData.passwordStaff); // Ajouter seulement si défini
+    // }
+    formDataToSend.append("roleStaff", formData.roleStaff);
+    if (formData.photo) formDataToSend.append("file", formData.photo);
+
     try {
       await axios.put(
         `http://localhost:8080/api/users/modifier-staff/${editingStaff.id}`,
-        {
-          nomStaff: formData.nomStaff,
-          prenomStaff: formData.prenomStaff,
-          emailStaff: formData.emailStaff,
-          numeroTelephoneStaff: formData.numeroTelephoneStaff,
-          adresseStaff: formData.adresseStaff,
-          genreStaff: formData.genreStaff,
-          date_de_naissanceStaff: formData.date_de_naissanceStaff,
-          passwordStaff: formData.passwordStaff || undefined, // Envoyer seulement si modifié
-          roleStaff: formData.roleStaff,
-        },
+        formDataToSend, // Passer FormData directement
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+            // Ne pas définir Content-Type, axios le gère automatiquement
           },
         }
       );
@@ -198,24 +223,34 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
     e.preventDefault();
 
     setAdding(true);
+    const formDataToSend = new FormData();
+    formDataToSend.append("nomStaff", formData.nomStaff);
+    formDataToSend.append("prenomStaff", formData.prenomStaff);
+    formDataToSend.append("emailStaff", formData.emailStaff);
+    formDataToSend.append(
+      "numeroTelephoneStaff",
+      formData.numeroTelephoneStaff
+    );
+    formDataToSend.append("adresseStaff", formData.adresseStaff || ""); // Valeur par défaut
+    formDataToSend.append("genreStaff", formData.genreStaff);
+    formDataToSend.append(
+      "date_de_naissanceStaff",
+      formData.date_de_naissanceStaff || ""
+    );
+    // if (formData.passwordStaff) {
+    //   formDataToSend.append("passwordStaff", formData.passwordStaff); // Ajouter seulement si défini
+    // }
+    formDataToSend.append("roleStaff", formData.roleStaff);
+    if (formData.photo) formDataToSend.append("file", formData.photo);
+
     try {
       await axios.post(
         "http://localhost:8080/api/users/ajouter/staff",
-        {
-          nomStaff: formData.nomStaff,
-          prenomStaff: formData.prenomStaff,
-          emailStaff: formData.emailStaff,
-          numeroTelephoneStaff: formData.numeroTelephoneStaff,
-          adresseStaff: formData.adresseStaff,
-          genreStaff: formData.genreStaff,
-          date_de_naissanceStaff: formData.date_de_naissanceStaff,
-          passwordStaff: formData.passwordStaff,
-          roleStaff: formData.roleStaff,
-        },
+        formDataToSend, // Passer FormData directement
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+            // Ne pas définir Content-Type, axios le gère automatiquement
           },
         }
       );
@@ -232,12 +267,21 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
       setAdding(false);
     }
   };
-
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, files } = e.target as HTMLInputElement;
+    if (name === "photo" && files) {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: files[0],
+      }));
+    } else if (name === "typeDeService") {
+      const numericValue = value ? parseInt(value) : undefined;
+      setFormData((prev) => ({ ...prev, [name]: numericValue }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -466,6 +510,9 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
               <thead className="bg-orange-500 text-white">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    Photo
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
                     Nom & Prénom
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
@@ -492,6 +539,13 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
                     className="hover:bg-gray-300 cursor-pointer transition-colors odd:bg-gray-100 even:bg-gray-200"
                     onClick={() => fetchStaffDetails(staff.id)}
                   >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <img
+                        src={staff.profil || "/src/assets/person-96.png"}
+                        alt="Profil"
+                        className="w-12 h-12 object-cover rounded-full"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {staff.nom} {staff.prenom}
@@ -705,6 +759,16 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
                               ).toLocaleDateString("fr-FR")
                             : "N/A"}
                         </p>
+                        {selectedStaff.profil && (
+                          <div className="mb-4">
+                            <strong>Photo de profil:</strong>
+                            <img
+                              src={selectedStaff.profil}
+                              alt="Photo de profil"
+                              className="w-32 h-32 object-cover rounded-full mt-2"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -851,6 +915,16 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
                     </select>
                   </div>
                 </div>
+                <div>
+                  <label className="block text-gray-700">Photo</label>
+                  <input
+                    type="file"
+                    name="photo"
+                    accept="image/*"
+                    onChange={handleChange}
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
 
                 <div className="flex justify-end space-x-3 mt-6">
                   <button
@@ -993,6 +1067,17 @@ function GestionStaff({ setIsLoggedIn }: TableauDeBordProps) {
                       <option value="ADMIN">ADMIN</option>
                     </select>
                   </div>
+                </div>
+                <div>
+                  <label className="block text-gray-700">Photo *</label>
+                  <input
+                    type="file"
+                    name="photo"
+                    accept="image/*"
+                    onChange={handleChange}
+                    className="w-full p-2 border rounded"
+                    required
+                  />
                 </div>
 
                 <div className="flex justify-end space-x-3 mt-6">

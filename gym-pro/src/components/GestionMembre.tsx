@@ -27,7 +27,7 @@ interface Membre {
   telephone: string;
   adresse: string;
   genre: "HOMME" | "FEMME";
-  typeDeService: TypeDeService[] | null; // Permet null comme valeur possible
+  typeDeService: TypeDeService[] | null;
   date_de_naissance: string;
   fraisInscription: number;
   role: string;
@@ -36,6 +36,7 @@ interface Membre {
   chefFamilleId?: number;
   gymId?: number;
   gymsIds?: number[];
+  profil?: string | null | undefined; // Ajout pour stocker l'image en base64 (optionnel)
 }
 
 interface FormData {
@@ -52,6 +53,7 @@ interface FormData {
   gymsIds: number[];
   role: string;
   typeDeService?: number;
+  photo?: File | null; // Ajout pour gérer le téléversement d'image
 }
 
 interface PaginationResponse {
@@ -86,6 +88,7 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
     gymsIds: [],
     role: "MEMBRE",
     typeDeService: undefined,
+    photo: null,
   });
   const [loading, setLoading] = useState<boolean>(true);
   const [detailLoading, setDetailLoading] = useState<boolean>(false);
@@ -114,7 +117,7 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
   const calculateAge = (birthDate: string) => {
     if (!birthDate) return null;
     const birth = new Date(birthDate);
-    const today = new Date(); // 11:53 AM GMT, 29 août 2025
+    const today = new Date();
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
     if (
@@ -160,10 +163,13 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
       const membresData = response.data.content.map((membre: any) => ({
         ...membre,
         typeDeService: Array.isArray(membre.typeDeService)
-          ? membre.typeDeService // Garde le tableau tel quel
+          ? membre.typeDeService
           : membre.typeDeService
-          ? [membre.typeDeService] // Convertit un objet unique en tableau
-          : [], // Tableau vide si undefined
+          ? [membre.typeDeService]
+          : [],
+        profil: membre.profil
+          ? `data:image/jpeg;base64,${membre.profil}`
+          : null, // Conversion en base64 pour affichage
       }));
       setMembres(membresData);
       setTotalPages(response.data.totalPages);
@@ -187,7 +193,12 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
           },
         }
       );
-      setSelectedMembre(response.data);
+      setSelectedMembre({
+        ...response.data,
+        profil: response.data.profil
+          ? `data:image/jpeg;base64,${response.data.profil}`
+          : null,
+      });
     } catch (err: any) {
       setError("Erreur lors de la récupération des détails du membre.");
       console.error("Erreur détaillée:", err.response?.data || err.message);
@@ -215,6 +226,7 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
         membre.typeDeService && membre.typeDeService.length > 0
           ? membre.typeDeService[0].id
           : undefined,
+      photo: null, // Réinitialiser la photo pour modification
     });
   };
 
@@ -234,6 +246,7 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
       gymsIds: [],
       role: "MEMBRE",
       typeDeService: undefined,
+      photo: null,
     });
   };
 
@@ -249,7 +262,7 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
           : selectedType.tarifFemme || selectedType.tarifUnique;
       setFormData((prev) => ({
         ...prev,
-        typeDeServiceId: typeId,
+        typeDeService: typeId,
         fraisInscriptionMembre: frais,
       }));
     }
@@ -260,29 +273,39 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
     if (!editingMembre) return;
 
     setUpdating(true);
+    const formDataToSend = new FormData();
+    formDataToSend.append("nomMembre", formData.nomMembre);
+    formDataToSend.append("prenomMembre", formData.prenomMembre);
+    formDataToSend.append("emailMembre", formData.emailMembre);
+    formDataToSend.append(
+      "numeroTelephoneMembre",
+      formData.numeroTelephoneMembre
+    );
+    formDataToSend.append("adresseMembre", formData.adresseMembre);
+    formDataToSend.append("genreMembre", formData.genreMembre);
+    formDataToSend.append(
+      "date_de_naissanceMembre",
+      formData.date_de_naissance
+    );
+    if (formData.typeDeService)
+      formDataToSend.append("typeDeService", formData.typeDeService.toString());
+    if (formData.chefFamilleId)
+      formDataToSend.append("chefFamilleId", formData.chefFamilleId);
+    if (formData.gymId) formDataToSend.append("gymId", formData.gymId);
+    formData.gymsIds.forEach((id) =>
+      formDataToSend.append("gymsIds", id.toString())
+    );
+    formDataToSend.append("role", formData.role);
+    if (formData.photo) formDataToSend.append("file", formData.photo);
+
     try {
       await axios.put(
         `http://localhost:8080/api/users/modifier-membre/${editingMembre.id}`,
-        {
-          nomMembre: formData.nomMembre,
-          prenomMembre: formData.prenomMembre,
-          emailMembre: formData.emailMembre,
-          numeroTelephoneMembre: formData.numeroTelephoneMembre,
-          adresseMembre: formData.adresseMembre,
-          genreMembre: formData.genreMembre,
-          date_de_naissance: formData.date_de_naissance,
-          typeDeService: formData.typeDeService,
-          chefFamilleId: formData.chefFamilleId
-            ? parseInt(formData.chefFamilleId)
-            : null,
-          gymId: formData.gymId ? parseInt(formData.gymId) : null,
-          gymsIds: formData.gymsIds,
-          role: formData.role,
-        },
+        formDataToSend,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+            "Content-Type": "multipart/form-data",
           },
         }
       );
@@ -305,7 +328,6 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
   const handleAddMembre = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
     if (
       !formData.nomMembre.trim() ||
       !formData.prenomMembre.trim() ||
@@ -328,27 +350,32 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
     }
 
     setAdding(true);
+    const formDataToSend = new FormData();
+    formDataToSend.append("nomMembre", formData.nomMembre);
+    formDataToSend.append("prenomMembre", formData.prenomMembre);
+    formDataToSend.append("emailMembre", formData.emailMembre);
+    formDataToSend.append(
+      "numeroTelephoneMembre",
+      formData.numeroTelephoneMembre
+    );
+    formDataToSend.append("adresseMembre", formData.adresseMembre);
+    formDataToSend.append("genreMembre", formData.genreMembre);
+    formDataToSend.append(
+      "date_de_naissanceMembre",
+      formData.date_de_naissance
+    );
+    if (formData.typeDeService)
+      formDataToSend.append("typeDeService", formData.typeDeService.toString());
+    if (formData.photo) formDataToSend.append("file", formData.photo);
+
     try {
-      const payload = {
-        nomMembre: formData.nomMembre,
-        prenomMembre: formData.prenomMembre,
-        emailMembre: formData.emailMembre,
-        numeroTelephoneMembre: formData.numeroTelephoneMembre,
-        adresseMembre: formData.adresseMembre,
-        genreMembre: formData.genreMembre,
-        date_de_naissanceMembre: formData.date_de_naissance, // Utilisez le bon nom
-        typeDeService: formData.typeDeService, // Déjà correct
-      };
-
-      console.log("Données envoyées:", payload);
-
       const response = await axios.post(
         "http://localhost:8080/api/users/ajouter/membre",
-        payload,
+        formDataToSend,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+            "Content-Type": "multipart/form-data",
           },
         }
       );
@@ -374,10 +401,13 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value } = e.target;
-
-    // Si c'est le select typeDeService, convertissez en number
-    if (name === "typeDeService") {
+    const { name, value, files } = e.target as HTMLInputElement;
+    if (name === "photo" && files) {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: files[0],
+      }));
+    } else if (name === "typeDeService") {
       const numericValue = value ? parseInt(value) : undefined;
       setFormData((prev) => ({ ...prev, [name]: numericValue }));
     } else {
@@ -603,12 +633,14 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
         </div>
 
         {/* Tableau */}
-
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-orange-500 text-white">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    Photo
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
                     Nom & Prénom
                   </th>
@@ -639,6 +671,13 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
                     className="hover:bg-gray-300 cursor-pointer transition-colors odd:bg-gray-100 even:bg-gray-200"
                     onClick={() => fetchMembreDetails(membre.id)}
                   >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <img
+                        src={membre.profil || "/src/assets/person-96.png"}
+                        alt="Profil"
+                        className="w-12 h-12 object-cover rounded-full"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {membre.nom} {membre.prenom}
@@ -704,7 +743,6 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
         </div>
 
         {/* Pagination */}
-
         {membres.length > 0 && (
           <div className="mt-6 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="text-white">
@@ -886,6 +924,16 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
                       </div>
                     </div>
                   </div>
+                  {selectedMembre.profil && (
+                    <div className="mb-4">
+                      <strong>Photo de profil:</strong>
+                      <img
+                        src={selectedMembre.profil}
+                        alt="Photo de profil"
+                        className="w-32 h-32 object-cover rounded-full mt-2"
+                      />
+                    </div>
+                  )}
 
                   <div className="flex justify-end space-x-3">
                     <button
@@ -1018,11 +1066,21 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
                       className="w-full p-2 border rounded"
                     />
                   </div>
+                  <div>
+                    <label className="block text-gray-700">Photo</label>
+                    <input
+                      type="file"
+                      name="photo"
+                      accept="image/*"
+                      onChange={handleChange}
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-gray-700">Type de service</label>
                   <select
-                    name="typeDeServiceId"
+                    name="typeDeService"
                     value={formData.typeDeService?.toString() || ""}
                     onChange={(e) => {
                       const typeId = parseInt(e.target.value);
@@ -1031,7 +1089,7 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
                       );
                       setFormData((prev) => ({
                         ...prev,
-                        typeDeServiceId: typeId,
+                        typeDeService: typeId,
                         fraisInscriptionMembre: selectedType
                           ? selectedType.fraisInscription
                           : 0,
@@ -1074,7 +1132,7 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
                   <button
                     type="submit"
                     disabled={updating || !formData.typeDeService}
-                    className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition-colors disabled:opacity-50"
+                    className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-400 transition-colors font-bold"
                   >
                     {updating ? "Modification..." : "Modifier"}
                   </button>
@@ -1160,7 +1218,7 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
                     <select
                       name="genreMembre"
                       value={formData.genreMembre}
-                      onChange={handleChange} // Utilisez handleChange directement
+                      onChange={handleChange}
                       className="w-full p-2 border rounded"
                       required
                     >
@@ -1174,7 +1232,7 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
                     </label>
                     <input
                       type="date"
-                      name="date_de_naissance" // Nom corrigé
+                      name="date_de_naissance"
                       value={formData.date_de_naissance}
                       onChange={handleChange}
                       className="w-full p-2 border rounded"
@@ -1185,9 +1243,9 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
                       Type de service *
                     </label>
                     <select
-                      name="typeDeService" // Nom corrigé
+                      name="typeDeService"
                       value={formData.typeDeService?.toString() || ""}
-                      onChange={handleChange} // Utilisez handleChange directement
+                      onChange={handleChange}
                       className="w-full p-2 border rounded"
                       required
                     >
@@ -1198,6 +1256,17 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
                         </option>
                       ))}
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700">Photo *</label>
+                    <input
+                      type="file"
+                      name="photo"
+                      accept="image/*"
+                      onChange={handleChange}
+                      className="w-full p-2 border rounded"
+                      required
+                    />
                   </div>
                   <div>
                     <label className="block text-gray-700">
@@ -1225,7 +1294,9 @@ function GestionMembre({ setIsLoggedIn }: TableauDeBordProps) {
                   </button>
                   <button
                     type="submit"
-                    disabled={adding || !formData.typeDeService}
+                    disabled={
+                      adding || !formData.typeDeService || !formData.photo
+                    }
                     className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition-colors "
                   >
                     {adding ? "Ajout en cours..." : "Ajouter"}

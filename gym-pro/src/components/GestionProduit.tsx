@@ -54,7 +54,7 @@ interface Produit {
   description: string;
   prixUnitaire: number;
   quantiteEnStock: number;
-  imageUrl: string;
+  photo?: string; // URL générée pour l'image (sera récupérée via API)
   categorie: "EQUIPEMENT" | "ALIMENTATION";
   gym?: number;
 }
@@ -64,7 +64,7 @@ interface FormData {
   description: string;
   prixUnitaire: number;
   quantiteEnStock: number;
-  imageUrl: string;
+  photo?: File | null; // Champ pour le fichier photo
   categorie: "EQUIPEMENT" | "ALIMENTATION";
 }
 
@@ -82,7 +82,7 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
     description: "",
     prixUnitaire: 0,
     quantiteEnStock: 0,
-    imageUrl: "",
+    photo: null,
     categorie: "EQUIPEMENT",
   });
   const [loading, setLoading] = useState<boolean>(true);
@@ -122,7 +122,14 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
           },
         }
       );
-      setProduits(response.data);
+      // Générer une URL pour chaque photo à partir de l'ID
+      const updatedProduits = response.data.map((produit) => ({
+        ...produit,
+        photo: produit.id
+          ? `http://localhost:8080/api/produits/photo/${produit.id}`
+          : undefined,
+      }));
+      setProduits(updatedProduits);
       setLoading(false);
     } catch (err: any) {
       setError("Erreur lors de la récupération des produits.");
@@ -143,7 +150,13 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
           },
         }
       );
-      setSelectedProduit(response.data);
+      const updatedProduit = {
+        ...response.data,
+        photo: response.data.id
+          ? `http://localhost:8080/api/produits/photo/${response.data.id}`
+          : undefined,
+      };
+      setSelectedProduit(updatedProduit);
     } catch (err: any) {
       setError("Erreur lors de la récupération des détails du produit.");
       console.error("Erreur détaillée:", err.response?.data || err.message);
@@ -195,7 +208,7 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
       description: produit.description || "",
       prixUnitaire: produit.prixUnitaire || 0,
       quantiteEnStock: produit.quantiteEnStock || 0,
-      imageUrl: produit.imageUrl || "",
+      photo: null, // Réinitialiser le fichier pour modification
       categorie: produit.categorie || "EQUIPEMENT",
     });
   };
@@ -207,7 +220,7 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
       description: "",
       prixUnitaire: 0,
       quantiteEnStock: 0,
-      imageUrl: "",
+      photo: null,
       categorie: "EQUIPEMENT",
     });
   };
@@ -221,21 +234,27 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
     }
 
     setUpdating(true);
+    const formDataToSend = new FormData();
+    formDataToSend.append("nom", formData.nom);
+    formDataToSend.append("description", formData.description);
+    formDataToSend.append("prixUnitaire", formData.prixUnitaire.toString());
+    formDataToSend.append(
+      "quantiteEnStock",
+      formData.quantiteEnStock.toString()
+    );
+    formDataToSend.append("categorie", formData.categorie);
+    if (formData.photo) {
+      formDataToSend.append("file", formData.photo); // Ajout du fichier photo
+    }
+
     try {
       await axios.put(
         `http://localhost:8080/api/produits/modifier/${editingProduit.id}`,
-        {
-          nom: formData.nom,
-          description: formData.description,
-          prixUnitaire: formData.prixUnitaire,
-          quantiteEnStock: formData.quantiteEnStock,
-          imageUrl: formData.imageUrl,
-          categorie: formData.categorie,
-        },
+        formDataToSend,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+            "Content-Type": "multipart/form-data",
           },
         }
       );
@@ -263,21 +282,27 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
     }
 
     setAdding(true);
+    const formDataToSend = new FormData();
+    formDataToSend.append("nom", formData.nom);
+    formDataToSend.append("description", formData.description);
+    formDataToSend.append("prixUnitaire", formData.prixUnitaire.toString());
+    formDataToSend.append(
+      "quantiteEnStock",
+      formData.quantiteEnStock.toString()
+    );
+    formDataToSend.append("categorie", formData.categorie);
+    if (formData.photo) {
+      formDataToSend.append("file", formData.photo); // Ajout du fichier photo
+    }
+
     try {
       await axios.post(
         "http://localhost:8080/api/produits/ajouter",
-        {
-          nom: formData.nom,
-          description: formData.description,
-          prixUnitaire: formData.prixUnitaire,
-          quantiteEnStock: formData.quantiteEnStock,
-          imageUrl: formData.imageUrl,
-          categorie: formData.categorie,
-        },
+        formDataToSend,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+            "Content-Type": "multipart/form-data",
           },
         }
       );
@@ -296,16 +321,25 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLInputElement
+    >
   ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        name === "prixUnitaire" || name === "quantiteEnStock"
-          ? parseFloat(value)
-          : value,
-    }));
+    const { name, value, files } = e.target as HTMLInputElement;
+    if (name === "photo" && files) {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: files[0],
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]:
+          name === "prixUnitaire" || name === "quantiteEnStock"
+            ? parseFloat(value)
+            : value,
+      }));
+    }
   };
 
   const closeDetails = () => {
@@ -475,10 +509,8 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <img
-                        src={
-                          produit.imageUrl || "https://via.placeholder.com/40"
-                        }
-                        alt={produit.nom}
+                        src={produit.photo || "/src/assets/produits-gym.png"}
+                        alt="Photo"
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     </td>
@@ -607,7 +639,7 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
                         <div className="mb-4">
                           <img
                             src={
-                              selectedProduit.imageUrl ||
+                              selectedProduit.photo ||
                               "https://via.placeholder.com/100"
                             }
                             alt={selectedProduit.nom}
@@ -745,16 +777,13 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700">
-                      URL de la photo
-                    </label>
+                    <label className="block text-gray-700">Photo</label>
                     <input
-                      type="text"
-                      name="imageUrl"
-                      value={formData.imageUrl}
+                      type="file"
+                      name="photo"
                       onChange={handleChange}
                       className="w-full p-2 border rounded"
-                      placeholder="https://example.com/photo.jpg"
+                      accept="image/*"
                     />
                   </div>
                 </div>
@@ -867,16 +896,13 @@ function GestionProduit({ setIsLoggedIn }: TableauDeBordProps) {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700">
-                      URL de la photo
-                    </label>
+                    <label className="block text-gray-700">Photo</label>
                     <input
-                      type="text"
-                      name="imageUrl"
-                      value={formData.imageUrl}
+                      type="file"
+                      name="photo"
                       onChange={handleChange}
                       className="w-full p-2 border rounded"
-                      placeholder="https://example.com/photo.jpg"
+                      accept="image/*"
                     />
                   </div>
                 </div>
