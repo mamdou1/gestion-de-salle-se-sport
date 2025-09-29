@@ -124,7 +124,7 @@ public class UserService {
 
     public byte[] getPhotoProduitStaff(Long id){
         User user = userRepository.findById(id)
-                .orElseThrow(()->new RuntimeException("Produit non trouvé."));
+                .orElseThrow(()->new RuntimeException("Image non trouvé."));
         return user.getProfil();
     }
 
@@ -216,7 +216,7 @@ public class UserService {
                 staff.getGym(),
                 nouveauMembre,
                 "Ajout de menbre",
-                "Ajout d'un nouveau membre suite à son inscription physique à la salle de gym",
+                " Vous avez été ajouté avec succès, suite à son inscription physique à la salle de sport "+staff.getGym().getNom(),
                 "Ajout",
                 TypeNotification.INSCRIPTION,
                 false
@@ -460,22 +460,62 @@ public class UserService {
         }
     }
 
-    /*
 
-    public ResponseEntity<Map<String, Object>> changerMotDePasse(ChangerMotDePassDTO dto){
-        Map<String, Object> reponse = new HashMap<>();
+
+    public void changerMotDePasse(ChangerMotDePasseDTO dto){
 
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
 
-        currentUser.setPassword(passwordEncoder.encode(dto.getNewPassword()));
-        userRepository.save(currentUser);
+        if (!passwordEncoder.matches(dto.getAncienMotDePasse(), currentUser.getPassword())){
+            throw new RuntimeException("L'ancien mot de pass est incorrecte.");
+        }
+        if (!dto.getNouveauMotDePasse().equals(dto.getConfirmerMotDePasse())){
+            throw new RuntimeException("Le nouveau mot de passe ne correspond pas à l'ancien.");
+        }
 
-        reponse.put("message: ", "Mot de passe changer avec succès");
-        return  ResponseEntity.ok(reponse);
+        currentUser.setPassword(passwordEncoder.encode(dto.getNouveauMotDePasse()));
+        userRepository.save(currentUser);
 
     }
 
-     */
+    public void retirerStaff(Long staffId){
+        User admin = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+
+        User staff = userRepository.findById(staffId)
+                .orElseThrow(()->new RuntimeException("Staff introuvable."));
+
+        if (admin.getRole() != Role.ADMIN){
+            throw new RuntimeException("Seul les admins peuvent retirer une membre du systheme.");
+        }
+
+        if (staff.getRole() == Role.ADMIN){
+            throw new RuntimeException("Un administrateur ne peut pas être bloqué.");
+        }
+
+        if (!admin.getGym().equals(staff.getGym())){
+            throw new RuntimeException("L'utilisateur n'appartient pas au meme gym que le staff");
+        }
+        staff.setEnabled(false);
+        staff.setDateRetrait(LocalDateTime.now().toLocalDate()); // Enregistre la date de retrait
+        userRepository.save(staff);
+    }
+
+    public List<Gym> getGymsOfMembre() throws AccessDeniedException {
+        User currentUser = initializeAccess(false); // Pas de besoin de staff pour accéder à ses propres gyms
+        Long memberId = currentUser.getId();
+
+        User member = userRepository.findById(memberId)
+                .orElseThrow(() -> new RuntimeException("Membre introuvable."));
+
+        // Vérifier si l'utilisateur courant est le membre lui-même ou un staff autorisé
+        if (!currentUser.getId().equals(memberId) && !peutGererMembre(currentUser)) {
+            throw new AccessDeniedException("Accès refusé aux gyms de ce membre.");
+        }
+
+        return member.getGyms();
+    }
+
+
 
     public boolean verifierMotDePasse(String motDePasseSaisi, String motDePasseEncode) {
         return passwordEncoder.matches(motDePasseSaisi, motDePasseEncode);

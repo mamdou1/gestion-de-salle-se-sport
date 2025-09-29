@@ -6,12 +6,12 @@ import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeNotification;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Notification;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Produit;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.NotificationRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
@@ -108,16 +108,16 @@ public class NotificationService {
 
         // Notification pour le staff/admin de la gym
         //List<User> gymStaff = userRepository.findByGymsContainingAndRoleIn(gym, List.of(Role.ADMIN, Role.GERANT, Role.RECEPTIONNISTE));
-        //for (User staff : gymStaff) {
-            Notification staffNotif = new Notification();
-            staffNotif.setTitre("Action dans votre gym : " + title);
-            staffNotif.setContenu("Une action concernant " + member.getPrenom() + " " + member.getNom() + " : " + content);
-            staffNotif.setDateEnvoi(LocalDateTime.now());
-            //staffNotif.setDestinataire(staff);
-            staffNotif.setGymDestinataire(gym);
-            staffNotif.setContexte(context);
-            staffNotif.setTypeNotification(type);
-            notificationRepository.save(staffNotif);
+//        //for (User staff : gymStaff) {
+//            Notification staffNotif = new Notification();
+//            staffNotif.setTitre("Action dans votre gym : " + title);
+//            staffNotif.setContenu("Une action concernant " + member.getPrenom() + " " + member.getNom() + " : " + content);
+//            staffNotif.setDateEnvoi(LocalDateTime.now());
+//            //staffNotif.setDestinataire(staff);
+//            staffNotif.setGymDestinataire(gym);
+//            staffNotif.setContexte(context);
+//            staffNotif.setTypeNotification(type);
+//            notificationRepository.save(staffNotif);
 
 //            if (sendEmail) {
 //                emailService.envoyerEmailAvecPieceJointe(
@@ -132,7 +132,21 @@ public class NotificationService {
         //}
     }
 
+    public void notifyInscriptionEnLigne(User member, String title, String content, String context, TypeNotification type) {
+        // Notification pour le membre
+        Notification memberNotif = new Notification();
+        memberNotif.setTitre(title);
+        memberNotif.setContenu(content);
+        memberNotif.setDateEnvoi(LocalDateTime.now());
+        memberNotif.setDestinataire(member);
+        memberNotif.setContexte(context);
+        memberNotif.setTypeNotification(type);
+        notificationRepository.save(memberNotif);
 
+    }
+
+
+    //  Supprimer une notifilaction
     public void supprimerNotification(Long id) throws AccessDeniedException {
         User currentUser = initializeAccess(true);
         Notification notification = notificationRepository.findById(id)
@@ -147,13 +161,25 @@ public class NotificationService {
 //        return notificationRepository.findByGym(currentUser.getGym());
 //    }
 
+    //  Afficher les detailles d'une notifilaction
     public Notification consulterDetailNotif(Long notificationId) throws AccessDeniedException {
-        User currentUser = initializeAccess(false);
-        Gym gym = currentUser.getGym();
-        verificationAccesGym(currentUser, gym, "consulterla details des produits dans");
+        initializeAccess(false);
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(()->new RuntimeException("Produit introuvable"));
+                .orElseThrow(()->new RuntimeException("Notification introuvable"));
         return notification;
+    }
+
+    //  Afficher les notifilaction d'un Gym
+    public List<Notification> getNotificationByGym() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        Long gymId = currentUser.getGym().getId();
+        return notificationRepository.findByGymDestinataireId(gymId);
+    }
+
+    //  Afficher les notifilaction d'un user
+    public List<Notification> getNotificationByUser() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        return notificationRepository.findByDestinataireId(currentUser.getId());
     }
 
 

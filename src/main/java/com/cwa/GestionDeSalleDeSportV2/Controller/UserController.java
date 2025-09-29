@@ -2,8 +2,10 @@ package com.cwa.GestionDeSalleDeSportV2.Controller;
 
 
 import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
+import com.cwa.GestionDeSalleDeSportV2.DTO.ChangerMotDePasseDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.MembreDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.StaffDTO;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Service.UserService;
 import jakarta.mail.MessagingException;
@@ -103,6 +105,14 @@ public class UserController {
 
         return ResponseEntity.ok(membre);
     }
+    @GetMapping("/profil-app/{id}")
+    public ResponseEntity<User> getProfilApp(@PathVariable Long id) throws AccessDeniedException {
+        User currentUtils = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        id = currentUtils.getId();
+        User membre = userService.consulterProfil(id, currentUtils);
+
+        return ResponseEntity.ok(membre);
+    }
 
     //  5.  Afficher tout les utilisater
     @GetMapping("/membre")
@@ -132,16 +142,23 @@ public class UserController {
     }
 
     //  7.  Changer le mot de passe
-    /*
+
 
     @PostMapping("/changer")
-    public ResponseEntity<Map<String,Object>> changerMotDePasse(@RequestBody ChangerMotDePassDTO dto){
+    public ResponseEntity<String> changerMotDePasse(@RequestBody ChangerMotDePasseDTO dto){
         userService.changerMotDePasse(dto);
-        return new ResponseEntity<>(HttpStatus.OK);
+        return new ResponseEntity<>("Le changement de mot de passe à été éffectuer avec succès", HttpStatus.CREATED);
     }
 
-     */
+    //  retirer staff
+    @PutMapping("/retirer/staff/{staffId}")
+    public ResponseEntity<String> retirerStaff(@PathVariable Long staffId){
+        userService.retirerStaff(staffId);
+        return new ResponseEntity<>("Staff retirer avec succes.", HttpStatus.OK);
+    }
 
+
+    //  verifier mot de Passe
     @PostMapping("/password")
     public ResponseEntity<Map<String, Object>> verifierMotDePasse(@RequestBody Map<String, String> body) {
         String motDePasseSaisi = body.get("motDePasse");
@@ -153,6 +170,12 @@ public class UserController {
         reponse.put("motDePasseValide", estValide);
 
         return ResponseEntity.ok(reponse);
+    }
+
+    @GetMapping("/gyms")
+    public ResponseEntity<List<Gym>> getGymsOfMember() throws AccessDeniedException {
+        List<Gym> gyms = userService.getGymsOfMembre();
+        return new ResponseEntity<>(gyms, HttpStatus.OK);
     }
 }
 

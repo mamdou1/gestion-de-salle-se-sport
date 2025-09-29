@@ -1,6 +1,8 @@
 package com.cwa.GestionDeSalleDeSportV2.Controller;
 
 
+import com.cwa.GestionDeSalleDeSportV2.DTO.InscriptionDTO;
+import com.cwa.GestionDeSalleDeSportV2.DTO.MembreDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.StaffDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.staffsDTO;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutAbonnement;
@@ -12,7 +14,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +63,12 @@ public class GymController {
     public ResponseEntity<Map<Long, Map<StatutAbonnement, Long>>> getNombreParStatutEtGym() throws AccessDeniedException{
         Map<Long, Map<StatutAbonnement, Long>> result = gymService.getNombreMembresParStatutEtGym();
         return ResponseEntity.ok(result);
+    }
+
+    @PutMapping("/modifier-gym/{id}")
+    public ResponseEntity<String> modifierGym(@ModelAttribute InscriptionDTO dto, @RequestPart(required = false) MultipartFile file, @PathVariable Long id) throws IOException {
+        String message = gymService.modifierGym(dto, id, file);
+        return new ResponseEntity<>(message, HttpStatus.OK);
     }
 
 }

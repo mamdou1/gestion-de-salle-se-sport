@@ -66,11 +66,11 @@ public class AuthService {
         gym.setAdresse(dto.getAdresseGym());
         gym.setEmail(dto.getEmailGym());
         gym.setTelephone(dto.getTelephoneGym());
-//        gym.setDescription(dto.getDescription());
-//
-//        if (file != null && file.isEmpty()){
-//            gym.setPhoto(file.getBytes()); //  Conversion du MultipartFile en byte[]
-//        }
+        gym.setDescription(dto.getDescription());
+
+        if (file != null && file.isEmpty()){
+            gym.setPhoto(file.getBytes()); //  Conversion du MultipartFile en byte[]
+        }
 
             gymRepository.save(gym);
 

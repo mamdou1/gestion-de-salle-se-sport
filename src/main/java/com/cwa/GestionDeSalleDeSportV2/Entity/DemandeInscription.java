@@ -10,6 +10,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDateTime;
 
@@ -32,7 +33,7 @@ public class DemandeInscription {
     @JsonManagedReference
     private TypeDeService typeDeService;
 
-    private BigInteger nombreDeMois;
+    private BigDecimal nombreDeMois;
 
     @CreationTimestamp
     private LocalDateTime dateSoumission;
@@ -86,11 +87,11 @@ public class DemandeInscription {
         this.typeDeService = typeDeService;
     }
 
-    public BigInteger getNombreDeMois() {
+    public BigDecimal getNombreDeMois() {
         return nombreDeMois;
     }
 
-    public void setNombreDeMois(BigInteger nombreDeMois) {
+    public void setNombreDeMois(BigDecimal nombreDeMois) {
         this.nombreDeMois = nombreDeMois;
     }
 

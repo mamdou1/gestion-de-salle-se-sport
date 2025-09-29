@@ -14,7 +14,9 @@ import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -46,12 +48,23 @@ public class GymService {
         return gym;
     }
 
-//    public Gym modifierGym(InscriptionDTO dto, Long gymId) throws AccessDeniedException {
-//        User admin = initializeAccessGym(true);
-//        Gym gym = gymRepository.findById(gymId)
-//                .orElseThrow(()->new RuntimeException("Gym non trouvé."));
-//
-//    }
+    public String modifierGym(InscriptionDTO dto, Long gymId, MultipartFile file) throws IOException {
+        initializeAccessGym(true);
+        Gym gym = gymRepository.findById(gymId)
+                .orElseThrow(()->new RuntimeException("Gym non trouvé."));
+        if(dto.getNomGym() != null) gym.setNom(dto.getNomGym());
+        if(dto.getAdresseGym() != null) gym.setAdresse(dto.getAdresseGym());
+        if(dto.getEmailGym() != null) gym.setEmail(dto.getEmailGym());
+        if(dto.getTelephoneGym() != null) gym.setTelephone(dto.getTelephoneGym());
+        if(dto.getDescription() != null) gym.setDescription(dto.getDescription());
+        if(file != null && !file.isEmpty()){
+            gym.setPhoto(file.getBytes());
+        }
+
+        gymRepository.save(gym);
+        return "Gym modifier avec succès.";
+
+    }
 
     //  2.  GetById d'un Gym pour voir les details
     public Gym getGymById(Long gymId) throws AccessDeniedException {
@@ -129,7 +142,14 @@ public class GymService {
 
     private User initializeAccess(boolean requireStaff) throws AccessDeniedException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (requireStaff && currentUser.getRole() != Role.ADMIN_PRINCIPAL) {
+        if (
+                requireStaff &&
+                        currentUser.getRole() != Role.ADMIN_PRINCIPAL &&
+                        currentUser.getRole() != Role.ADMIN &&
+                        currentUser.getRole() != Role.RECEPTIONNISTE &&
+                        currentUser.getRole() != Role.MEMBRE &&
+                        currentUser.getRole() != Role.GERANT &&
+                        currentUser.getRole() != Role.COACH) {
             throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
         }
         return currentUser;

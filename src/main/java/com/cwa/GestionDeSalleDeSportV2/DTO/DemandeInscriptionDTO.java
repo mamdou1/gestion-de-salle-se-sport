@@ -4,13 +4,14 @@ import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.PeriodAbonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.TypeDeService;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 
 
 public class DemandeInscriptionDTO {
 
     private PeriodAbonnement periodAbonnement;
-    private BigInteger nombreDeMois;
+    private BigDecimal nombreDeMois;
     private Long TypeDeService;
 
 
@@ -24,11 +25,11 @@ public class DemandeInscriptionDTO {
         this.periodAbonnement = periodAbonnement;
     }
 
-    public BigInteger getNombreDeMois() {
+    public BigDecimal getNombreDeMois() {
         return nombreDeMois;
     }
 
-    public void setNombreDeMois(BigInteger nombreDeMois) {
+    public void setNombreDeMois(BigDecimal nombreDeMois) {
         this.nombreDeMois = nombreDeMois;
     }
 

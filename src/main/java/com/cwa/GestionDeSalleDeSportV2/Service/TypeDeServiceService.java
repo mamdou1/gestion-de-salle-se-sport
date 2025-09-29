@@ -6,6 +6,7 @@ import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
 import com.cwa.GestionDeSalleDeSportV2.Entity.TypeDeService;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
+import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.TypeDeServiceRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -18,10 +19,12 @@ public class TypeDeServiceService {
 
     private final TypeDeServiceRepository typeDeServiceRepository;
     private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
+    private final GymRepository gymRepository;
 
-    public TypeDeServiceService(TypeDeServiceRepository typeDeServiceRepository, UtilisateurActuellementConnecter utilisateurActuellementConnecter) {
+    public TypeDeServiceService(TypeDeServiceRepository typeDeServiceRepository, UtilisateurActuellementConnecter utilisateurActuellementConnecter, GymRepository gymRepository) {
         this.typeDeServiceRepository = typeDeServiceRepository;
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
+        this.gymRepository = gymRepository;
     }
 
     //  1.  Créer les type de service
@@ -89,22 +92,24 @@ public class TypeDeServiceService {
     }
 
     //  4.  getById un type de service
-    public TypeDeService getTypeDeServiceById(Long id) {
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (!isStaff(currentUser)) {
-            throw new AccessDeniedException("Seul le staff peut consulter un service.");
-        }
+    public TypeDeService getTypeDeServiceById(Long id) throws java.nio.file.AccessDeniedException {
+        User currentUser = initializeAccess(true);
         return typeDeServiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Service introuvable."));
     }
 
     //   5. Conslter tout les types de services
-    public List<TypeDeService> getAllTypeDeService() {
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (!isStaff(currentUser)) {
-            throw new AccessDeniedException("Seul le staff peut lister les services.");
-        }
+    public List<TypeDeService> getAllTypeDeService() throws java.nio.file.AccessDeniedException {
+        User currentUser = initializeAccess(true);
         Gym gym = currentUser.getGym();
+        return typeDeServiceRepository.findByGym(gym); // Filtrer par gym du staff
+    }
+
+    //   6. Conslter tout les types de services pour telephone
+    public List<TypeDeService> getAllTypeDeServiceApp(Long gymId) throws java.nio.file.AccessDeniedException {
+        initializeAccess(true);
+        Gym gym = gymRepository.findById(gymId)
+                .orElseThrow(()->new RuntimeException("Gym non trouver"));
         return typeDeServiceRepository.findByGym(gym); // Filtrer par gym du staff
     }
 
@@ -112,4 +117,18 @@ public class TypeDeServiceService {
         return user.getRole() == Role.ADMIN || user.getRole() == Role.RECEPTIONNISTE || user.getRole() == Role.GERANT;
     }
 
+    private User initializeAccess(boolean requireStaff) throws java.nio.file.AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (
+                requireStaff &&
+                        currentUser.getRole() != Role.ADMIN_PRINCIPAL &&
+                        currentUser.getRole() != Role.ADMIN &&
+                        currentUser.getRole() != Role.RECEPTIONNISTE &&
+                        currentUser.getRole() != Role.MEMBRE &&
+                        currentUser.getRole() != Role.GERANT &&
+                        currentUser.getRole() != Role.COACH) {
+            throw new java.nio.file.AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
+        }
+        return currentUser;
+    }
 }

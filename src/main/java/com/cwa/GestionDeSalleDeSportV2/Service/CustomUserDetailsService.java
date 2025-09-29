@@ -29,11 +29,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         if (appUser.isEmpty()){
             throw new RuntimeException("L'utilisateur avec le nom d'utilisareur "+telephone+" n'est pas trouver.");
         }
-        return new org.springframework.security.core.userdetails.User(
-                appUser.get().getTelephone(),
-                appUser.get().getPassword(),
-                Collections.singleton(new SimpleGrantedAuthority("ROLE_" + appUser.get().getRole().name()))
-        );
+        return new CustomUserDetails(appUser.get());
 
     }
 

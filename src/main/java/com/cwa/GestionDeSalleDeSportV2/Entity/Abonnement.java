@@ -55,7 +55,7 @@ public class Abonnement {
 
     private BigDecimal prixAbonnement;
 
-    private BigInteger nombreDeMois;
+    private BigDecimal nombreDeMois;
 
     @Enumerated(EnumType.STRING)
     private ModeDePaiement modeDePaiement;
@@ -160,11 +160,11 @@ public class Abonnement {
         this.prixAbonnement = prixAbonnement;
     }
 
-    public BigInteger getNombreDeMois() {
+    public BigDecimal getNombreDeMois() {
         return nombreDeMois;
     }
 
-    public void setNombreDeMois(BigInteger nombreDeMois) {
+    public void setNombreDeMois(BigDecimal nombreDeMois) {
         this.nombreDeMois = nombreDeMois;
     }
 

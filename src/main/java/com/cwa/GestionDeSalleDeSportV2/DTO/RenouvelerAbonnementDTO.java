@@ -8,7 +8,7 @@ public class RenouvelerAbonnementDTO {
 
     private PeriodAbonnement periodAbonnement;
     private Integer ajoutMois;
-    private Double nouveauAbonnement;
+//    private Double nouveauAbonnement;
 
     public PeriodAbonnement getPeriodAbonnement() {
         return periodAbonnement;
@@ -26,11 +26,11 @@ public class RenouvelerAbonnementDTO {
         this.ajoutMois = ajoutMois;
     }
 
-    public Double getNouveauAbonnement() {
-        return nouveauAbonnement;
-    }
-
-    public void setNouveauAbonnement(Double nouveauAbonnement) {
-        this.nouveauAbonnement = nouveauAbonnement;
-    }
+//    public Double getNouveauAbonnement() {
+//        return nouveauAbonnement;
+//    }
+//
+//    public void setNouveauAbonnement(Double nouveauAbonnement) {
+//        this.nouveauAbonnement = nouveauAbonnement;
+//    }
 }

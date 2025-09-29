@@ -339,8 +339,8 @@ public class VenteService {
                 .toList();
 
         return ventes.stream()
-                .map(Vente::getMontantTotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .map(Vente::getMontantTotal)//Extrait le prix de chaque abonnement.
+                .reduce(BigDecimal.ZERO, BigDecimal::add); // Additionne tous les montants avec BigDecimal pour un total précis.
     }
 
     /**

@@ -137,59 +137,59 @@ public class AbonnementGymService {
     }
 
     // 3. Renouvellement de l'abonnement existant
-    @Transactional
-    public AbonnementGym renouvelerAbonnement(Long id, Integer ajoutMois, Double nouveauxPrix) throws MessagingException, AccessDeniedException {
-
-        initializeAccess(true);
-
-        AbonnementGym abonnement = abonnementGymRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Abonnement introuvable."));
-
-        LocalDate aujourd_hui = LocalDate.now();
-
-        // Cas 1 : Abonnement en cours ou bientôt expiré → on ajoute à la date de fin actuelle
-        if (abonnement.getStatut() == StatutAbonnement.EN_COURS ||
-                abonnement.getStatut() == StatutAbonnement.BIENTOT_EXPIRE) {
-
-            LocalDate nouvelleDateFin = abonnement.getDateFinAbonnement().plusMonths(ajoutMois);
-
-            abonnement.setDateFinAbonnement(nouvelleDateFin);
-            abonnement.setDateRappelFinAbonnement(nouvelleDateFin.minusDays(5));
-            abonnement.setNombreDeMois(abonnement.getNombreDeMois().add(BigInteger.valueOf(ajoutMois)));
-            abonnement.setPeriodAbonnement(abonnement.getPeriodAbonnement());
-
-        }
-
-        // Cas 2 : Abonnement expiré ou résilié → nouvelle période à partir d’aujourd’hui
-        else if (abonnement.getStatut() == StatutAbonnement.EXPIRE ||
-                abonnement.getStatut() == StatutAbonnement.RESILIE) {
-
-            LocalDate nouvelleDateFin = aujourd_hui.plusMonths(ajoutMois);
-
-            abonnement.setDateDebutAbonnement(aujourd_hui);
-            abonnement.setDateFinAbonnement(nouvelleDateFin);
-            abonnement.setDateRappelFinAbonnement(nouvelleDateFin.minusDays(5));
-            abonnement.setNombreDeMois(BigInteger.valueOf(ajoutMois));
-            abonnement.setPeriodAbonnement(abonnement.getPeriodAbonnement());
-            abonnement.setStatut(StatutAbonnement.EN_COURS);
-        }
-
-
-        if (nouveauxPrix != null) {
-            BigDecimal prixActuel = abonnement.getPrixAbonnement() != null
-                    ? abonnement.getPrixAbonnement()
-                    : BigDecimal.ZERO;
-
-            abonnement.setPrixAbonnement(prixActuel.add(BigDecimal.valueOf(nouveauxPrix)));
-        }
-
-        abonnement.setStatut(calculStatutAbonnemnt(abonnement));
-        abonnementGymRepository.save(abonnement);
-
-        // Envoi d’une facture suite au renouvellement
-        abonnementEventService.envoyerFactureAdminAGymParEmail(abonnement.getGym(), abonnement, "Renouvellement");
-        return abonnement;
-    }
+//    @Transactional
+//    public AbonnementGym renouvelerAbonnement(Long id, Integer ajoutMois, Double nouveauxPrix) throws MessagingException, AccessDeniedException {
+//
+//        initializeAccess(true);
+//
+//        AbonnementGym abonnement = abonnementGymRepository.findById(id)
+//                .orElseThrow(() -> new RuntimeException("Abonnement introuvable."));
+//
+//        LocalDate aujourd_hui = LocalDate.now();
+//
+//        // Cas 1 : Abonnement en cours ou bientôt expiré → on ajoute à la date de fin actuelle
+//        if (abonnement.getStatut() == StatutAbonnement.EN_COURS ||
+//                abonnement.getStatut() == StatutAbonnement.BIENTOT_EXPIRE) {
+//
+//            LocalDate nouvelleDateFin = abonnement.getDateFinAbonnement().plusMonths(ajoutMois);
+//
+//            abonnement.setDateFinAbonnement(nouvelleDateFin);
+//            abonnement.setDateRappelFinAbonnement(nouvelleDateFin.minusDays(5));
+//            abonnement.setNombreDeMois(abonnement.getNombreDeMois().add(BigInteger.valueOf(ajoutMois)));
+//            abonnement.setPeriodAbonnement(abonnement.getPeriodAbonnement());
+//
+//        }
+//
+//        // Cas 2 : Abonnement expiré ou résilié → nouvelle période à partir d’aujourd’hui
+//        else if (abonnement.getStatut() == StatutAbonnement.EXPIRE ||
+//                abonnement.getStatut() == StatutAbonnement.RESILIE) {
+//
+//            LocalDate nouvelleDateFin = aujourd_hui.plusMonths(ajoutMois);
+//
+//            abonnement.setDateDebutAbonnement(aujourd_hui);
+//            abonnement.setDateFinAbonnement(nouvelleDateFin);
+//            abonnement.setDateRappelFinAbonnement(nouvelleDateFin.minusDays(5));
+//            abonnement.setNombreDeMois(BigInteger.valueOf(ajoutMois));
+//            abonnement.setPeriodAbonnement(abonnement.getPeriodAbonnement());
+//            abonnement.setStatut(StatutAbonnement.EN_COURS);
+//        }
+//
+//
+//        if (nouveauxPrix != null) {
+//            BigDecimal prixActuel = abonnement.getPrixAbonnement() != null
+//                    ? abonnement.getPrixAbonnement()
+//                    : BigDecimal.ZERO;
+//
+//            abonnement.setPrixAbonnement(prixActuel.add(BigDecimal.valueOf(nouveauxPrix)));
+//        }
+//
+//        abonnement.setStatut(calculStatutAbonnemnt(abonnement));
+//        abonnementGymRepository.save(abonnement);
+//
+//        // Envoi d’une facture suite au renouvellement
+//        abonnementEventService.envoyerFactureAdminAGymParEmail(abonnement.getGym(), abonnement, "Renouvellement");
+//        return abonnement;
+//    }
 
 
 

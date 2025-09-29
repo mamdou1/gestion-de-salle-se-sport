@@ -39,9 +39,17 @@ public class SecutityConfig {
                 .sessionManagement(Session ->
                         Session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth ->
-                        auth.requestMatchers("/api/**", "/error", "/swagger-ui/**", "/api-docs/**","/v3/api-docs/**").permitAll()
+                        auth.requestMatchers(
+                                        "/api/auth/**",
+                                        "/api/demandeInscriptions/inscriptin/en-ligne",
+                                        "/error",
+                                        "/swagger-ui/**",
+                                        "/api-docs/**",
+                                        "/v3/api-docs/**"
+                                ).permitAll()
+                                .requestMatchers("/api/users/changer").authenticated() // 🔥 Protéger cette route
                                 .anyRequest().authenticated()
-                        )
+                )
                 .addFilterBefore(new JwtFilter(customUserDetailsService, jwtUtils), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

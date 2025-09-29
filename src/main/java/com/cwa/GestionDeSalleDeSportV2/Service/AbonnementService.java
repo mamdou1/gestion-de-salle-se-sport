@@ -18,9 +18,11 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.nio.file.AccessDeniedException;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Objects;
 
 
 @Service
@@ -44,7 +46,161 @@ public class AbonnementService {
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
         this.typeDeServiceRepository = typeDeServiceRepository;
         this.validationInscriptionService = validationInscriptionService;
+
     }
+
+    /**
+     * Récupère le nombre d'abonnements journaliers
+     * @return Nombre d'abonnements du jour
+     * @throws AccessDeniedException Si l'utilisateur n'est pas autorisé
+     */
+    public long getNombreAbonnementsJournaliers() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        Gym userGym = currentUser.getGym();
+        verificationAccesGym(currentUser, userGym, "consulter les abonnements journaliers dans");
+
+        LocalDate today = LocalDate.now();
+        return abonnementRepository.countByGymIdAndDate(userGym.getId(), today);
+    }
+
+    /**
+     * Récupère le montant total des abonnements journaliers
+     * @return Montant total des abonnements du jour
+     * @throws AccessDeniedException Si l'utilisateur n'est pas autorisé
+     */
+    public BigDecimal getMontantTotalJournalierAbonnements() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        Gym userGym = currentUser.getGym();
+        verificationAccesGym(currentUser, userGym, "consulter le montant total journalier des abonnements dans");
+
+        LocalDate today = LocalDate.now();
+        List<Abonnement> abonnements = abonnementRepository.findByGymId(userGym.getId()).stream()
+                .filter(a -> a.getDateDebutAbonnement() != null && a.getDateDebutAbonnement().equals(today))
+                .toList();
+
+        return abonnements.stream()
+                .map(Abonnement::getPrixAbonnement)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Récupère le nombre d'abonnements hebdomadaires
+     * @return Nombre d'abonnements de la semaine
+     * @throws AccessDeniedException Si l'utilisateur n'est pas autorisé
+     */
+    public long getNombreAbonnementsHebdomadaires() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        Gym userGym = currentUser.getGym();
+        verificationAccesGym(currentUser, userGym, "consulter les abonnements hebdomadaires dans");
+
+        LocalDate today = LocalDate.now();
+        LocalDate startOfWeek = today.with(DayOfWeek.MONDAY);
+        LocalDate endOfWeek = today.with(DayOfWeek.SUNDAY);
+
+        return abonnementRepository.countByGymIdAndWeek(userGym.getId(), startOfWeek, endOfWeek);
+    }
+
+    /**
+     * Récupère le montant total des abonnements hebdomadaires
+     * @return Montant total des abonnements de la semaine
+     * @throws AccessDeniedException Si l'utilisateur n'est pas autorisé
+     */
+    public BigDecimal getMontantTotalHebdomadaireAbonnements() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        Gym userGym = currentUser.getGym();
+        verificationAccesGym(currentUser, userGym, "consulter le montant total hebdomadaire des abonnements dans");
+
+        LocalDate today = LocalDate.now();
+        LocalDate startOfWeek = today.with(DayOfWeek.MONDAY);
+        LocalDate endOfWeek = today.with(DayOfWeek.SUNDAY);
+
+        List<Abonnement> abonnements = abonnementRepository.findByGymId(userGym.getId()).stream()
+                .filter(a -> a.getDateDebutAbonnement() != null &&
+                        !a.getDateDebutAbonnement().isBefore(startOfWeek) &&
+                        !a.getDateDebutAbonnement().isAfter(endOfWeek))
+                .toList();
+
+        return abonnements.stream()
+                .map(Abonnement::getPrixAbonnement)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Récupère le nombre d'abonnements mensuels
+     * @return Nombre d'abonnements du mois
+     * @throws AccessDeniedException Si l'utilisateur n'est pas autorisé
+     */
+    public long getNombreAbonnementsMensuels() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        Gym userGym = currentUser.getGym();
+        verificationAccesGym(currentUser, userGym, "consulter les abonnements mensuels dans");
+
+        LocalDate today = LocalDate.now();
+        return abonnementRepository.countByGymIdAndMonth(userGym.getId(), today);
+    }
+
+    /**
+     * Récupère le montant total des abonnements mensuels
+     * @return Montant total des abonnements du mois
+     * @throws AccessDeniedException Si l'utilisateur n'est pas autorisé
+     */
+    public BigDecimal getMontantTotalMensuelAbonnements() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        Gym userGym = currentUser.getGym();
+        verificationAccesGym(currentUser, userGym, "consulter le montant total mensuel des abonnements dans");
+
+        LocalDate today = LocalDate.now();
+        List<Abonnement> abonnements = abonnementRepository.findByGymId(userGym.getId()).stream()
+                .filter(a -> a.getDateDebutAbonnement() != null &&
+                        a.getDateDebutAbonnement().getYear() == today.getYear() &&
+                        a.getDateDebutAbonnement().getMonth() == today.getMonth())
+                .toList();
+
+        return abonnements.stream()
+                .map(Abonnement::getPrixAbonnement)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Récupère le nombre d'abonnements annuels
+     * @return Nombre d'abonnements de l'année
+     * @throws AccessDeniedException Si l'utilisateur n'est pas autorisé
+     */
+    public long getNombreAbonnementsAnnuels() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        Gym userGym = currentUser.getGym();
+        verificationAccesGym(currentUser, userGym, "consulter les abonnements annuels dans");
+
+        LocalDate today = LocalDate.now();
+        return abonnementRepository.countByGymIdAndYear(userGym.getId(), today);
+    }
+
+    /**
+     * Récupère le montant total des abonnements annuels
+     * @return Montant total des abonnements de l'année
+     * @throws AccessDeniedException Si l'utilisateur n'est pas autorisé
+     */
+    public BigDecimal getMontantTotalAnnuelAbonnements() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        Gym userGym = currentUser.getGym();
+        verificationAccesGym(currentUser, userGym, "consulter le montant total annuel des abonnements dans");
+
+        LocalDate today = LocalDate.now();
+        List<Abonnement> abonnements = abonnementRepository.findByGymId(userGym.getId()).stream()
+                .filter(a -> a.getDateDebutAbonnement() != null &&
+                        a.getDateDebutAbonnement().getYear() == today.getYear())
+                .toList();
+
+        return abonnements.stream()
+                .map(Abonnement::getPrixAbonnement)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+
 
     // 1. Mettre un abonnement en pause / reprendre
     public Abonnement mettreEnPause(Long idAbonnement, PauseAbonnementDTO dto) throws AccessDeniedException {
@@ -149,20 +305,10 @@ public class AbonnementService {
         abonnement.setStatut(StatutAbonnement.EN_COURS);
         abonnement.setStatut(calculStatutAbonnemnt(abonnement));
         abonnement.setTypeDeService(membre.getTypeDeService());
-        
-//        Genre genre = membre.getGenre();
-//        BigDecimal prix = BigDecimal.ZERO;
-//        if (typeDeService.getTarifUnique() != null){
-//            prix = typeDeService.getTarifUnique();
-//        } else if (genre == Genre.HOMME && typeDeService.getTarifHomme() != null) {
-//            prix = typeDeService.getTarifHomme();
-//        } else if (genre == Genre.FEMME && typeDeService.getTarifFemme() != null){
-//            prix = typeDeService.getTarifHomme();
-//        } else  {
-//            throw new RuntimeException("Aucun tarif défini pour ce service et ce genre.");
-//        }
+
         BigDecimal prix= validationInscriptionService.getTarif(membre.getGenre(), typeDeService.getId());
-        abonnement.setPrixAbonnement(prix);
+        BigDecimal prixAb = prix.multiply(dto.getNombreDeMois());
+        abonnement.setPrixAbonnement(prixAb);
 
         abonnementRepository.save(abonnement);
 
@@ -173,7 +319,7 @@ public class AbonnementService {
 
     // 3. Renouvellement de l'abonnement existant
     @Transactional
-    public Abonnement renouvelerAbonnement(Long id, Integer ajoutMois, Double nouveauxPrix) throws MessagingException, AccessDeniedException {
+    public Abonnement renouvelerAbonnement(Long id, Integer ajoutMois) throws MessagingException, AccessDeniedException {
         Abonnement abonnement = abonnementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Abonnement introuvable."));
 
@@ -184,50 +330,41 @@ public class AbonnementService {
 
         LocalDate aujourd_hui = LocalDate.now();
 
-        // Cas 1 : Abonnement en cours ou bientôt expiré → on ajoute à la date de fin actuelle
         if (abonnement.getStatut() == StatutAbonnement.EN_COURS ||
                 abonnement.getStatut() == StatutAbonnement.BIENTOT_EXPIRE) {
 
             LocalDate nouvelleDateFin = abonnement.getDateFinAbonnement().plusMonths(ajoutMois);
-
             abonnement.setDateFinAbonnement(nouvelleDateFin);
             abonnement.setDateRappelFinAbonnement(nouvelleDateFin.minusDays(5));
-            abonnement.setNombreDeMois(abonnement.getNombreDeMois().add(BigInteger.valueOf(ajoutMois)));
+            abonnement.setNombreDeMois(abonnement.getNombreDeMois().add(BigDecimal.valueOf(ajoutMois)));
             abonnement.setPeriodAbonnement(abonnement.getPeriodAbonnement());
 
-        }
-
-        // Cas 2 : Abonnement expiré ou résilié → nouvelle période à partir d’aujourd’hui
-        else if (abonnement.getStatut() == StatutAbonnement.EXPIRE ||
+        } else if (abonnement.getStatut() == StatutAbonnement.EXPIRE ||
                 abonnement.getStatut() == StatutAbonnement.RESILIE) {
 
             LocalDate nouvelleDateFin = aujourd_hui.plusMonths(ajoutMois);
-
             abonnement.setDateDebutAbonnement(aujourd_hui);
             abonnement.setDateFinAbonnement(nouvelleDateFin);
             abonnement.setDateRappelFinAbonnement(nouvelleDateFin.minusDays(5));
-            abonnement.setNombreDeMois(BigInteger.valueOf(ajoutMois));
+            abonnement.setNombreDeMois(BigDecimal.valueOf(ajoutMois));
             abonnement.setPeriodAbonnement(abonnement.getPeriodAbonnement());
         }
 
+        abonnement.setPeriodAbonnement(abonnement.getPeriodAbonnement());
 
-        if (nouveauxPrix != null) {
-            BigDecimal prixActuel = abonnement.getPrixAbonnement() != null
-                    ? abonnement.getPrixAbonnement()
-                    : BigDecimal.ZERO;
-
-            abonnement.setPrixAbonnement(prixActuel.add(BigDecimal.valueOf(nouveauxPrix)));
-
-        }
+        // 🔥 Recalcul automatique du prix
+        TypeDeService typeDeService = abonnement.getTypeDeService();
+        User membre = (User) abonnement.getMembre();
+        BigDecimal tarifUnitaire = validationInscriptionService.getTarif(membre.getGenre(), typeDeService.getId());
+        BigDecimal nouveauPrix = tarifUnitaire.multiply(BigDecimal.valueOf(ajoutMois));
+        abonnement.setPrixAbonnement(nouveauPrix);
 
         abonnement.setStatut(calculStatutAbonnemnt(abonnement));
         abonnementRepository.save(abonnement);
 
-        // Envoi d’une facture suite au renouvellement
-        abonnementEventService.envoyerFactureParEmail((User) abonnement.getMembre(),abonnement, "Renouvellement");
+        abonnementEventService.envoyerFactureParEmail(membre, abonnement, "Renouvellement");
         return abonnement;
     }
-
 
 
     // 4. Mise à jour du statut automatiquement
@@ -361,6 +498,11 @@ public class AbonnementService {
         }
 
         return abonnementRepository.findByMembreOrderByDateDebutAbonnementDesc(membre);
+    }
+
+    public List<Abonnement> getHistoriqueAbonnementParMembreApp() throws AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        return abonnementRepository.findByMembreOrderByDateDebutAbonnementDesc(currentUser);
     }
 
     private boolean estMembreDuStaff(User user) {

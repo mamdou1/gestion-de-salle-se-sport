@@ -12,8 +12,8 @@ public class InscriptionDTO {
     private String telephoneGym;
     private  String emailGym;
     private String proprietaireGym;
-//    private String description;
-//    private byte[] photo;
+    private String description;
+    private byte[] photo;
 
 
     private String nomAdmin;
@@ -142,19 +142,19 @@ public class InscriptionDTO {
         this.date_de_naissance = date_de_naissance;
     }
 
-//    public String getDescription() {
-//        return description;
-//    }
-//
-//    public void setDescription(String description) {
-//        this.description = description;
-//    }
-//
-//    public byte[] getPhoto() {
-//        return photo;
-//    }
-//
-//    public void setPhoto(byte[] photo) {
-//        this.photo = photo;
-//    }
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public byte[] getPhoto() {
+        return photo;
+    }
+
+    public void setPhoto(byte[] photo) {
+        this.photo = photo;
+    }
 }

@@ -99,9 +99,9 @@ public class FamilleAbonnementService {
             abonnement.setPrixAbonnement(montantFinal);
             abonnement.setDateDebutAbonnement(LocalDate.now());
             abonnement.setPeriodAbonnement(dto.getPeriodAbonnement());
-            abonnement.setDateFinAbonnement(LocalDate.now().plusMonths(dto.getNombreMois()));
+            abonnement.setDateFinAbonnement(LocalDate.now().plusMonths((dto.getNombreMois()).longValue()));
             abonnement.setDateRappelFinAbonnement(abonnement.getDateFinAbonnement().minusDays(5));
-            abonnement.setNombreDeMois(BigInteger.valueOf(dto.getNombreMois()));
+            abonnement.setNombreDeMois((dto.getNombreMois()));
             abonnement.setModeDePaiement(dto.getModeDePaiement());
             abonnement.setEnregistrerPar(utilisateurActuellementConnecter.getUtilisateurActuellementConnecter());
             abonnement.setStatut(StatutAbonnement.EN_COURS);
@@ -236,7 +236,7 @@ public class FamilleAbonnementService {
         abonnement.setPeriodAbonnement(abonnementFamilial.getPeriodAbonnement());
         abonnement.setDateFinAbonnement(abonnementFamilial.getDateFinAbonnement());
         abonnement.setDateRappelFinAbonnement(abonnementFamilial.getDateRappelFinAbonnement());
-        abonnement.setNombreDeMois(BigInteger.valueOf(ChronoUnit.MONTHS.between(LocalDate.now(), abonnementFamilial.getDateFinAbonnement())));
+        abonnement.setNombreDeMois(BigDecimal.valueOf(ChronoUnit.MONTHS.between(LocalDate.now(), abonnementFamilial.getDateFinAbonnement())));
         abonnement.setModeDePaiement(abonnementFamilial.getModeDePaiement());
         abonnement.setEnregistrerPar(current);
         abonnement.setStatut(StatutAbonnement.EN_COURS);
@@ -411,7 +411,7 @@ public class FamilleAbonnementService {
         abonnement.setDateDebutAbonnement(LocalDate.now());
         abonnement.setDateFinAbonnement(abonnementFamilial.getDateFinAbonnement());
         abonnement.setDateRappelFinAbonnement(abonnementFamilial.getDateRappelFinAbonnement());
-        abonnement.setNombreDeMois(BigInteger.valueOf(ChronoUnit.MONTHS.between(LocalDate.now(), abonnementFamilial.getDateFinAbonnement())));
+        abonnement.setNombreDeMois(BigDecimal.valueOf(ChronoUnit.MONTHS.between(LocalDate.now(), abonnementFamilial.getDateFinAbonnement())));
         abonnement.setModeDePaiement(abonnementFamilial.getModeDePaiement());
         abonnement.setEnregistrerPar(currentUser);
         abonnement.setStatut(StatutAbonnement.EN_COURS);

@@ -54,4 +54,10 @@ public class TypeDeServiceController {
         List<TypeDeService> services = typeDeServiceService.getAllTypeDeService();
         return ResponseEntity.ok(services);
     }
+
+    @GetMapping("/app/{gymId}")
+    public ResponseEntity<List<TypeDeService>> getAllTypeDeServiceApp (@PathVariable Long gymId) throws AccessDeniedException {
+        List<TypeDeService> services = typeDeServiceService.getAllTypeDeServiceApp(gymId);
+        return ResponseEntity.ok(services);
+    }
 }

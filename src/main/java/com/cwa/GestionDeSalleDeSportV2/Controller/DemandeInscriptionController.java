@@ -9,7 +9,9 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -35,15 +37,9 @@ public class DemandeInscriptionController {
     }
 
     @PostMapping("/inscriptin/en-ligne")
-    public ResponseEntity<String> inscriptionEnLigne(@Valid @RequestBody InscriptionEnLigneDTO dto){
-        demandeInscriptionService.inscriptionEnLigne(dto);
-        return new  ResponseEntity<>("Demande soumise avec succès. En attente de validation.", HttpStatus.CREATED);
-//        try {
-//            demandeInscriptionService.inscriptionEnLigne(dto);
-//            return new ResponseEntity<>("Demande soumise avec succès. En attente de validation.", HttpStatus.CREATED);
-//        } catch (Exception e) {
-//            return new ResponseEntity<>("Erreur lors de la soumission : " + e.getMessage(), HttpStatus.BAD_REQUEST);
-//        }
+    public ResponseEntity<String> inscriptionEnLigne(@Valid @ModelAttribute InscriptionEnLigneDTO dto, @RequestParam(required = false)MultipartFile file) throws IOException {
+        demandeInscriptionService.inscriptionEnLigne(dto, file);
+        return new  ResponseEntity<>("Inscription en ligne reussie avec succès.", HttpStatus.CREATED);
     }
 
     @GetMapping("/attente")

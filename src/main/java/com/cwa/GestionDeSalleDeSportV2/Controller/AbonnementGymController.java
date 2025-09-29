@@ -45,11 +45,11 @@ public class AbonnementGymController {
     }
 
     //  3.  Renouvellement de l'abonnement
-    @PostMapping("/renouvellement/{id}")
-    public ResponseEntity<String> renouvelerAbonnement(@RequestBody RenouvelerAbonnementDTO dto, @PathVariable Long id) throws MessagingException, AccessDeniedException {
-        abonnementGymService.renouvelerAbonnement(id, dto.getAjoutMois(), dto.getNouveauAbonnement());
-        return new ResponseEntity<>("Abonnement renouveller avec succès.", HttpStatus.CREATED);
-    }
+//    @PostMapping("/renouvellement/{id}")
+//    public ResponseEntity<String> renouvelerAbonnement(@RequestBody RenouvelerAbonnementDTO dto, @PathVariable Long id) throws MessagingException, AccessDeniedException {
+//        abonnementGymService.renouvelerAbonnement(id, dto.getAjoutMois(), dto.getNouveauAbonnement());
+//        return new ResponseEntity<>("Abonnement renouveller avec succès.", HttpStatus.CREATED);
+//    }
 
     //  4.  changement de plan d'abonnement (calcul montant à payer)
     @PostMapping("/changement-plan/{id}")

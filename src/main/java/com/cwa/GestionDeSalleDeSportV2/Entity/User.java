@@ -138,10 +138,13 @@ public class User implements UserDetails {
         }
     }
 
+    @Column(nullable = false)
+    private boolean enabled = true; // Champ pour activer/désactiver l'utilisateur
+
 
     @Override
     public boolean isEnabled() {
-        return true; // ou une logique basée sur un champ comme `isActive`
+        return this.enabled; // ou une logique basée sur un champ comme `isActive`
     }
 
     @Override
@@ -418,6 +421,10 @@ public class User implements UserDetails {
 
     public void setProfil(byte[] profil) {
         this.profil = profil;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 }
 

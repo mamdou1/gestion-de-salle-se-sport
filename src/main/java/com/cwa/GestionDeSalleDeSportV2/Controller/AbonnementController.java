@@ -45,7 +45,7 @@ public class AbonnementController {
     //  3.  Renouvellement de l'abonnement
     @PostMapping("/renouvellement/{id}")
     public ResponseEntity<String> renouvelerAbonnement(@RequestBody RenouvelerAbonnementDTO dto, @PathVariable Long id) throws MessagingException, AccessDeniedException {
-        abonnementService.renouvelerAbonnement(id, dto.getAjoutMois(), dto.getNouveauAbonnement());
+        abonnementService.renouvelerAbonnement(id, dto.getAjoutMois());
         return new ResponseEntity<>("Abonnement renouveller avec succès.", HttpStatus.CREATED);
     }
 
@@ -89,6 +89,12 @@ public class AbonnementController {
 
         List<Abonnement> historique  = abonnementService.getHistoriqueAbonnementParMembre(id);
         return ResponseEntity.ok(historique );
+    }
+
+    @GetMapping("/historique")
+    public ResponseEntity<List<Abonnement>> getHistoriqueAbonnementParMembreApp() throws AccessDeniedException {
+        List<Abonnement> historique = abonnementService.getHistoriqueAbonnementParMembreApp();
+        return ResponseEntity.ok(historique);
     }
 
     @GetMapping("/get_abonnement_by_id/{abonnementId}")

@@ -81,6 +81,8 @@ public class ValidationInscriptionService {
         abonnement.setModeDePaiement(dto.getModeDePaiement());
 
         BigDecimal tarif = getTarif(demande.getUser().getGenre(), demande.getTypeDeService().getId());
+        BigDecimal prixAb = tarif.multiply(demande.getNombreDeMois());
+        abonnement.setPrixAbonnement(prixAb);
 
         abonnement.setPrixAbonnement(tarif);
         abonnement.setEnregistrerPar(currentUser);

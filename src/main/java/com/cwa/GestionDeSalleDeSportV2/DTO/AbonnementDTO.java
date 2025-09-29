@@ -20,7 +20,7 @@ public class AbonnementDTO {
     private TypeAbonnements types;
 
     @NotNull(message = "Nombre de mois requis")
-    private BigInteger nombreDeMois;
+    private BigDecimal nombreDeMois;
 
     @DecimalMin(value = "0.0", inclusive = false, message = "Le prix doit être positif")
     private BigDecimal prixAbonnement;
@@ -53,11 +53,11 @@ public class AbonnementDTO {
         this.types = types;
     }
 
-    public BigInteger getNombreDeMois() {
+    public BigDecimal getNombreDeMois() {
         return nombreDeMois;
     }
 
-    public void setNombreDeMois(BigInteger nombreDeMois) {
+    public void setNombreDeMois(BigDecimal nombreDeMois) {
         this.nombreDeMois = nombreDeMois;
     }
 

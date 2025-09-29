@@ -30,7 +30,7 @@ public class FamilleAbonnementDTO {
 
     @NotNull(message = "Le nobre de mois est obligatoire")
     @Min(value = 1, message = "Le nombre de mois doit être au moins 1")
-    private Integer nombreMois;
+    private BigDecimal nombreMois;
 
     @NotNull( message = "Le mode payement est obligatoire")
     private ModeDePaiement modeDePaiement;
@@ -77,11 +77,11 @@ public class FamilleAbonnementDTO {
         this.reductionParPersonne = reductionParPersonne;
     }
 
-    public Integer getNombreMois() {
+    public BigDecimal getNombreMois() {
         return nombreMois;
     }
 
-    public void setNombreMois(Integer nombreMois) {
+    public void setNombreMois(BigDecimal nombreMois) {
         this.nombreMois = nombreMois;
     }
 

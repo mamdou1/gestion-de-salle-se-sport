@@ -18,7 +18,9 @@ import com.cwa.GestionDeSalleDeSportV2.Repository.TypeDeServiceRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
@@ -82,10 +84,10 @@ public class DemandeInscriptionService {
         return demandeIncriptionRepository.findByEstValideeFalse();
     }
 
-    public void inscriptionEnLigne(InscriptionEnLigneDTO dto){
+    public void inscriptionEnLigne(InscriptionEnLigneDTO dto, MultipartFile file) throws IOException {
 
         // Vérifier si un utilisateur existe déjà avec le même telephone ou email
-        Optional<User> existingUser = userRepository.findByTelephoneOrEmail(dto.getTelephone(), dto.getEmail());
+        //Optional<User> existingUser = userRepository.findByTelephoneOrEmail(dto.getTelephone(), dto.getEmail());
 
         User newMembre = new User();
 
@@ -103,21 +105,23 @@ public class DemandeInscriptionService {
         newMembre.setRole(Role.MEMBRE);
         newMembre.setFraisInscriptionPayer(false);
 
+        if (file != null && !file.isEmpty()){
+            newMembre.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+        }
+
         //  3)
         newMembre.setTelephone(dto.getTelephone());
         newMembre.setPassword(passwordEncoder.encode(dto.getPassword()));
 
         userRepository.save(newMembre);
-//        notificationService.notifyGymAndMember(
-//                gym,
-//                currentUser,
-//                "Demande de validation de panier",
-//                "Vous avez reçu une demande une nouveau panier en attente de validation",
-//                "Validation",
-//                TypeNotification.INSCRIPTION,
-//                false
-//
-//        );
+        notificationService.notifyInscriptionEnLigne(
+                newMembre,
+                "Demande de validation de panier",
+                "Vous avez reçu une demande une nouveau panier en attente de validation",
+                "Validation",
+                TypeNotification.INSCRIPTION
+
+        );
     }
 
 }
