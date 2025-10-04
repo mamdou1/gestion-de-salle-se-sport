@@ -1,8 +1,11 @@
 package com.cwa.GestionDeSalleDeSportV2.Repository;
 
+import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
+import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Vente;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,5 +26,14 @@ public interface VenteRepository extends JpaRepository<Vente,Long> {
     Long countByGymIdAndYear(Long gymId, LocalDate date);
 
     @Query("SELECT v FROM Vente v JOIN v.lignes l JOIN l.produit p WHERE p.gym.id = :gymId")
+
     List<Vente> findByProductGymId(Long gymId);
+    // Nouvelles méthodes pour filtrer par staff
+    List<Vente> findByStaffGym(Gym gym);
+
+    @Query("SELECT v FROM Vente v WHERE v.staff.gym = :gym")
+    List<Vente> findByGymViaStaff(@Param("gym") Gym gym);
+
+    // Méthode pour récupérer les ventes d'un staff spécifique
+    List<Vente> findByStaff(User staff);
 }

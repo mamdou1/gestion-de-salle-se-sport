@@ -43,9 +43,9 @@ public class AbonnementController {
     }
 
     //  3.  Renouvellement de l'abonnement
-    @PostMapping("/renouvellement/{id}")
+    @PutMapping("/renouvellement/{id}")
     public ResponseEntity<String> renouvelerAbonnement(@RequestBody RenouvelerAbonnementDTO dto, @PathVariable Long id) throws MessagingException, AccessDeniedException {
-        abonnementService.renouvelerAbonnement(id, dto.getAjoutMois());
+        abonnementService.renouvelerAbonnement(id, dto);
         return new ResponseEntity<>("Abonnement renouveller avec succès.", HttpStatus.CREATED);
     }
 
@@ -107,6 +107,77 @@ public class AbonnementController {
     public ResponseEntity<String> supprimerAbonnement(@PathVariable Long membreId) throws AccessDeniedException {
         abonnementService.supprimerAbonnement(membreId);
         return new ResponseEntity<>("Membre supprimer avec succès.", HttpStatus.OK);
+    }
+
+
+    // 🔹 JOURNALIER
+    @GetMapping("/nombre/journalier")
+    public ResponseEntity<Long> getNombreJournalier() throws AccessDeniedException {
+        long count = abonnementService.getNombreAbonnementsJournaliers();
+        return ResponseEntity.ok(count);
+    }
+
+    @GetMapping("/montant/journalier")
+    public ResponseEntity<BigDecimal> getMontantJournalier() throws AccessDeniedException {
+        BigDecimal montant = abonnementService.getMontantTotalJournalierAbonnements();
+        return ResponseEntity.ok(montant);
+    }
+
+    // 🔹 HEBDOMADAIRE
+    @GetMapping("/nombre/hebdomadaire")
+    public ResponseEntity<Long> getNombreHebdomadaire() throws AccessDeniedException {
+        long count = abonnementService.getNombreAbonnementsHebdomadaires();
+        return ResponseEntity.ok(count);
+    }
+
+    @GetMapping("/montant/hebdomadaire")
+    public ResponseEntity<BigDecimal> getMontantHebdomadaire() throws AccessDeniedException {
+        BigDecimal montant = abonnementService.getMontantTotalHebdomadaireAbonnements();
+        return ResponseEntity.ok(montant);
+    }
+
+    // 🔹 MENSUEL
+    @GetMapping("/nombre/mensuel")
+    public ResponseEntity<Long> getNombreMensuel() throws AccessDeniedException {
+        long count = abonnementService.getNombreAbonnementsMensuels();
+        return ResponseEntity.ok(count);
+    }
+
+    @GetMapping("/montant/mensuel")
+    public ResponseEntity<BigDecimal> getMontantMensuel() throws AccessDeniedException {
+        BigDecimal montant = abonnementService.getMontantTotalMensuelAbonnements();
+        return ResponseEntity.ok(montant);
+    }
+
+    // 🔹 ANNUEL
+    @GetMapping("/nombre/annuel")
+    public ResponseEntity<Long> getNombreAnnuel() throws AccessDeniedException {
+        long count = abonnementService.getNombreAbonnementsAnnuels();
+        return ResponseEntity.ok(count);
+    }
+
+    @GetMapping("/montant/annuel")
+    public ResponseEntity<BigDecimal> getMontantAnnuel() throws AccessDeniedException {
+        BigDecimal montant = abonnementService.getMontantTotalAnnuelAbonnements();
+        return ResponseEntity.ok(montant);
+    }
+
+    @GetMapping("/nombre/membre/actif")
+    public ResponseEntity<Long> nombreTotalMembreActif() throws AccessDeniedException {
+        Long nombre = abonnementService.nombreTotalMembreActif();
+        return ResponseEntity.ok(nombre);
+    }
+
+    @GetMapping("/nombre/membre/expirer")
+    public ResponseEntity<Long> nombreTotalMembreExpirer() throws AccessDeniedException {
+        Long nombre = abonnementService.nombreTotalMembreExpirer();
+        return ResponseEntity.ok(nombre);
+    }
+
+    @GetMapping("/nombre/membre/bientot-expirer")
+    public ResponseEntity<Long> nombreTotalMembreBientotExpirer() throws AccessDeniedException {
+        Long nombre = abonnementService.nombreTotalMembreBientotExpirer();
+        return ResponseEntity.ok(nombre);
     }
 
 }

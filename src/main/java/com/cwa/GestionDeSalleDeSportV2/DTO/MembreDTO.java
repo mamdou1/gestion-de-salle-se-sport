@@ -2,6 +2,7 @@ package com.cwa.GestionDeSalleDeSportV2.DTO;
 
 import com.cwa.GestionDeSalleDeSportV2.AnotationPersonnaliser.AgeConstraint;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Genre;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -46,6 +47,8 @@ public class MembreDTO {
 
     @NotNull(message = "Le type de service est obligatoire")
     private Long typeDeService;
+
+    private ModeDePaiement modeDePaiement;
 
     private Long chefFamilleId;
 
@@ -171,5 +174,13 @@ public class MembreDTO {
 
     public void setTypeDeService(Long typeDeService) {
         this.typeDeService = typeDeService;
+    }
+
+    public ModeDePaiement getModeDePaiement() {
+        return modeDePaiement;
+    }
+
+    public void setModeDePaiement(ModeDePaiement modeDePaiement) {
+        this.modeDePaiement = modeDePaiement;
     }
 }

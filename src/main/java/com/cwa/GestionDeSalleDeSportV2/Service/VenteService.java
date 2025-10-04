@@ -64,6 +64,7 @@ public class VenteService {
         vente.setMembre(membre);
         vente.setStaff(currentUser);
         vente.setModeDePaiement(dto.getModeDePaiement());
+        vente.setGym_id(gym.getId());
 
         // Créer une nouvelle liste de lignes pour éviter les références partagées
         List<LigneVente> lignesPourVente = new ArrayList<>();
@@ -216,6 +217,7 @@ public class VenteService {
         vente.setDateVente(LocalDate.now());
         vente.setMembre(acheteur); // Peut être null
         vente.setStaff(staff);
+        vente.setGym_id(staff.getGym().getId());
         vente.setModeDePaiement(modePaiement);
         return vente;
     }

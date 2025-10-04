@@ -1,5 +1,7 @@
 package com.cwa.GestionDeSalleDeSportV2.DTO;
 
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
+
 import java.math.BigDecimal;
 
 public class CasierDTO {

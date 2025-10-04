@@ -286,12 +286,14 @@ public class FamilleAbonnementService {
     }
 
     //  4.  Retrait d'un membre
+
     public void retraitMembre(Long membreId) throws MessagingException, AccessDeniedException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
         User membre = userRepository.findById(membreId)
                 .orElseThrow(() -> new RuntimeException("Membre introuvable"));
         User chefFamille = userRepository.findByTelephone(membre.getTelephoneReference())
                 .orElseThrow(() -> new RuntimeException("Chef de famille introuvable"));
+
         boolean isChefFamille = currentUser.getId().equals(chefFamille.getId());
         boolean isStaff = currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.RECEPTIONNISTE || currentUser.getRole() == Role.GERANT;
 
@@ -302,14 +304,19 @@ public class FamilleAbonnementService {
             throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
         }
 
-        Abonnement abonnementFamilial = abonnementRepository.findByFamilleAndTypes(membre.getFamille(), TypeAbonnements.FAMILIALE)
-                .stream()
+        // Résilier l'abonnement familial du membre uniquement
+        List<Abonnement> abonnementsDuMembre = abonnementRepository.findByMembreAndTypes(membre, TypeAbonnements.FAMILIALE);
+        Abonnement abonnementActif = abonnementsDuMembre.stream()
                 .filter(a -> a.getStatut() == StatutAbonnement.EN_COURS)
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Abonnement familial en cours introuvable."));
 
-        // Définir la date de retrait
-        membre.setDateRetrait(abonnementFamilial.getDateFinAbonnement());
+        abonnementActif.setStatut(StatutAbonnement.RESILIE);
+        abonnementActif.setDateResiliation(LocalDate.now()); // facultatif si tu veux garder une trace
+        membre.setDateRetrait(abonnementActif.getDateFinAbonnement());
+        membre.setFamille(null);
+
+        abonnementRepository.save(abonnementActif);
         userRepository.save(membre);
 
         emailService.envoyerEmail(
@@ -323,6 +330,48 @@ public class FamilleAbonnementService {
                 membre.getNom() + " " + membre.getPrenom() + " sera retiré de votre famille à la fin de l'abonnement."
         );
     }
+
+
+//    public void demandeRetraitMembre(Long membreId) throws MessagingException, AccessDeniedException {
+//        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+//        User membre = userRepository.findById(membreId)
+//                .orElseThrow(() -> new RuntimeException("Membre introuvable"));
+//        User chefFamille = userRepository.findByTelephone(membre.getTelephoneReference())
+//                .orElseThrow(() -> new RuntimeException("Chef de famille introuvable"));
+//        boolean isChefFamille = currentUser.getId().equals(chefFamille.getId());
+//        boolean isStaff = currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.RECEPTIONNISTE || currentUser.getRole() == Role.GERANT;
+//
+//        if (!isChefFamille && !isStaff) {
+//            throw new AccessDeniedException("Seul le chef de famille ou un staff autorisé peut demander un retrait.");
+//        }
+//        if (!currentUser.getGyms().contains(membre.getGym())) {
+//            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
+//        }
+//
+//        Abonnement abonnementFamilial = abonnementRepository.findByFamilleAndTypes(membre.getFamille(), TypeAbonnements.FAMILIALE)
+//                .stream()
+//                .filter(a -> a.getStatut() == StatutAbonnement.EN_COURS)
+//                .findFirst()
+//                .orElseThrow(() -> new RuntimeException("Abonnement familial en cours introuvable."));
+//
+//        // Définir la date de retrait
+//        membre.setDateRetrait(abonnementFamilial.getDateFinAbonnement());
+//        abonnementFamilial.setStatut(StatutAbonnement.RESILIE);
+//        membre.setFamille(null);
+//
+//        userRepository.save(membre);
+//
+//        emailService.envoyerEmail(
+//                membre.getEmail(),
+//                "Retrait de la famille",
+//                "Vous serez retiré de la famille à la fin de l'abonnement."
+//        );
+//        emailService.envoyerEmail(
+//                chefFamille.getEmail(),
+//                "Retrait de membre",
+//                membre.getNom() + " " + membre.getPrenom() + " sera retiré de votre famille à la fin de l'abonnement."
+//        );
+//    }
 
     //  4.1  Liste de demande de retrait
     public List<Famille> listeDesRetrait() throws AccessDeniedException {

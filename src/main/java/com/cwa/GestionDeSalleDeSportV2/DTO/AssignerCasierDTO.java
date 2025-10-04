@@ -1,22 +1,14 @@
 package com.cwa.GestionDeSalleDeSportV2.DTO;
 
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
+
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 public class AssignerCasierDTO {
-    private Long id;
     private Long membreId;
-    private LocalDate dateDebut;
+    private ModeDePaiement modeDePaiement;
+    private Long nombreDeMois;
 
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
 
     public Long getMembreId() {
         return membreId;
@@ -26,11 +18,19 @@ public class AssignerCasierDTO {
         this.membreId = membreId;
     }
 
-    public LocalDate getDateDebut() {
-        return dateDebut;
+    public ModeDePaiement getModeDePaiement() {
+        return modeDePaiement;
     }
 
-    public void setDateDebut(LocalDate dateDebut) {
-        this.dateDebut = dateDebut;
+    public void setModeDePaiement(ModeDePaiement modeDePaiement) {
+        this.modeDePaiement = modeDePaiement;
+    }
+
+    public long getNombreDeMois() {
+        return nombreDeMois;
+    }
+
+    public void setNombreDeMois(long nombreDeMois) {
+        this.nombreDeMois = nombreDeMois;
     }
 }

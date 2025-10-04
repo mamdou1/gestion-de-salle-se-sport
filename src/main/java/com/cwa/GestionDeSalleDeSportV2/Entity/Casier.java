@@ -1,5 +1,6 @@
 package com.cwa.GestionDeSalleDeSportV2.Entity;
 
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutCasier;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -35,10 +36,15 @@ public class Casier {
 
     private LocalDate dateDebut;
     private LocalDate dateFin;
+    private LocalDate dateRappelFinAbonnement;
 
     @Enumerated(EnumType.STRING)
     private StatutCasier statut; // OCCUPER / DISPONIBLE
 
+    @Enumerated(EnumType.STRING)
+    private ModeDePaiement modeDePaiement;
+
+    private BigDecimal nombreDeMois;
 
     public Long getId() {
         return id;
@@ -112,11 +118,35 @@ public class Casier {
         this.dateFin = dateFin;
     }
 
+    public LocalDate getDateRappelFinAbonnement() {
+        return dateRappelFinAbonnement;
+    }
+
+    public void setDateRappelFinAbonnement(LocalDate dateRappelFinAbonnement) {
+        this.dateRappelFinAbonnement = dateRappelFinAbonnement;
+    }
+
     public StatutCasier getStatut() {
         return statut;
     }
 
     public void setStatut(StatutCasier statut) {
         this.statut = statut;
+    }
+
+    public ModeDePaiement getModeDePaiement() {
+        return modeDePaiement;
+    }
+
+    public void setModeDePaiement(ModeDePaiement modeDePaiement) {
+        this.modeDePaiement = modeDePaiement;
+    }
+
+    public BigDecimal getNombreDeMois() {
+        return nombreDeMois;
+    }
+
+    public void setNombreDeMois(BigDecimal nombreDeMois) {
+        this.nombreDeMois = nombreDeMois;
     }
 }

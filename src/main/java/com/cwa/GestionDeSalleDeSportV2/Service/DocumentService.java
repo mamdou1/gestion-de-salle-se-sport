@@ -64,6 +64,43 @@ public class DocumentService {
         return out.toByteArray();
     }
 
+
+
+    public byte[] genererFactureCasier(Casier casier) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(out);
+        PdfDocument pdf = new PdfDocument(writer);
+        Document document = new Document(pdf);
+
+
+        //BigDecimal montantAbonnement = abonnement.getPrixAbonnement();
+        BigDecimal fraisInscription = casier.getMembre().getFraisInscription(); // recuperation du frais d'inscription
+        List<Abonnement> historique = casier.getMembre().getAbonnements() != null ? casier.getMembre().getAbonnements() : new ArrayList<>();
+        Boolean estPremierAbonnement = historique.isEmpty() || historique.size() == 1;  // Vérifie si c'est le premier ou aucun abonnement
+
+        document.add(new Paragraph("Facture du casier")
+                .setTextAlignment(TextAlignment.CENTER)
+                .setFontSize(16)
+                .setBold());
+        document.add(new Paragraph(""));
+
+        document.add(new Paragraph("Prenom : " + casier.getMembre().getNom()));
+        document.add(new Paragraph("Nom : " + casier.getMembre().getPrenom()));
+        document.add(new Paragraph("Durée : " + casier.getNombreDeMois() + " mois"));
+        if (estPremierAbonnement && fraisInscription != null && fraisInscription.compareTo(BigDecimal.ZERO) > 0){
+            document.add(new Paragraph("Frais d'inscription" + fraisInscription + "FCFA" ));
+            document.add(new Paragraph("Montant : " + casier.getPrix() + "FCFA"));
+        }
+        document.add(new Paragraph("Date d'émission : " + LocalDate.now()));
+        document.add(new Paragraph("Enregistré par : " + casier.getStaff().getPrenom() + " " + casier.getStaff().getNom()));
+
+        document.close();
+        return out.toByteArray();
+    }
+
+
+
+
     //  Génère un PDF de facture pour l’abonnement d'une gym donné
     public byte[] genererFactureAbonnementGym(AbonnementGym abonnementGym) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();

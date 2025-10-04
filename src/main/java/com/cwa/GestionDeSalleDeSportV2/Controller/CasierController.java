@@ -7,6 +7,7 @@ import com.cwa.GestionDeSalleDeSportV2.DTO.CasierDTO;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Casier;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Service.CasierService;
+import jakarta.mail.MessagingException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -34,9 +35,9 @@ public class CasierController {
     }
 
     //  2.  Ajouter un casier à un membre dans la salle du staff
-    @PostMapping("/assigner")
-    public ResponseEntity<String> assignerCasier(@RequestBody AssignerCasierDTO dto) throws AccessDeniedException {
-        casierService.assignerCasier(dto);
+    @PostMapping("/assigner/{id}")
+    public ResponseEntity<String> assignerCasier(@PathVariable Long id,@RequestBody AssignerCasierDTO dto) throws AccessDeniedException, MessagingException {
+        casierService.assignerCasier(id,dto);
         return new ResponseEntity<>("Casier assigner avec succès.", HttpStatus.CREATED);
     }
 
@@ -71,5 +72,19 @@ public class CasierController {
     public ResponseEntity<List<Casier>> listeCasier() throws AccessDeniedException {
         List<Casier> casiers = casierService.listeCasier();
         return new ResponseEntity<>(casiers, HttpStatus.OK);
+    }
+
+    //  8.Liberer un casier
+    @PutMapping("/liberer/{caierId}")
+    public ResponseEntity<Casier> libererCasier(@PathVariable Long casierId) throws AccessDeniedException {
+        Casier casier = casierService.libererCasier(casierId);
+        return ResponseEntity.ok(casier);
+    }
+
+    //  9.  renouvellement
+    @PutMapping("/renouvellement/{casierId}")
+    public ResponseEntity<Casier> renouvellement(@PathVariable Long casierId, @RequestBody AssignerCasierDTO dto) throws AccessDeniedException, MessagingException {
+        Casier casier = casierService.renouvellement(casierId, dto);
+        return ResponseEntity.ok(casier);
     }
 }

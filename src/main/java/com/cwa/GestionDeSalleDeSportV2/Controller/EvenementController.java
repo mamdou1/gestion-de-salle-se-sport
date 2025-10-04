@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.AccessDeniedException;
 import java.time.ZonedDateTime;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -64,4 +65,11 @@ public class EvenementController {
         List<EvenementViewDTO> evenements = evenementService.getEvenementsByGymAndDateRange();
         return ResponseEntity.ok(evenements);
     }
+
+    @GetMapping("/nombre-membre")
+    public ResponseEntity<Long> nombreTotal() throws AccessDeniedException {
+        Long nombre = evenementService.nombreTotalEvennement();
+        return ResponseEntity.ok(nombre);
+    }
+
 }

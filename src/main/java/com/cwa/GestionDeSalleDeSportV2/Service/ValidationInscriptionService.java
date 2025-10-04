@@ -53,6 +53,7 @@ public class ValidationInscriptionService {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
         User user = demande.getUser();
         user.setFraisInscription(demande.getTypeDeService().getFraisInscription());
+        user.setFraisInscriptionPayer(true);
 
         // Ajouter le gym à la liste des gyms de l'utilisateur s'il en a plusieurs
         if (demande.getUser() != null){
@@ -60,6 +61,8 @@ public class ValidationInscriptionService {
 
             if (!user.getGyms().contains(demande.getGym())){
                 user.addGym(demande.getGym());
+                user.setStaff(currentUser.getId());
+                user.setModeDePaiement(dto.getModeDePaiement());
                 userRepository.save(user);
             }
             // verifier si un abonnement eixiste déjà

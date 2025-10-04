@@ -1,13 +1,19 @@
 package com.cwa.GestionDeSalleDeSportV2.DTO;
 
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.PeriodAbonnement;
+import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
 public class RenouvelerAbonnementDTO {
 
+    @NotNull(message = "Mode de paiement requis")
     private PeriodAbonnement periodAbonnement;
+    @NotNull(message = "Mode de paiement requis")
     private Integer ajoutMois;
+    @NotNull(message = "Mode de paiement requis")
+    private ModeDePaiement modeDePaiement;
 //    private Double nouveauAbonnement;
 
     public PeriodAbonnement getPeriodAbonnement() {
@@ -26,11 +32,11 @@ public class RenouvelerAbonnementDTO {
         this.ajoutMois = ajoutMois;
     }
 
-//    public Double getNouveauAbonnement() {
-//        return nouveauAbonnement;
-//    }
-//
-//    public void setNouveauAbonnement(Double nouveauAbonnement) {
-//        this.nouveauAbonnement = nouveauAbonnement;
-//    }
+    public ModeDePaiement getModeDePaiement() {
+        return modeDePaiement;
+    }
+
+    public void setModeDePaiement(ModeDePaiement modeDePaiement) {
+        this.modeDePaiement = modeDePaiement;
+    }
 }

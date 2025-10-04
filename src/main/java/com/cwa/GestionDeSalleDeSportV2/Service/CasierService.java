@@ -12,6 +12,7 @@ import com.cwa.GestionDeSalleDeSportV2.Repository.CasierRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.SalleRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
+import jakarta.mail.MessagingException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -29,13 +30,15 @@ public class CasierService {
     private final SalleRepository salleRepository;
     private final GymRepository gymRepository;
     private final ProduitService produitService;
+    private final AbonnementEventService abonnementEventService;
 
-    public CasierService(CasierRepository casierRepository, UserRepository userRepository, SalleRepository salleRepository, GymRepository gymRepository, ProduitService produitService) {
+    public CasierService(CasierRepository casierRepository, UserRepository userRepository, SalleRepository salleRepository, GymRepository gymRepository, ProduitService produitService, AbonnementEventService abonnementEventService) {
         this.casierRepository = casierRepository;
         this.userRepository = userRepository;
         this.salleRepository = salleRepository;
         this.gymRepository = gymRepository;
         this.produitService = produitService;
+        this.abonnementEventService = abonnementEventService;
     }
 
     private void veriicationAccesGym(User staff, Gym gym, String action){
@@ -77,9 +80,9 @@ public class CasierService {
     }
 
     //  2.  Assigne un casier à un client si disponible
-    public Casier assignerCasier( AssignerCasierDTO dto) throws AccessDeniedException {
+    public Casier assignerCasier(Long id, AssignerCasierDTO dto) throws AccessDeniedException, MessagingException {
         User staff = produitService.initializeAccess(true);
-        Casier casier = casierRepository.findById(dto.getId())
+        Casier casier = casierRepository.findById(id)
                 .orElseThrow(()-> new RuntimeException("Casier non trouver."));
 
         if (casier.getStatut() == StatutCasier.OCCUPER){
@@ -93,13 +96,24 @@ public class CasierService {
             throw new RuntimeException("Accès refusé : le membre n'est pas affilié à ce gym.");
         }
 
+        BigDecimal prix = casier.getPrix();
+
         casier.setMembre(membre);
-        casier.setDateDebut(dto.getDateDebut());
+        casier.setDateDebut(LocalDate.now());
         casier.setDateFin(LocalDate.now().plusMonths(1));
         casier.setStatut(StatutCasier.OCCUPER);
         casier.setStaff(staff);
+        casier.setModeDePaiement(dto.getModeDePaiement());
+        casier.setDateRappelFinAbonnement(LocalDate.now()
+                .plusMonths(dto.getNombreDeMois())
+                .minusDays(5));
+        casier.setPrix(prix.multiply(BigDecimal.valueOf(dto.getNombreDeMois())));
 
-        return casierRepository.save(casier);
+        casierRepository.save(casier);
+        abonnementEventService.envoyerFactureCasierParEmail(membre, casier, "Validation");
+
+        return casier;
+
     }
 
     //  3.  Casiers disponibles dans une salle
@@ -140,6 +154,48 @@ public class CasierService {
         produitService.initializeAccess(true);
         List<Casier> casiers = casierRepository.findAll();
         return casiers;
+    }
+
+    //  8. Liberer un casier
+    public Casier libererCasier(Long casierId) throws AccessDeniedException {
+        produitService.initializeAccess(true);
+        Casier casier = casierRepository.findById(casierId)
+                .orElseThrow(()->new RuntimeException("Casier non trouvé."));
+        casier.setStatut(StatutCasier.DISPONIBLE);
+        casier.setDateDebut(null);
+        casier.setDateFin(null);
+        casier.setMembre(null);
+        casier.setStaff(null);
+        casier.setModeDePaiement(null);
+        return casier;
+    }
+
+    public Casier renouvellement(Long casierId, AssignerCasierDTO dto) throws AccessDeniedException, MessagingException {
+        Casier casier = casierRepository.findById(casierId)
+                .orElseThrow(()->new RuntimeException("Casier non trouvé."));
+        User currentUser = produitService.initializeAccess(true);
+
+        if (!currentUser.getGyms().contains(casier.getGym())) {
+            throw new AccessDeniedException("Accès refusé à cet abonnement.");
+        }
+
+        BigDecimal prix = casier.getPrix();
+
+        if(casier.getStatut() == StatutCasier.OCCUPER){
+            LocalDate nouvelleDateFin = casier.getDateFin().plusMonths(dto.getNombreDeMois());
+            casier.setDateFin(nouvelleDateFin);
+            casier.setDateRappelFinAbonnement(nouvelleDateFin.minusDays(5));
+            casier.setModeDePaiement(dto.getModeDePaiement());
+            casier.setNombreDeMois(BigDecimal.valueOf(dto.getNombreDeMois()));
+            casier.setPrix(prix.multiply(BigDecimal.valueOf(dto.getNombreDeMois())));
+        }
+
+        User membre = casier.getMembre();
+        abonnementEventService.envoyerFactureCasierParEmail(membre, casier, "Renouvellement");
+
+        casierRepository.save(casier);
+
+        return casier;
     }
 }
 

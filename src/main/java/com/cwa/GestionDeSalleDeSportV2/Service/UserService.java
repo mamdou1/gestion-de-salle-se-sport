@@ -106,6 +106,7 @@ public class UserService {
         staff.setTelephone(dto.getNumeroTelephoneStaff());
         staff.setGym(admin.getGym()); // Gym principal
         staff.addGym(admin.getGym()); // Ajouter à gyms
+        staff.setStaff(admin.getId());
 
         if (file != null && !file.isEmpty()){
             staff.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
@@ -159,18 +160,7 @@ public class UserService {
             return existingUser;
         }
 
-//        if (dto.getDate_de_naissanceMembre() != null && !dto.getDate_de_naissanceMembre().trim().isEmpty()) {
-//            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-//            LocalDate birthDate = LocalDate.parse(dto.getDate_de_naissanceMembre(), formatter);
-//            LocalDate currentDate = LocalDate.now(); // 2025-08-28, 11:21 AM GMT
-//            int age = Period.between(birthDate, currentDate).getYears();
-//
-//            if (age < 16 || age > 80) {
-//                throw new RuntimeException("error l'âge doit être compris entre 16 et 80 ans.");
-//            }
-//        } else {
-//            throw new RuntimeException("error la date de naissance est requise.");
-//        }
+
 
         TypeDeService typeDeService = typeDeServiceRepository.findById(dto.getTypeDeService())
                 .orElseThrow(()->new RuntimeException("Type de service introuvable."));
@@ -189,6 +179,8 @@ public class UserService {
         nouveauMembre.setRole(Role.MEMBRE);
         nouveauMembre.setGym(staff.getGym());
         nouveauMembre.addGym(staff.getGym());
+        nouveauMembre.setStaff(staff.getId());
+        nouveauMembre.setModeDePaiement(dto.getModeDePaiement());
         nouveauMembre.setTypeDeService(typeDeService);
         if (dto.getGymsIds() != null) {
             dto.getGymsIds().forEach(gymId -> {
@@ -226,6 +218,7 @@ public class UserService {
         return Optional.of(nouveauMembre);
     }
 
+    // la photo
     public byte[] getPhotoProduitMembre(Long id){
         User user = userRepository.findById(id)
                 .orElseThrow(()->new RuntimeException("Produit non trouvé."));
@@ -498,6 +491,11 @@ public class UserService {
         staff.setEnabled(false);
         staff.setDateRetrait(LocalDateTime.now().toLocalDate()); // Enregistre la date de retrait
         userRepository.save(staff);
+    }
+
+    public long nombreTotalMembre() throws AccessDeniedException {
+        initializeAccess(true);
+        return userRepository.countByMembre();
     }
 
     public List<Gym> getGymsOfMembre() throws AccessDeniedException {

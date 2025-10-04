@@ -177,5 +177,11 @@ public class UserController {
         List<Gym> gyms = userService.getGymsOfMembre();
         return new ResponseEntity<>(gyms, HttpStatus.OK);
     }
+
+    @GetMapping("/nombre-membre")
+    public ResponseEntity<Long> nombreTotal() throws AccessDeniedException {
+        Long nombre = userService.nombreTotalMembre();
+        return ResponseEntity.ok(nombre);
+    }
 }
 

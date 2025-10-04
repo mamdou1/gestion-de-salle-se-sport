@@ -7,6 +7,7 @@ import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -32,4 +33,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     User findByEmail(String email);
 
     User findByEmailIgnoreCase(String email);
+
+    List<User> findByGymAndFraisInscriptionPayerTrue(Gym gym);
+
+    @Query("SELECT COUNT(u) FROM User u WHERE u.role = MEMBRE")
+    Long countByMembre();
 }

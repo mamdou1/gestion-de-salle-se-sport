@@ -2,6 +2,7 @@ package com.cwa.GestionDeSalleDeSportV2.Entity;
 
 
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Genre;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutMembre;
 import com.fasterxml.jackson.annotation.JsonBackReference;
@@ -57,9 +58,6 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Genre genre;
 
-//    @NotBlank(message = "Le nom d'utilisateur est obligatoire")
-//    @Column(unique = true, nullable = false)
-//    private String username;
     private String password;
 
 //    @PastOrPresent(message = "La date de naissance ne peut pas être dans le futur")
@@ -76,6 +74,11 @@ public class User implements UserDetails {
     private Boolean isOnline = false;
     private BigDecimal fraisInscription;
     private Boolean fraisInscriptionPayer = false;
+
+    private Long staff;
+
+    @Enumerated(EnumType.STRING)
+    private ModeDePaiement modeDePaiement;
 
     @OneToMany(mappedBy = "membre", cascade = CascadeType.ALL)
     @JsonBackReference
@@ -323,8 +326,24 @@ public class User implements UserDetails {
         return fraisInscriptionPayer;
     }
 
+    public Long getStaff() {
+        return staff;
+    }
+
+    public void setStaff(Long staff) {
+        this.staff = staff;
+    }
+
     public void setFraisInscriptionPayer(Boolean fraisInscriptionPayer) {
         this.fraisInscriptionPayer = fraisInscriptionPayer;
+    }
+
+    public ModeDePaiement getModeDePaiement() {
+        return modeDePaiement;
+    }
+
+    public void setModeDePaiement(ModeDePaiement modeDePaiement) {
+        this.modeDePaiement = modeDePaiement;
     }
 
     public List<Abonnement> getAbonnements() {

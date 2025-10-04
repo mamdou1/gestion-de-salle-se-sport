@@ -33,4 +33,15 @@ public interface AbonnementRepository extends JpaRepository<Abonnement,Long> {
     List<Abonnement> findByMembreAndStatut(User membre, StatutAbonnement statutAbonnement);
     List<Abonnement> findByGymIn(List<Gym> gyms);
     Abonnement findByFamille(Famille famille);
+
+    List<Abonnement> findByGym(Gym gym);
+
+    @Query("SELECT COUNT(a) FROM Abonnement a WHERE a.statut = EN_COURS")
+    Long countByMembreActifs();
+    @Query("SELECT COUNT(a) FROM Abonnement a WHERE a.statut = EXPIRE")
+    Long countByMembreExpirer();
+    @Query("SELECT COUNT(a) FROM Abonnement a WHERE a.statut = BIENTOT_EXPIRE")
+    Long countByMembreBientotExpirer();
+
+    List<Abonnement> findByMembreAndTypes(User membre, TypeAbonnements typeAbonnements);
 }

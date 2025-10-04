@@ -59,6 +59,41 @@ public class AbonnementEventService {
                 false);
     }
 
+
+    public void envoyerFactureCasierParEmail(User utilisateur ,Casier casier , String contexte) throws MessagingException {
+
+        byte [] pdf = documentService.genererFactureCasier(casier);
+
+        // Email email avec pièce jointe
+        emailService.envoyerEmailAvecPieceJointe(
+                utilisateur.getEmail(),
+                "Facture - " + contexte + "abonnement",
+                String.format("""
+            Bonjour %s %s,
+
+            Votre facture est générée suite à la %s de votre abonnement à la salle %s.
+            Veuillez trouver la pièce jointe ci-dessous.
+
+            Sportivement 🏋️,
+            L’équipe de gestion
+            """,
+                        utilisateur.getPrenom(),
+                        utilisateur.getNom(),
+                        contexte.toLowerCase(),
+                        utilisateur.getGym().getNom()),
+                pdf,
+                "facture_abonnement.pdf"
+        );
+        notificationService.notification(utilisateur,
+                "Facture générée",
+                "Votre facture est disponible pour l'abonnement de " + casier.getNombreDeMois() +"mois.",
+                contexte,
+                TypeNotification.ABONNEMENT,
+                false);
+    }
+
+
+
     public void envoyerFactureVenteParEmail(User utilisateur, Vente vente, String contexte) throws MessagingException {
 
         byte[] pdf = documentService.genererFactureVente(vente); // Génère la facture PDF de la vente

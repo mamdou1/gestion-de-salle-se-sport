@@ -200,6 +200,20 @@ public class AbonnementService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    public long nombreTotalMembreActif() throws AccessDeniedException {
+        initializeAccess(true);
+        return abonnementRepository.countByMembreActifs();
+    }
+
+    public long nombreTotalMembreExpirer() throws AccessDeniedException {
+        initializeAccess(true);
+        return abonnementRepository.countByMembreExpirer();
+    }
+
+    public long nombreTotalMembreBientotExpirer() throws AccessDeniedException {
+        initializeAccess(true);
+        return abonnementRepository.countByMembreBientotExpirer();
+    }
 
 
     // 1. Mettre un abonnement en pause / reprendre
@@ -319,7 +333,7 @@ public class AbonnementService {
 
     // 3. Renouvellement de l'abonnement existant
     @Transactional
-    public Abonnement renouvelerAbonnement(Long id, Integer ajoutMois) throws MessagingException, AccessDeniedException {
+    public Abonnement renouvelerAbonnement(Long id, RenouvelerAbonnementDTO dto) throws MessagingException, AccessDeniedException {
         Abonnement abonnement = abonnementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Abonnement introuvable."));
 
@@ -333,21 +347,23 @@ public class AbonnementService {
         if (abonnement.getStatut() == StatutAbonnement.EN_COURS ||
                 abonnement.getStatut() == StatutAbonnement.BIENTOT_EXPIRE) {
 
-            LocalDate nouvelleDateFin = abonnement.getDateFinAbonnement().plusMonths(ajoutMois);
+            LocalDate nouvelleDateFin = abonnement.getDateFinAbonnement().plusMonths(dto.getAjoutMois());
             abonnement.setDateFinAbonnement(nouvelleDateFin);
             abonnement.setDateRappelFinAbonnement(nouvelleDateFin.minusDays(5));
-            abonnement.setNombreDeMois(abonnement.getNombreDeMois().add(BigDecimal.valueOf(ajoutMois)));
-            abonnement.setPeriodAbonnement(abonnement.getPeriodAbonnement());
+            abonnement.setNombreDeMois(abonnement.getNombreDeMois().add(BigDecimal.valueOf(dto.getAjoutMois())));
+            abonnement.setPeriodAbonnement(dto.getPeriodAbonnement());
+            abonnement.setModeDePaiement(dto.getModeDePaiement());
 
         } else if (abonnement.getStatut() == StatutAbonnement.EXPIRE ||
                 abonnement.getStatut() == StatutAbonnement.RESILIE) {
 
-            LocalDate nouvelleDateFin = aujourd_hui.plusMonths(ajoutMois);
+            LocalDate nouvelleDateFin = aujourd_hui.plusMonths(dto.getAjoutMois());
             abonnement.setDateDebutAbonnement(aujourd_hui);
             abonnement.setDateFinAbonnement(nouvelleDateFin);
             abonnement.setDateRappelFinAbonnement(nouvelleDateFin.minusDays(5));
-            abonnement.setNombreDeMois(BigDecimal.valueOf(ajoutMois));
+            abonnement.setNombreDeMois(BigDecimal.valueOf(dto.getAjoutMois()));
             abonnement.setPeriodAbonnement(abonnement.getPeriodAbonnement());
+            abonnement.setModeDePaiement(dto.getModeDePaiement());
         }
 
         abonnement.setPeriodAbonnement(abonnement.getPeriodAbonnement());
@@ -356,7 +372,7 @@ public class AbonnementService {
         TypeDeService typeDeService = abonnement.getTypeDeService();
         User membre = (User) abonnement.getMembre();
         BigDecimal tarifUnitaire = validationInscriptionService.getTarif(membre.getGenre(), typeDeService.getId());
-        BigDecimal nouveauPrix = tarifUnitaire.multiply(BigDecimal.valueOf(ajoutMois));
+        BigDecimal nouveauPrix = tarifUnitaire.multiply(BigDecimal.valueOf(dto.getAjoutMois()));
         abonnement.setPrixAbonnement(nouveauPrix);
 
         abonnement.setStatut(calculStatutAbonnemnt(abonnement));

@@ -21,4 +21,6 @@ public interface CasierRepository extends JpaRepository<Casier, Long> {
     Optional<Casier> findByNumeroDeCasierAndSalle(String numeroDeCasier, Salle salle);
 
     Optional<Object> findByNumeroDeCasierAndStatut(Casier casier, StatutCasier statutCasier);
+
+    List<Casier> findByGym(Gym gym);
 }

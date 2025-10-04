@@ -41,7 +41,7 @@ public class Vente {
     @Enumerated(EnumType.STRING)
     private ModeDePaiement modeDePaiement;
 
-
+    private Long gym_id; // Lien avec la gym pour multi-salle
 
     @OneToMany(mappedBy = "vente", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
@@ -102,6 +102,14 @@ public class Vente {
 
     public void setModeDePaiement(ModeDePaiement modeDePaiement) {
         this.modeDePaiement = modeDePaiement;
+    }
+
+    public Long getGym_id() {
+        return gym_id;
+    }
+
+    public void setGym_id(Long gym_id) {
+        this.gym_id = gym_id;
     }
 
     public List<LigneVente> getLignes() {
