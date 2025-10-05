@@ -1,6 +1,5 @@
 package com.cwa.GestionDeSalleDeSportV2.Jwt;
 
-
 import com.cwa.GestionDeSalleDeSportV2.Service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -10,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -23,43 +23,59 @@ public class JwtFilter extends OncePerRequestFilter {
     private final JwtUtils jwtUtils;
 
     public JwtFilter(CustomUserDetailsService customUserDetailsService1, JwtUtils jwtUtils1) {
-
         this.customUserDetailsService = customUserDetailsService1;
         this.jwtUtils = jwtUtils1;
     }
 
-
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
 
-        //  Ignore le filtrage pour les routes publiques
         String path = request.getServletPath();
 
-        if (path.equals("/api/auth/inscription") || path.equals("/api/auth/login")){
+        // Ne filtre pas les routes publiques
+        if (path.startsWith("/api/auth/")) { // Inclut /api/auth/refresh
             filterChain.doFilter(request, response);
             return;
         }
 
-        final String AuthHeaders = request.getHeader("Authorization");
-
+        final String authHeader = request.getHeader("Authorization");
         String jwt = null;
         String username = null;
 
-        if (AuthHeaders != null && AuthHeaders.startsWith("Bearer ")){
-            jwt = AuthHeaders.substring(7).trim();
-            username = jwtUtils.extractUsername(jwt);
-        }
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null){
-            UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
-
-            if (jwtUtils.validateToken(jwt, userDetails)){
-                UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
-                // ce code ci-dessus va permettre de derterminer avec quel method l'utilisateur a été authentifier, apporter plus de details des logs et d' info telque l'identifiant, l'adresse IP etc etc
-                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            jwt = authHeader.substring(7).trim();
+            try {
+                username = jwtUtils.extractUsername(jwt);
+            } catch (Exception e) {
+                System.out.println("Erreur lors de l'extraction du username depuis le token : " + e.getMessage());
             }
         }
-        filterChain.doFilter(request, response);
 
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
+
+            if (jwtUtils.validateToken(jwt, userDetails)) {
+                UsernamePasswordAuthenticationToken authenticationToken =
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+                authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+
+                // Debug log
+                System.out.println("Utilisateur authentifié : " + userDetails.getUsername());
+                System.out.println("Rôles : " + userDetails.getAuthorities());
+                // Rôle principal (premier rôle)
+                if (!userDetails.getAuthorities().isEmpty()) {
+                    System.out.println("Rôle principal : " + userDetails.getAuthorities().iterator().next().getAuthority());
+                } else {
+                    System.out.println("Aucun rôle trouvé");
+                }
+            } else {
+                System.out.println("Token invalide pour l'utilisateur : " + username);
+            }
+        }
+
+        filterChain.doFilter(request, response);
     }
 }

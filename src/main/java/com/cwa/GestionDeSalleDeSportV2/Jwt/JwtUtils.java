@@ -6,38 +6,42 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Component
 public class JwtUtils {
 
     @Value("${app.secret-key}")
-    private String secretKet;
+    private String secretKey;
 
     @Value("${app.expiration-time}")
     private String expirationTime;
 
     public String generateToken(UserDetails userDetails) {
-
         Map<String, Object> claims = new HashMap<>();
 
-        // ✅ Récupération du rôle
-        String role = userDetails.getAuthorities().stream()
-                .findFirst()
-                .map(auth -> auth.getAuthority())
-                .orElse("ROLE_UTILISATEUR");
+        // Extraire tous les rôles (authorities) et les ajouter comme liste - Garder le préfixe "ROLE_"
+        List<String> roles = userDetails.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+        claims.put("roles", roles); // Stocker comme liste avec "ROLE_"
 
-        claims.put("role", role);
+        // Rôle principal (premier rôle) - Garder le préfixe "ROLE_"
+        String primaryRole = roles.isEmpty() ? "ROLE_UTILISATEUR" : roles.get(0);
+        claims.put("role", primaryRole);
 
-        // ✅ Si c’est bien notre CustomUserDetails, on peut aussi récupérer l’ID
         if (userDetails instanceof CustomUserDetails) {
             Long id = ((CustomUserDetails) userDetails).getId();
             claims.put("id", id);
@@ -45,7 +49,7 @@ public class JwtUtils {
 
         return Jwts.builder()
                 .setClaims(claims)
-                .setSubject(userDetails.getUsername()) // subject = téléphone
+                .setSubject(userDetails.getUsername()) // username = téléphone
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + Long.parseLong(expirationTime)))
                 .signWith(getSignKey(), SignatureAlgorithm.HS256)
@@ -53,8 +57,8 @@ public class JwtUtils {
     }
 
     private Key getSignKey() {
-        byte[] keyByte = secretKet.getBytes();
-        return new SecretKeySpec(keyByte, SignatureAlgorithm.HS256.getJcaName());
+        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {
@@ -74,6 +78,14 @@ public class JwtUtils {
         return extractAllClaims(token).get("id", Long.class);
     }
 
+    public String extractPrimaryRole(String token) {
+        return extractAllClaims(token).get("role", String.class);
+    }
+
+    public List<String> extractRoles(String token) {
+        return extractAllClaims(token).get("roles", List.class);
+    }
+
     private Date extractExpirationDate(String token) {
         return extractClaims(token, Claims::getExpiration);
     }
@@ -85,7 +97,7 @@ public class JwtUtils {
 
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(Keys.hmacShaKeyFor(getSignKey().getEncoded()))
+                .setSigningKey(getSignKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
