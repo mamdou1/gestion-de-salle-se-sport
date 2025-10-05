@@ -41,60 +41,11 @@ public class Famille {
     @JsonManagedReference
     private List<FactureCollective> factures;
 
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getNom() {
-        return nom;
-    }
-
-    public void setNom(String nom) {
-        this.nom = nom;
-    }
-
-    public Gym getGym() {
-        return gym;
-    }
-
-    public void setGym(Gym gym) {
-        this.gym = gym;
-    }
-
-    public User getChefFamille() {
-        return chefFamille;
-    }
-
-    public void setChefFamille(User chefFamille) {
-        this.chefFamille = chefFamille;
-    }
-
-    public List<User> getMembres() {
-        return membres;
-    }
-
-    public void setMembres(List<User> membres) {
-        this.membres = membres;
-    }
-
-    public List<Abonnement> getAbonnements() {
-        return abonnements;
-    }
-
-    public void setAbonnements(List<Abonnement> abonnements) {
-        this.abonnements = abonnements;
-    }
-
-    public List<FactureCollective> getFactures() {
-        return factures;
-    }
-
-    public void setFactures(List<FactureCollective> factures) {
-        this.factures = factures;
+    /**
+     * Méthode utilitaire : renvoie le nom complet du chef de famille
+     */
+    public String getChefFamilleNomComplet() {
+        if (chefFamille == null) return null;
+        return chefFamille.getNom() + " " + chefFamille.getPrenom();
     }
 }
