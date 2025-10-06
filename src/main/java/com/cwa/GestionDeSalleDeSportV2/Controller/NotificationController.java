@@ -1,6 +1,8 @@
 package com.cwa.GestionDeSalleDeSportV2.Controller;
 
+import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Notification;
+import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,9 +16,11 @@ import java.util.List;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
 
-    public NotificationController(NotificationService notificationService) {
+    public NotificationController(NotificationService notificationService, UtilisateurActuellementConnecter utilisateurActuellementConnecter) {
         this.notificationService = notificationService;
+        this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
     }
 
     //  Afficher les notifilaction d'un Gym
@@ -45,5 +49,18 @@ public class NotificationController {
     public ResponseEntity<String> supprimerNotification(@PathVariable Long notificationId) throws AccessDeniedException {
         notificationService.supprimerNotification(notificationId);
         return new ResponseEntity<>("Notification suoorimer avec succès", HttpStatus.OK);
+    }
+
+    @PutMapping("/user_notification/{id}/lu")
+    public ResponseEntity<Void> marquerNotificationCommeLue(@PathVariable Long id) throws AccessDeniedException {
+        notificationService.marquerCommeLu(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/user_notification/marquer-toutes-lues")
+    public ResponseEntity<Void> marquerToutesNotificationsCommeLues() throws AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        notificationService.marquerToutesCommeLues(currentUser.getId());
+        return ResponseEntity.ok().build();
     }
 }

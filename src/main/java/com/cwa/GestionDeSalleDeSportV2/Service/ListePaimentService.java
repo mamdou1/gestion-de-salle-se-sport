@@ -42,6 +42,17 @@ public class ListePaimentService {
      * @return Liste de tous les paiements (abonnements, frais d'inscription, casiers, ventes)
      * @throws AccessDeniedException Si l'utilisateur n'est pas autorisé
      */
+//    public List<ListePaiment> getAllPaiements() throws AccessDeniedException {
+//        User currentUser = initializeAccess(true);
+//        Gym userGym = currentUser.getGym();
+//        verificationAccesGym(currentUser, userGym, "consulter les paiements dans");
+//
+//        return ListePaimentRepository.findByGymId(userGym.getId())
+//                .stream()
+//                .sorted((p1, p2) -> p2.getDatePaiement().compareTo(p1.getDatePaiement()))
+//                .collect(Collectors.toList());
+//    }
+
     public List<ListePaiment> getAllPaiements() throws AccessDeniedException {
         User currentUser = initializeAccess(true);
         Gym userGym = currentUser.getGym();
@@ -49,7 +60,16 @@ public class ListePaimentService {
 
         return ListePaimentRepository.findByGymId(userGym.getId())
                 .stream()
-                .sorted((p1, p2) -> p2.getDatePaiement().compareTo(p1.getDatePaiement()))
+                .sorted((p1, p2) -> {
+                    LocalDateTime d1 = p1.getDatePaiement();
+                    LocalDateTime d2 = p2.getDatePaiement();
+
+                    if (d1 == null && d2 == null) return 0;
+                    if (d1 == null) return 1; // nulls en bas
+                    if (d2 == null) return -1;
+
+                    return d2.compareTo(d1); // tri décroissant
+                })
                 .collect(Collectors.toList());
     }
 
@@ -79,6 +99,9 @@ public class ListePaimentService {
 
         return tousLesPaiements.stream()
                 .filter(paiement -> {
+                    if (paiement.getDatePaiement() == null) {
+                        return false; // Exclure les paiements sans date
+                    }
                     LocalDate datePaiement = paiement.getDatePaiement().toLocalDate();
                     return !datePaiement.isBefore(dateDebut) && !datePaiement.isAfter(dateFin);
                 })

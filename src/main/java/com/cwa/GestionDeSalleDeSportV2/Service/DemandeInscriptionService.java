@@ -68,14 +68,21 @@ public class DemandeInscriptionService {
 
         demandeIncriptionRepository.save(demande);
 
-        notificationService.notifyGymAndMember(
-                gym,
+        notificationService.notifyInscriptionEnLigne(
                 membre,
+                "Demande de validation d' inscription",
+                "Votre demande d'insdription au pres de la salle de sport "+gym.getNom()+" a été envoyer avec succès.",
+                "Envoyer",
+                TypeNotification.VALIDATION_INSCRIPTION
+
+        );
+
+        notificationService.notifyInscriptionEnLigneGym(
+                gym,
                 "Demande de validation d' inscription",
                 "Vous avez reçu une demande une nouvelle demande d'insdription au pres de votre salle de sport",
                 "Validation",
-                TypeNotification.VALIDATION_INSCRIPTION,
-                false
+                TypeNotification.VALIDATION_INSCRIPTION
 
         );
     }
