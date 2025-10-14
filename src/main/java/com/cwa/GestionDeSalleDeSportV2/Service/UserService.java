@@ -21,6 +21,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
@@ -42,8 +45,10 @@ public class UserService {
     private final GymRepository gymRepository;
     private final TypeDeServiceRepository typeDeServiceRepository;
     private final NotificationService notificationService;
+    private final StockageDeFichierService stockageDeFichierService;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService, UtilisateurActuellementConnecter utilisateurActuellementConnecter, FamilleRepository familleRepository, GymRepository gymRepository, TypeDeServiceRepository typeDeServiceRepository, NotificationService notificationService) {
+
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService, UtilisateurActuellementConnecter utilisateurActuellementConnecter, FamilleRepository familleRepository, GymRepository gymRepository, TypeDeServiceRepository typeDeServiceRepository, NotificationService notificationService, StockageDeFichierService stockageDeFichierService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
@@ -52,6 +57,7 @@ public class UserService {
         this.gymRepository = gymRepository;
         this.typeDeServiceRepository = typeDeServiceRepository;
         this.notificationService = notificationService;
+        this.stockageDeFichierService = stockageDeFichierService;
     }
 
     //  1.  Vérifie si l'utilisateur peut gérer des membres
@@ -109,7 +115,11 @@ public class UserService {
         staff.setStaff(admin.getId());
 
         if (file != null && !file.isEmpty()){
-            staff.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+            //staff.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            String savedFileName = stockageDeFichierService.saveFile(file, fileName);
+            staff.setImageUrl(savedFileName);
         }
 
         //  mdp == mot de passe
@@ -199,7 +209,11 @@ public class UserService {
         nouveauMembre.setPassword(passwordEncoder.encode(mdp));
 
         if (file != null && !file.isEmpty()){
-            nouveauMembre.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+            //nouveauMembre.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            String savedFileName = stockageDeFichierService.saveFile(file, fileName);
+            nouveauMembre.setImageUrl(savedFileName);
         }
 
         userRepository.save(nouveauMembre);
@@ -249,7 +263,17 @@ public class UserService {
         if (dto.getNumeroTelephoneMembre() !=null) membre.setTelephone(dto.getNumeroTelephoneMembre());
         if (dto.getDate_de_naissanceMembre() !=null) membre.setDate_de_naissance(dto.getDate_de_naissanceMembre());
         if (file != null && !file.isEmpty()){
-            membre.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+            //membre.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+
+            // Supprimer ancienne image si elle existe
+            if (membre.getImageUrl() != null){
+                Path oldPath = Paths.get(membre.getImageUrl());
+                Files.deleteIfExists(oldPath);
+            }
+
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            String savedFileName = stockageDeFichierService.saveFile(file, fileName);
+            membre.setImageUrl(savedFileName);
         }
 
 
@@ -280,7 +304,17 @@ public class UserService {
         if (dto.getNumeroTelephoneStaff() !=null) staff.setTelephone(dto.getNumeroTelephoneStaff());
         if (dto.getDate_de_naissanceStaff() !=null) staff.setDate_de_naissance(dto.getDate_de_naissanceStaff());
         if (file != null && !file.isEmpty()){
-            staff.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+            //staff.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+
+            // Supprimer ancienne image si elle existe
+            if (staff.getImageUrl() != null){
+                Path oldPath = Paths.get(staff.getImageUrl());
+                Files.deleteIfExists(oldPath);
+            }
+
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            String savedFileName = stockageDeFichierService.saveFile(file, fileName);
+            staff.setImageUrl(savedFileName);
         }
 
         userRepository.save(staff);

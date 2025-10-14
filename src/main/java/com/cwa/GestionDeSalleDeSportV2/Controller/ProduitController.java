@@ -30,24 +30,28 @@ public class ProduitController {
         return new ResponseEntity<>(produit, HttpStatus.CREATED);
     }
 
-    @GetMapping("/photo/{id}")
-    public ResponseEntity<byte[]> getPhoto(@PathVariable Long id){
-        byte[] image = produitService.getPhotoProduit(id);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, "image/jpeg") //  ou "image/png"
-                .body(image);
-    }
+//    @GetMapping("/photo/{id}")
+//    public ResponseEntity<byte[]> getPhoto(@PathVariable Long id){
+//        byte[] image = produitService.getPhotoProduit(id);
+//        return ResponseEntity.ok()
+//                .header(HttpHeaders.CONTENT_TYPE, "image/jpeg") //  ou "image/png"
+//                .body(image);
+//    }
 
     // 2. Modifier un produit
     @PutMapping("/modifier/{id}")
-    public ResponseEntity<Produit> modifierProduit(@PathVariable Long id, @ModelAttribute ProduitDTO dto, @RequestParam(required = false)MultipartFile file) throws IOException {
+    public ResponseEntity<Produit> modifierProduit(
+            @PathVariable Long id,
+            @ModelAttribute ProduitDTO dto,
+            @RequestParam(value = "file", required = false) MultipartFile file) throws IOException {
+
         Produit produit = produitService.modifierProduit(id, dto, file);
         return ResponseEntity.ok(produit);
     }
 
     // 3. Supprimer un produit
     @DeleteMapping("/supprimer/{id}")
-    public ResponseEntity<Void> supprimerProduit(@PathVariable Long id) throws AccessDeniedException {
+    public ResponseEntity<Void> supprimerProduit(@PathVariable Long id) throws IOException {
         produitService.supprimerProduit(id);
         return ResponseEntity.noContent().build();
     }

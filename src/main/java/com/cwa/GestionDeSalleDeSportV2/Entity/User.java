@@ -123,6 +123,7 @@ public class User implements UserDetails {
     @Lob
     @Column(name = "profil", columnDefinition = "LONGBLOB")
     private byte[] profil;
+    private String imageUrl;
 
 
     @AssertTrue(message = "L'âge doit être compris entre 16 et 80 ans")
@@ -444,6 +445,14 @@ public class User implements UserDetails {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }
 

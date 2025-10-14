@@ -18,6 +18,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -31,13 +34,15 @@ public class GymService {
     private final PasswordEncoder passwordEncoder;
     private final GymRepository gymRepository;
     private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
+    private final StockageDeFichierService stockageDeFichierService;
 
-    public GymService(EmailService emailService, UserRepository userRepository, PasswordEncoder passwordEncoder, GymRepository gymRepository, UtilisateurActuellementConnecter utilisateurActuellementConnecter) {
+    public GymService(EmailService emailService, UserRepository userRepository, PasswordEncoder passwordEncoder, GymRepository gymRepository, UtilisateurActuellementConnecter utilisateurActuellementConnecter, StockageDeFichierService stockageDeFichierService) {
         this.emailService = emailService;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.gymRepository = gymRepository;
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
+        this.stockageDeFichierService = stockageDeFichierService;
     }
 
     //  1.  Consulter liste des gym
@@ -58,7 +63,17 @@ public class GymService {
         if(dto.getTelephoneGym() != null) gym.setTelephone(dto.getTelephoneGym());
         if(dto.getDescription() != null) gym.setDescription(dto.getDescription());
         if(file != null && !file.isEmpty()){
-            gym.setPhoto(file.getBytes());
+//            gym.setPhoto(file.getBytes());
+
+            // Supprimer ancienne image si elle existe
+            if (gym.getImageUrl() != null){
+                Path oldPath = Paths.get(gym.getImageUrl());
+                Files.deleteIfExists(oldPath);
+            }
+
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            String savedFileName = stockageDeFichierService.saveFile(file, fileName);
+            gym.setImageUrl(savedFileName);
         }
 
         gymRepository.save(gym);

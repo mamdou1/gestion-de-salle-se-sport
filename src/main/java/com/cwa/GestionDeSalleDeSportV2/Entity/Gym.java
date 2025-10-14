@@ -60,6 +60,7 @@ public class Gym {
     private byte[] photo;
 
     private String description;
+    private String imageUrl;
 
     //  Liste des événements du gym
 //    @OneToMany(mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -158,5 +159,13 @@ public class Gym {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

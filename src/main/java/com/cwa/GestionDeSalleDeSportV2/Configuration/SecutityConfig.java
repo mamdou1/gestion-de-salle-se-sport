@@ -48,6 +48,7 @@ public class SecutityConfig {
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers(
                                         "/api/auth/**",
+                                        "/images/**",
                                         "/api/demandeInscriptions/inscriptin/en-ligne",
                                         "/error",
                                         "/swagger-ui/**",
