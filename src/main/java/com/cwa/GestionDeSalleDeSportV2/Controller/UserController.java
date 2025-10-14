@@ -74,6 +74,15 @@ public class UserController {
         return new ResponseEntity<>(message, HttpStatus.CREATED);
     }
 
+    //  3.  modifier Profil via l' Appli
+    @PutMapping(value = "/modifier-profil/{id}",  consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> modifierProfilApp(@ModelAttribute MembreDTO membreDTO, @RequestPart(required = false)MultipartFile file, @PathVariable Long id) throws IOException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        String message = userService.modifierProfilApp(id, membreDTO, currentUser, file);
+
+        return new ResponseEntity<>(message, HttpStatus.CREATED);
+    }
+
     @PutMapping("/modifier-staff/{id}")
     public ResponseEntity<String> modifierStaff(@PathVariable Long id, @ModelAttribute StaffDTO dto, @RequestParam(required = false)MultipartFile file) throws IOException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();

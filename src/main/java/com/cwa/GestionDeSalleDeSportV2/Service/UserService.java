@@ -281,6 +281,48 @@ public class UserService {
         return "Modification effectuée !";
     }
 
+    public String modifierProfilApp(Long id, MembreDTO dto, User currentUser, MultipartFile file) throws IOException {
+
+        User membre = userRepository.findById(id)
+                .orElseThrow(()-> new RuntimeException("Membre introuvable !"));
+
+        boolean isSelf = currentUser.getId().equals(membre.getId());
+
+        if (!isSelf && !peutGererMembre(currentUser)){
+            throw new AccessDeniedException("Accès refusé.");
+        }
+
+        if ((currentUser.getRole() == Role.MEMBRE || currentUser.getRole() == Role.COACH) && !isSelf){
+            throw new RuntimeException("Vous pouvez uniquement modifier votre propre profil !");
+        }
+
+        if (dto.getNomMembre() != null) membre.setNom(dto.getNomMembre());
+        if (dto.getPrenomMembre() !=null) membre.setPrenom(dto.getPrenomMembre());
+        if (dto.getRole() !=null) membre.setRole(dto.getRole());
+        if (dto.getEmailMembre() !=null) membre.setEmail(dto.getEmailMembre());
+        if (dto.getAdresseMembre() !=null) membre.setAdresse(dto.getAdresseMembre());
+        if (dto.getNumeroTelephoneMembre() !=null) membre.setTelephone(dto.getNumeroTelephoneMembre());
+        if (dto.getDate_de_naissanceMembre() !=null) membre.setDate_de_naissance(dto.getDate_de_naissanceMembre());
+        if (file != null && !file.isEmpty()){
+            //membre.setProfil(file.getBytes()); //  Conversion du MultipartFile en byte[]
+
+            // Supprimer ancienne image si elle existe
+            if (membre.getImageUrl() != null){
+                Path oldPath = Paths.get(membre.getImageUrl());
+                Files.deleteIfExists(oldPath);
+            }
+
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            String savedFileName = stockageDeFichierService.saveFile(file, fileName);
+            membre.setImageUrl(savedFileName);
+        }
+
+
+        userRepository.save(membre);
+        return "Modification effectuée !";
+    }
+
+
     public String modifierStaff(Long id, StaffDTO dto, User currentUser, MultipartFile file) throws IOException {
 
         User staff = userRepository.findById(id)
