@@ -5,10 +5,12 @@ import com.cwa.GestionDeSalleDeSportV2.DTO.*;
 import com.cwa.GestionDeSalleDeSportV2.Entity.*;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeNotification;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypePaiement;
 import com.cwa.GestionDeSalleDeSportV2.Repository.FamilleRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.TypeDeServiceRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
+import com.cwa.GestionDeSalleDeSportV2.Repository.ListePaimentRepository;
 import jakarta.mail.MessagingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,7 +34,7 @@ import java.util.stream.Collectors;
 @Service
 public class UserService {
 
-    private final Logger logger = LoggerFactory.getLogger(UserService.class); // Corrigé pour utiliser UserService.class
+    private final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -41,11 +44,12 @@ public class UserService {
     private final GymRepository gymRepository;
     private final TypeDeServiceRepository typeDeServiceRepository;
     private final NotificationService notificationService;
+    private final ListePaimentRepository listePaimentRepository;
 
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService,
                        UtilisateurActuellementConnecter utilisateurActuellementConnecter, FamilleRepository familleRepository,
                        GymRepository gymRepository, TypeDeServiceRepository typeDeServiceRepository,
-                       NotificationService notificationService) {
+                       NotificationService notificationService, ListePaimentRepository listePaimentRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
@@ -54,6 +58,7 @@ public class UserService {
         this.gymRepository = gymRepository;
         this.typeDeServiceRepository = typeDeServiceRepository;
         this.notificationService = notificationService;
+        this.listePaimentRepository = listePaimentRepository;
     }
 
     // 1. Vérifie si l'utilisateur peut gérer des membres
@@ -184,7 +189,25 @@ public class UserService {
             nouveauMembre.setProfil(file.getBytes());
         }
 
-        userRepository.save(nouveauMembre);
+        // Sauvegarde du membre
+        User savedMembre = userRepository.save(nouveauMembre);
+
+        // Création de l'entrée dans liste_paiment pour les frais d'inscription
+        if (nouveauMembre.getFraisInscriptionPayer() && nouveauMembre.getFraisInscription() != null) {
+            ListePaiment paiement = new ListePaiment();
+            paiement.setTypePaiement(TypePaiement.FRAIS_INSCRIPTION);
+            paiement.setDatePaiement(LocalDateTime.now());
+            paiement.setMontant(nouveauMembre.getFraisInscription());
+            paiement.setModeDePaiement(dto.getModeDePaiement()); // Assurez-vous que MembreDTO inclut modeDePaiement
+            paiement.setReferenceId(savedMembre.getId());
+            paiement.setAcheteur(savedMembre);
+            paiement.setStaffEnregistreur(staff);
+            paiement.setGym(staff.getGym());
+            paiement.setDetails("Frais d'inscription pour " + savedMembre.getNom() + " " + savedMembre.getPrenom() + " (" + typeDeService.getNom() + ")");
+            listePaimentRepository.save(paiement);
+            logger.info("Created ListePaiment for frais d'inscription: {}", paiement);
+        }
+
         emailService.envoyerEmailBienvenu(nouveauMembre, mdp);
         notificationService.notifyGymAndMember(
                 staff.getGym(),

@@ -4,6 +4,7 @@ import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConn
 import com.cwa.GestionDeSalleDeSportV2.DTO.ChangerMotDePasseDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.MembreDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.StaffDTO;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Service.UserService;
@@ -21,6 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
@@ -183,5 +185,15 @@ public class UserController {
             logger.error("Erreur inattendue lors de la suppression du membre ID: {}", id, e);
             return new ResponseEntity<>("Erreur lors de la suppression: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    @GetMapping("/membre/{id}")
+    public ResponseEntity<User> getMembreById(@PathVariable Long id) throws AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        User membre = userService.consulterProfil(id, currentUser);
+        if (membre.getRole() != Role.MEMBRE) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilisateur n'est pas un membre");
+        }
+        return ResponseEntity.ok(membre);
     }
 }

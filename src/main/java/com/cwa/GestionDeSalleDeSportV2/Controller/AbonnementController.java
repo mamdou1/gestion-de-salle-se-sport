@@ -180,4 +180,21 @@ public class AbonnementController {
         return ResponseEntity.ok(nombre);
     }
 
+    @GetMapping("/prix")
+    public ResponseEntity<Double> getPrixAbonnement(
+            @RequestParam Long typeDeServiceId,
+            @RequestParam String genre) throws AccessDeniedException {
+        try {
+            // Logique pour récupérer le prix (exemple simplifié)
+            Double prix = abonnementService.getPrixAbonnement(typeDeServiceId, genre);
+            if (prix == null) {
+                return ResponseEntity.badRequest().body(null); // Retourne null si pas de prix trouvé
+            }
+            return ResponseEntity.ok(prix);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null); // Gestion des erreurs serveur
+        }
+    }
+
 }
