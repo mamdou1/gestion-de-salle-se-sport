@@ -9,6 +9,7 @@ import com.cwa.GestionDeSalleDeSportV2.Repository.PanierRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.ProduitRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.VenteRepository;
+import com.cwa.GestionDeSalleDeSportV2.Repository.ListePaimentRepository;
 import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
@@ -19,6 +20,7 @@ import java.math.BigDecimal;
 import java.nio.file.AccessDeniedException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,6 +36,7 @@ public class VenteService {
     private final UserRepository userRepository;
     private final ProduitRepository produitRepository;
     private final GestionStockService gestionStockService;
+    private final ListePaimentRepository listePaimentRepository;
 
     public VenteService(VenteRepository venteRepository,
                         PanierRepository panierRepository,
@@ -41,7 +44,8 @@ public class VenteService {
                         NotificationService notificationService,
                         UserRepository userRepository,
                         ProduitRepository produitRepository,
-                        GestionStockService gestionStockService) {
+                        GestionStockService gestionStockService,
+                        ListePaimentRepository listePaimentRepository) {
         this.venteRepository = venteRepository;
         this.panierRepository = panierRepository;
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
@@ -49,6 +53,7 @@ public class VenteService {
         this.userRepository = userRepository;
         this.produitRepository = produitRepository;
         this.gestionStockService = gestionStockService;
+        this.listePaimentRepository = listePaimentRepository;
     }
 
     public Vente validerPanierEtCreerVente(Long panierId, VenteDTO dto) throws AccessDeniedException, MessagingException {
@@ -95,8 +100,24 @@ public class VenteService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         vente.setMontantTotal(montantTotal);
 
+        // Sauvegarde de la vente
+        Vente savedVente = venteRepository.save(vente);
+
+        // Création de l'entrée dans liste_paiment
+        ListePaiment paiement = new ListePaiment();
+        paiement.setTypePaiement(TypePaiement.VENTE);
+        paiement.setDatePaiement(LocalDateTime.now());
+        paiement.setMontant(montantTotal);
+        paiement.setModeDePaiement(dto.getModeDePaiement());
+        paiement.setReferenceId(savedVente.getId());
+        paiement.setAcheteur(membre);
+        paiement.setStaffEnregistreur(currentUser);
+        paiement.setGym(gym);
+        paiement.setDetails("Vente: Panier ID " + panierId);
+        listePaimentRepository.save(paiement);
+        logger.info("Created ListePaiment for vente: {}", paiement);
+
         panier.setStatut(StatutPanier.VALIDE);
-        venteRepository.save(vente);
         panierRepository.save(panier);
 
         // Notification au staff
@@ -120,7 +141,7 @@ public class VenteService {
                 true
         );
 
-        return vente;
+        return savedVente;
     }
 
     /**
@@ -164,7 +185,22 @@ public class VenteService {
         vente.setLignes(lignes);
         vente.setMontantTotal(montantTotal);
 
+        // Sauvegarde de la vente
         Vente savedVente = venteRepository.save(vente);
+
+        // Création de l'entrée dans liste_paiment
+        ListePaiment paiement = new ListePaiment();
+        paiement.setTypePaiement(TypePaiement.VENTE);
+        paiement.setDatePaiement(LocalDateTime.now());
+        paiement.setMontant(montantTotal);
+        paiement.setModeDePaiement(dto.getModeDePaiement());
+        paiement.setReferenceId(savedVente.getId());
+        paiement.setAcheteur(acheteur);
+        paiement.setStaffEnregistreur(currentUser);
+        paiement.setGym(currentUser.getGym());
+        paiement.setDetails("Vente manuelle: " + (acheteur != null ? acheteur.getNom() + " " + acheteur.getPrenom() : "Client inconnu"));
+        listePaimentRepository.save(paiement);
+        logger.info("Created ListePaiment for vente manuelle: {}", paiement);
 
         // Envoyer les notifications
         envoyerNotificationsVente(currentUser, acheteur, savedVente);
@@ -235,7 +271,7 @@ public class VenteService {
         ligne.setProduit(produit);
         ligne.setQuantite(quantite);
         ligne.setPrixUnitaire(produit.getPrixUnitaire() != null ? produit.getPrixUnitaire() : BigDecimal.ZERO);
-        ligne.calculerPrixTotal(); // Calcul du prix total seulement (sans déduction de stock)
+        ligne.calculerPrixTotal(); // Calcul du prix total seulement
         return ligne;
     }
 
@@ -341,8 +377,8 @@ public class VenteService {
                 .toList();
 
         return ventes.stream()
-                .map(Vente::getMontantTotal)//Extrait le prix de chaque abonnement.
-                .reduce(BigDecimal.ZERO, BigDecimal::add); // Additionne tous les montants avec BigDecimal pour un total précis.
+                .map(Vente::getMontantTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     /**

@@ -12,7 +12,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TypeDeServiceService {
@@ -27,14 +30,10 @@ public class TypeDeServiceService {
         this.gymRepository = gymRepository;
     }
 
-    //  1.  Créer les type de service
+    // 1. Créer un type de service
     @Transactional
-    public TypeDeService createTypeDeService(TypeDeServiceDTO dto) {
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (!isStaff(currentUser)) {
-            throw new AccessDeniedException("Seul le staff peut créer un service.");
-        }
-
+    public TypeDeService createTypeDeService(TypeDeServiceDTO dto) throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
         Gym gym = currentUser.getGym();
         if (gym == null) {
             throw new AccessDeniedException("Aucun gym associé au staff.");
@@ -56,14 +55,15 @@ public class TypeDeServiceService {
         return typeDeServiceRepository.save(service);
     }
 
-    //  2.  Mettre à jour un type de service
+    // 2. Mettre à jour un type de service
     @Transactional
-    public TypeDeService updateTypeDeService(Long id, TypeDeServiceDTO dto) {
+    public TypeDeService updateTypeDeService(Long id, TypeDeServiceDTO dto) throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
         TypeDeService service = typeDeServiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Service introuvable."));
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (!isStaff(currentUser)) {
-            throw new AccessDeniedException("Seul le staff peut modifier un service.");
+
+        if (!service.getGym().equals(currentUser.getGym())) {
+            throw new AccessDeniedException("Vous n'êtes pas autorisé à modifier ce service.");
         }
 
         if (dto.getNom() != null) service.setNom(dto.getNom());
@@ -80,54 +80,80 @@ public class TypeDeServiceService {
         return typeDeServiceRepository.save(service);
     }
 
-    //  3.  Supprimer un type de service
-    public void deleteTypeDeService(Long id) {
+    // 3. Supprimer un type de service
+    @Transactional
+    public void deleteTypeDeService(Long id) throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
         TypeDeService service = typeDeServiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Service introuvable."));
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (!isStaff(currentUser)) {
-            throw new AccessDeniedException("Seul le staff peut supprimer un service.");
+
+        if (!service.getGym().equals(currentUser.getGym())) {
+            throw new AccessDeniedException("Vous n'êtes pas autorisé à supprimer ce service.");
         }
+
         typeDeServiceRepository.delete(service);
     }
 
-    //  4.  getById un type de service
-    public TypeDeService getTypeDeServiceById(Long id) throws java.nio.file.AccessDeniedException {
+    // 4. Récupérer un type de service par ID
+    public TypeDeService getTypeDeServiceById(Long id) throws AccessDeniedException {
         User currentUser = initializeAccess(true);
-        return typeDeServiceRepository.findById(id)
+        TypeDeService service = typeDeServiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Service introuvable."));
+
+        if (!service.getGym().equals(currentUser.getGym())) {
+            throw new AccessDeniedException("Vous n'êtes pas autorisé à accéder à ce service.");
+        }
+
+        return service;
     }
 
-    //   5. Conslter tout les types de services
-    public List<TypeDeService> getAllTypeDeService() throws java.nio.file.AccessDeniedException {
+    // 5. Consulter tous les types de services pour un gym
+    public List<TypeDeService> getAllTypeDeService() throws AccessDeniedException {
         User currentUser = initializeAccess(true);
         Gym gym = currentUser.getGym();
-        return typeDeServiceRepository.findByGym(gym); // Filtrer par gym du staff
+        return typeDeServiceRepository.findByGym(gym);
     }
 
-    //   6. Conslter tout les types de services pour telephone
-    public List<TypeDeService> getAllTypeDeServiceApp(Long gymId) throws java.nio.file.AccessDeniedException {
+    // 6. Consulter tous les types de services pour une application mobile (par ID de gym)
+    public List<TypeDeService> getAllTypeDeServiceApp(Long gymId) throws AccessDeniedException {
         initializeAccess(true);
         Gym gym = gymRepository.findById(gymId)
-                .orElseThrow(()->new RuntimeException("Gym non trouver"));
-        return typeDeServiceRepository.findByGym(gym); // Filtrer par gym du staff
+                .orElseThrow(() -> new RuntimeException("Gym non trouvé."));
+        return typeDeServiceRepository.findByGym(gym);
+    }
+
+    // 7. Récupérer le prix d'un type de service en fonction du genre (pour intégration avec /api/abonnements/prix)
+    public Double getPrixByTypeDeServiceAndGenre(Long typeDeServiceId, String genre) throws AccessDeniedException {
+        initializeAccess(true);
+        TypeDeService typeDeService = typeDeServiceRepository.findById(typeDeServiceId)
+                .orElseThrow(() -> new IllegalArgumentException("Type de service non trouvé avec l'ID: " + typeDeServiceId));
+
+        BigDecimal prix;
+        if ("HOMME".equalsIgnoreCase(genre)) {
+            prix = typeDeService.getTarifHomme();
+        } else if ("FEMME".equalsIgnoreCase(genre)) {
+            prix = typeDeService.getTarifFemme();
+        } else if (typeDeService.getTarifUnique() != null) {
+            prix = typeDeService.getTarifUnique(); // Utiliser tarif unique si défini
+        } else {
+            throw new IllegalArgumentException("Genre invalide ou aucun tarif unique défini.");
+        }
+
+        return prix != null ? prix.doubleValue() : null;
     }
 
     private boolean isStaff(User user) {
-        return user.getRole() == Role.ADMIN || user.getRole() == Role.RECEPTIONNISTE || user.getRole() == Role.GERANT;
+        Role role = user.getRole();
+        return role == Role.ADMIN || role == Role.RECEPTIONNISTE || role == Role.GERANT;
     }
 
-    private User initializeAccess(boolean requireStaff) throws java.nio.file.AccessDeniedException {
+    private User initializeAccess(boolean requireStaff) throws AccessDeniedException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (
-                requireStaff &&
-                        currentUser.getRole() != Role.ADMIN_PRINCIPAL &&
-                        currentUser.getRole() != Role.ADMIN &&
-                        currentUser.getRole() != Role.RECEPTIONNISTE &&
-                        currentUser.getRole() != Role.MEMBRE &&
-                        currentUser.getRole() != Role.GERANT &&
-                        currentUser.getRole() != Role.COACH) {
-            throw new java.nio.file.AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
+        if (requireStaff && !isStaff(currentUser)) {
+            throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
+        }
+        if (currentUser.getGym() == null && requireStaff) {
+            throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
         }
         return currentUser;
     }

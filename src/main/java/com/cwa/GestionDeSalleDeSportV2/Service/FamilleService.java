@@ -1,222 +1,324 @@
 package com.cwa.GestionDeSalleDeSportV2.Service;
 
-import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
 import com.cwa.GestionDeSalleDeSportV2.DTO.FamilleDTO;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
-import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutAbonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Famille;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
-import com.cwa.GestionDeSalleDeSportV2.Repository.AbonnementRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.FamilleRepository;
+import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.file.AccessDeniedException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional // toutes les méthodes de cette classe s'exécutent dans une transaction par défaut
 public class FamilleService {
 
-    private final FamilleRepository familleRepository;
-    private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
-    private final UserRepository userRepository;
-    private final AbonnementRepository abonnementRepository;
+    private static final Logger logger = LoggerFactory.getLogger(FamilleService.class);
 
-    public FamilleService(FamilleRepository familleRepository, UtilisateurActuellementConnecter utilisateurActuellementConnecter, UserRepository userRepository, AbonnementRepository abonnementRepository) {
-        this.familleRepository = familleRepository;
-        this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
-        this.userRepository = userRepository;
-        this.abonnementRepository = abonnementRepository;
-    }
+    @Autowired
+    private FamilleRepository familleRepository;
 
-    //  1.  Constitution d'une famille appartir de des membres prealablememnt
-    public void creerFamille(FamilleDTO dto) throws AccessDeniedException {
+    @Autowired
+    private UserRepository userRepository;
 
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (!estMembreDuStaff(currentUser)) {
-            throw new RuntimeException("Seul le staff peut créer une famille");
-        }
+    @Autowired
+    private GymRepository gymRepository;
 
-        User chefFamille = chargerChefFamille(dto.getChefFamilleId());
-        if (!currentUser.getGyms().contains(chefFamille.getGym())) {
-            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
-        }
-        List<User> membres = chargerEtMettreAJourMembres(dto.getMembresId(), chefFamille);
-
-        String telephoneChefFamille = chefFamille.getTelephone();
-
-        Famille famille = convertirDTOEnFamille(dto, chefFamille, membres);
-        for (User membre : membres) {
-            if (!membre.getId().equals(chefFamille.getId())){
-                membre.setTelephoneReference(telephoneChefFamille);
+    // Méthode pour vérifier les permissions (ADMIN ou RECEPTIONNISTE uniquement)
+    private boolean estMembreDuStaff(Object principal) {
+        logger.info("Principal type: {}", principal != null ? principal.getClass().getSimpleName() : "NULL");
+        if (principal instanceof User) {
+            Role role = ((User) principal).getRole();
+            logger.info("Rôle de l'utilisateur (via User): {}", role != null ? role.name() : "NULL");
+            return role == Role.ADMIN || role == Role.RECEPTIONNISTE;
+        } else {
+            // Fallback pour UserDetails / authorities
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getAuthorities() != null) {
+                Collection<? extends GrantedAuthority> authorities = auth.getAuthorities();
+                boolean hasAdmin = authorities.stream().anyMatch(a -> a.getAuthority().contains("ADMIN"));
+                boolean hasRecep = authorities.stream().anyMatch(a -> a.getAuthority().contains("RECEPTIONNISTE"));
+                logger.info("Authorities: {}, Has ADMIN: {}, Has RECEPTIONNISTE: {}",
+                        authorities, hasAdmin, hasRecep);
+                return hasAdmin || hasRecep;
             }
-            membre.setFamille(famille);
-            userRepository.save(membre);
+            logger.warn("Aucune authority trouvée");
+            return false;
         }
-
-        familleRepository.save(famille);
     }
 
-    private Famille convertirDTOEnFamille(FamilleDTO dto, User chefFamille, List<User> membres) {
-        if (chefFamille == null) {
-            throw new RuntimeException("Le chef de famille est obligatoire !");
+    // 1. Créer une famille
+    public void creerFamille(FamilleDTO dto) {
+        logger.info("=== [Création de famille] Début ===");
+        logger.info("Données reçues: {}", dto);
+
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!estMembreDuStaff(principal)) {
+            logger.warn("Accès refusé - utilisateur non autorisé à créer une famille");
+            throw new RuntimeException("Accès non autorisé : seul un ADMIN ou RECEPTIONNISTE peut créer une famille.");
+        }
+
+        if (dto.getChefFamilleId() == null) {
+            throw new IllegalArgumentException("Le chef de famille est requis pour créer une famille.");
+        }
+
+        User chefFamille = userRepository.findById(dto.getChefFamilleId())
+                .orElseThrow(() -> new EntityNotFoundException("Chef de famille non trouvé avec l'ID : " + dto.getChefFamilleId()));
+
+        Gym gym = null;
+        if (dto.getGymId() != null) {
+            gym = gymRepository.findById(dto.getGymId())
+                    .orElseThrow(() -> new EntityNotFoundException("Gym non trouvé avec l'ID : " + dto.getGymId()));
+        } else if (chefFamille.getGym() != null) {
+            gym = chefFamille.getGym();
+        } else if (principal instanceof User staff && staff.getGym() != null) {
+            gym = staff.getGym();
+        }
+
+        if (gym == null) {
+            throw new IllegalArgumentException("Impossible de déterminer le gym.");
         }
 
         Famille famille = new Famille();
         famille.setNom(dto.getNom());
-        if (dto.getGymId() != null){
-            User userAvecGym = userRepository.findById(dto.getGymId())
-                    .orElseThrow(()->new RuntimeException("Utilisateur avec gymId introuvable."));
-            famille.setGym(userAvecGym.getGym());
-        }else {
-            famille.setGym(chefFamille.getGym());
-        }
         famille.setChefFamille(chefFamille);
+        famille.setGym(gym);
+
+        List<Long> membresIds = (dto.getMembresId() != null) ? dto.getMembresId() : Collections.emptyList();
+        List<User> membres = userRepository.findAllById(membresIds);
+
+        if (!membres.isEmpty() && membres.contains(chefFamille)) {
+            throw new IllegalArgumentException("Le chef de famille ne peut pas être inclus dans la liste des membres.");
+        }
+
         famille.setMembres(membres);
-        return famille;
-    }
+        famille = familleRepository.save(famille);
 
-    private boolean estMembreDuStaff(User user) {
-        Role role = user.getRole();
-        return role == Role.ADMIN || role == Role.RECEPTIONNISTE || role == Role.GERANT;
-    }
-
-    private User chargerChefFamille(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Chef de famille introuvable"));
-    }
-
-    private List<User> chargerEtMettreAJourMembres(List<Long> membresId, User chefFamille) {
-        List<User> membres = new ArrayList<>();
-
-        if (membresId != null) {
-            for (Long membreId : membresId) {
-                User membre = userRepository.findById(membreId)
-                        .orElseThrow(() -> new RuntimeException("Membre " + membreId + " introuvable"));
-
-                membre.setTelephoneReference(chefFamille.getTelephone());
-                membre.setFraisInscriptionPayer(false);
-                membres.add(membre);
-            }
+        for (User membre : membres) {
+            membre.setFamille(famille);
         }
-        return membres;
-    }
+        userRepository.saveAll(membres);
 
-    //  2.  Consulter la liste des familles
-    public List<Famille> consulterFamille(){
-
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (!estMembreDuStaff(currentUser)){
-            throw new RuntimeException("Seul les membres du staff peuvent consulter la liste des famille");
+        if (chefFamille.getFamille() == null) {
+            chefFamille.setFamille(famille);
+            userRepository.save(chefFamille);
         }
 
-        // Filtrer les familles par les gyms de l'utilisateur connecté
+        logger.info("Famille créée avec succès - ID: {}, Nom: '{}', Gym: {}", famille.getId(), famille.getNom(), gym.getNom());
+        logger.info("=== [Création de famille] Fin ===");
+    }
+
+
+
+    // 2. Récupérer toutes les familles
+    @Transactional(readOnly = true)
+    public List<FamilleDTO> getAllFamille() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!estMembreDuStaff(principal)) {
+            throw new RuntimeException("Accès non autorisé : seul un ADMIN ou RECEPTIONNISTE peut consulter les familles.");
+        }
         return familleRepository.findAll().stream()
-                .filter(f -> currentUser.getGyms().contains(f.getGym()))
-                .collect(Collectors.toList());    }
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
 
-    //  3.  Supprimer une famille
-    public void suprimerFamille(Long id) throws AccessDeniedException {
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (!estMembreDuStaff(currentUser)){
-            throw  new RuntimeException("Seul les membres du staff peuvent supprimer une famille");
+    // 3. Supprimer une famille
+    public void supprimerFamille(Long id) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!estMembreDuStaff(principal)) {
+            throw new RuntimeException("Accès non autorisé : seul un ADMIN ou RECEPTIONNISTE peut supprimer une famille.");
         }
-
         Famille famille = familleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Famille introuvable"));
-        if (!currentUser.getGyms().contains(famille.getGym())) {
-            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
-        }
-
-        Abonnement abonnement = abonnementRepository.findByFamille(famille);
-        if (abonnement == null){
-            throw  new RuntimeException("Aucun abonnement familial trouvé.");
-        }
-
-        if (abonnement.getStatut() != StatutAbonnement.EXPIRE && abonnement.getStatut() != StatutAbonnement.RESILIE){
-            throw new RuntimeException("Impossible de supprimer un abonnement dont le staut est actif ou bientôt expirer");
-        }
-
-        familleRepository.deleteById(id);
+                .orElseThrow(() -> new EntityNotFoundException("Famille non trouvée avec l'ID : " + id));
+        familleRepository.delete(famille);
     }
 
-    //  4.  Resilier abonnement familial
-    public void resilierAbonnementFamilial(Long familleId) throws AccessDeniedException {
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (!estMembreDuStaff(currentUser)){
-            throw new AccessDeniedException("Seul les membres du staff peuvent resilier un abonnement");
-        }
-
-        // Récupérer la famille
-        Famille famille = familleRepository.findById(familleId)
-                .orElseThrow(()->new RuntimeException("Famille introuvable"));
-
-        // Vérifier l'accès à la gym de la famille
-        if (!currentUser.getGyms().contains(famille.getGym())){
-            throw new RuntimeException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
-        }
-
-        // Récupérer l'abonnement familial
-        Abonnement abonnement = abonnementRepository.findByFamille(famille);
-        if (abonnement == null){
-            throw new RuntimeException("Aucun abonnement familial n'est trouvé pour cette famille.");
-        }
-
-        // Vérifier si la résiliation est autorisée (par exemple, pas déjà résilié ou expiré)
-        if (abonnement.getStatut() == StatutAbonnement.RESILIE ){
-            throw new RuntimeException("L'abonnement est déjà résilier");
-        } else if (abonnement.getStatut() == StatutAbonnement.EXPIRE) {
-            throw new RuntimeException("L'abonnement est déjà expiré");
-        }
-
-        // Pour chaque membre dans <<famille.getMembres()>>
-        // Parcourez la liste <<membre.getAbonnements()>>
-        // Vérifiez que l'abonnement n'est pas déjà RESILIE ou EXPIRE pour éviter des mises à jour inutiles.
-        // Définissez le statut à RESILIE
-        // Sauvegardez via abonnementRepository.save.
-        for (User membre : famille.getMembres()){
-            for (Abonnement membreAbonnement : membre.getAbonnements()){
-                if (membreAbonnement.getStatut() != StatutAbonnement.RESILIE && membreAbonnement.getStatut() != StatutAbonnement.EXPIRE){
-                    membreAbonnement.setStatut(StatutAbonnement.RESILIE);
-                    abonnementRepository.save(membreAbonnement);
-                }
-            }
-        }
-
-        abonnement.setStatut(StatutAbonnement.RESILIE);
-        abonnementRepository.save(abonnement);
-    }
-
-    //  5.  Mettre à jour le telephone de référence
-    public void mettreAJourTelephoneRefrenceMembre(Long familleId){
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (!estMembreDuStaff(currentUser)){
-            throw new RuntimeException("Seul les membre du staff peuvent mettre à jour le téléphone de référence des membre d'une famille");
+    // 4. Résilier abonnement familial
+    public void resilierAbonnementFamilial(Long familleId) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!estMembreDuStaff(principal)) {
+            throw new RuntimeException("Accès non autorisé : seul un ADMIN ou RECEPTIONNISTE peut résilier un abonnement familial.");
         }
         Famille famille = familleRepository.findById(familleId)
-                .orElseThrow(()->new RuntimeException("Famille introuvable"));
-
-        if (!currentUser.getGyms().contains(famille.getGym())){
-            throw new RuntimeException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
-        }
-
-        User chefFamille = famille.getChefFamille();
-        if (chefFamille == null){
-            throw new RuntimeException("Chef de famille introuvable.");
-        }
-
-        String telephoneChefFamille = chefFamille.getTelephone();
-        for (User membre : famille.getMembres()){
-            if (!membre.getId().equals(chefFamille.getId())){
-                if (membre.getTelephoneReference() == null || !membre.getTelephoneReference().equals(telephoneChefFamille)){
-                    membre.setTelephoneReference(telephoneChefFamille);
-                    userRepository.save(membre);
-                }
-            }
-        }
+                .orElseThrow(() -> new EntityNotFoundException("Famille non trouvée avec l'ID : " + familleId));
+        famille.getMembres().forEach(membre -> membre.setTypeDeService(null));
+        userRepository.saveAll(famille.getMembres());
     }
 
+    // 5. Mettre à jour le téléphone de référence des membres d'une famille
+    public void mettreAJourTelephoneRefrenceMembre(Long familleId) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!estMembreDuStaff(principal)) {
+            throw new RuntimeException("Accès non autorisé : seul un ADMIN ou RECEPTIONNISTE peut mettre à jour le téléphone de référence.");
+        }
+        Famille famille = familleRepository.findById(familleId)
+                .orElseThrow(() -> new EntityNotFoundException("Famille non trouvée avec l'ID : " + familleId));
+        String chefTelephone = famille.getChefFamille().getTelephone();
+        famille.getMembres().forEach(membre -> membre.setTelephone(chefTelephone));
+        userRepository.saveAll(famille.getMembres());
+    }
+
+    // 6. Récupérer les détails d'une famille par ID
+    @Transactional(readOnly = true)
+    public FamilleDTO getFamilleById(Long id) {
+        logger.info("=== [Récupération de famille] ID: {} ===", id);
+
+        // 🔍 Récupération de la famille
+        Famille famille = familleRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Famille non trouvée avec l'ID : " + id));
+
+        // 📤 Construction du DTO
+        FamilleDTO familleDTO = new FamilleDTO();
+        familleDTO.setId(famille.getId());
+        familleDTO.setNom(famille.getNom());
+        familleDTO.setChefFamilleId(famille.getChefFamille().getId());
+        familleDTO.setChefFamilleNomPrenom(famille.getChefFamille().getNom() + " " + famille.getChefFamille().getPrenom());
+        familleDTO.setMembresId(famille.getMembres().stream().map(User::getId).collect(Collectors.toList()));
+        familleDTO.setMembreNomPrenoms(
+                famille.getMembres().stream()
+                        .map(m -> m.getNom() + " " + m.getPrenom())
+                        .collect(Collectors.toList())
+        );
+        familleDTO.setGymId(famille.getGym().getId());
+
+        logger.info("DTO retourné: {}", familleDTO);
+        logger.info("=== [Récupération de famille] Fin ===");
+        return familleDTO;
+    }
+
+    // 7. Modifier une famille
+    public void modifierFamille(Long id, FamilleDTO dto) {
+        logger.info("=== [Modification de famille] Début ===");
+        logger.info("ID famille: {}, Données reçues: {}", id, dto);
+
+        // 🔐 Vérification des permissions
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!estMembreDuStaff(principal)) {
+            logger.warn("Accès refusé - utilisateur non autorisé à modifier une famille");
+            throw new RuntimeException("Accès non autorisé : seul un ADMIN ou RECEPTIONNISTE peut modifier une famille.");
+        }
+
+        // ✅ Récupération de la famille existante
+        Famille famille = familleRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Famille non trouvée avec l'ID : " + id));
+
+        // ✅ Validation du chef
+        if (dto.getChefFamilleId() == null) {
+            throw new IllegalArgumentException("Le chef de famille est requis pour modifier une famille.");
+        }
+
+        // 🔍 Récupération du chef
+        User chefFamille = userRepository.findById(dto.getChefFamilleId())
+                .orElseThrow(() -> new EntityNotFoundException("Chef de famille non trouvé avec l'ID : " + dto.getChefFamilleId()));
+
+        // ✅ Détermination automatique du gym
+        Gym gym = null;
+
+        // 1️⃣ Si gymId fourni → utiliser celui-là
+        if (dto.getGymId() != null) {
+            gym = gymRepository.findById(dto.getGymId())
+                    .orElseThrow(() -> new EntityNotFoundException("Gym non trouvé avec l'ID : " + dto.getGymId()));
+            logger.info("Gym trouvé via DTO : {}", gym.getNom());
+
+            // 2️⃣ Sinon → tenter d'utiliser le gym du chef de famille
+        } else if (chefFamille.getGym() != null) {
+            gym = chefFamille.getGym();
+            logger.info("Gym déduit automatiquement du chef : {}", gym.getNom());
+
+            // 3️⃣ Sinon → gym du staff connecté
+        } else if (principal instanceof User staff && staff.getGym() != null) {
+            gym = staff.getGym();
+            logger.info("Gym assigné automatiquement à partir du staff connecté : {}", gym.getNom());
+        }
+
+        // 4️⃣ Sinon → erreur
+        if (gym == null) {
+            logger.error("Aucun gym détecté : impossible de modifier une famille sans gym");
+            throw new IllegalArgumentException("Impossible de déterminer le gym : aucun gymId fourni, et ni le chef ni le staff n'ont de gym associé.");
+        }
+
+        // 🏗️ Mise à jour des champs
+        famille.setNom(dto.getNom());
+        famille.setChefFamille(chefFamille);
+        famille.setGym(gym);
+
+        // 👥 Gestion des membres
+        List<Long> membresIds = (dto.getMembresId() != null) ? dto.getMembresId() : Collections.emptyList();
+        List<User> newMembres = userRepository.findAllById(membresIds);
+
+        if (!newMembres.isEmpty() && newMembres.contains(chefFamille)) {
+            throw new IllegalArgumentException("Le chef de famille ne peut pas être inclus dans la liste des membres.");
+        }
+
+        if (famille.getMembres() == null) {
+            famille.setMembres(new ArrayList<>(newMembres));
+        } else {
+            famille.getMembres().clear();
+            famille.getMembres().addAll(newMembres);
+        }
+
+        // 💾 Sauvegarde
+        familleRepository.save(famille);
+        logger.info("Famille modifiée avec succès - ID: {}, Nom: '{}', Gym: {}", famille.getId(), famille.getNom(), gym.getNom());
+        logger.info("=== [Modification de famille] Fin ===");
+    }
+
+
+    // 8. Consulter la liste des familles
+    @Transactional(readOnly = true)
+    public List<FamilleDTO> consulterFamille() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!estMembreDuStaff(principal)) {
+            throw new RuntimeException("Accès non autorisé : seul un ADMIN ou RECEPTIONNISTE peut consulter les familles.");
+        }
+        return familleRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Convertir une entité Famille en FamilleDTO
+    private FamilleDTO convertToDTO(Famille famille) {
+        FamilleDTO dto = new FamilleDTO();
+        dto.setId(famille.getId());
+        dto.setNom(famille.getNom() != null ? famille.getNom() : "Famille sans nom");
+
+        if (famille.getChefFamille() != null) {
+            dto.setChefFamilleId(famille.getChefFamille().getId());
+            String nom = famille.getChefFamille().getNom() != null ? famille.getChefFamille().getNom() : "";
+            String prenom = famille.getChefFamille().getPrenom() != null ? famille.getChefFamille().getPrenom() : "";
+            dto.setChefFamilleNomPrenom((nom + " " + prenom).trim().isEmpty() ? "N/A" : (nom + " " + prenom).trim());
+        } else {
+            logger.warn("Chef de famille manquant pour famille ID: {}", famille.getId());
+            throw new IllegalStateException("Chef de famille manquant pour famille ID: " + famille.getId());
+        }
+
+        List<User> membres = famille.getMembres() != null ? famille.getMembres() : Collections.emptyList();
+        dto.setMembresId(membres.stream()
+                .filter(m -> m.getId() != null)
+                .map(User::getId)
+                .collect(Collectors.toList()));
+        dto.setMembreNomPrenoms(membres.stream()
+                .filter(m -> m.getNom() != null && m.getPrenom() != null)
+                .map(m -> (m.getNom() + " " + m.getPrenom()).trim())
+                .filter(nom -> !nom.isEmpty())
+                .collect(Collectors.toList()));
+
+        dto.setGymId(famille.getGym() != null ? famille.getGym().getId() : null);
+        return dto;
+    }
 }
