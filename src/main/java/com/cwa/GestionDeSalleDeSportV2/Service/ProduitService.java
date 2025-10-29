@@ -8,11 +8,12 @@ import com.cwa.GestionDeSalleDeSportV2.Entity.Produit;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.ProduitRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -25,12 +26,21 @@ public class ProduitService {
     private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
     private final UserRepository userRepository;
     private final StockageDeFichierService stockageDeFichierService;
+    private final Path fileStorageLocation;
 
-    public ProduitService(ProduitRepository produitRepository, UtilisateurActuellementConnecter utilisateurActuellementConnecter, UserRepository userRepository, StockageDeFichierService stockageDeFichierService) {
+    public ProduitService(ProduitRepository produitRepository, UtilisateurActuellementConnecter utilisateurActuellementConnecter,
+                          UserRepository userRepository, StockageDeFichierService stockageDeFichierService,
+                          @Value("${file.upload-dir:uploads/}") String uploadDir) {
         this.produitRepository = produitRepository;
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
         this.userRepository = userRepository;
         this.stockageDeFichierService = stockageDeFichierService;
+        this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(this.fileStorageLocation);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not create file storage directory: " + this.fileStorageLocation, e);
+        }
     }
 
     public Produit ajouterProduit(ProduitDTO dto, MultipartFile file) throws IOException {
@@ -44,24 +54,30 @@ public class ProduitService {
         produit.setDescription(dto.getDescription());
         produit.setPrixUnitaire(dto.getPrixUnitaire());
         produit.setQuantiteEnStock(dto.getQuantiteEnStock());
-//        produit.setImageUrl(dto.getImageUrl());
         produit.setCategorie(dto.getCategorie());
         produit.setGym(gym);
 
-        if (file != null && !file.isEmpty()){
-            //produit.setPhoto(file.getBytes()); //  Conversion du MultipartFile en byte[]
-            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            String savedFileName = stockageDeFichierService.saveFile(file, fileName);
-            produit.setImageUrl(savedFileName); // ✅ juste le nom
+        // Save product first to get ID
+        Produit savedProduit = produitRepository.save(produit);
+
+        if (file != null && !file.isEmpty()) {
+            String fileName = stockageDeFichierService.store(file, "produits/" + savedProduit.getId());
+            savedProduit.setImageUrl("/uploads/produits/" + savedProduit.getId() + "/" + fileName);
+            produitRepository.save(savedProduit); // Update produit with imageUrl
         }
-        return produitRepository.save(produit);
+
+        return savedProduit;
     }
 
-//    public byte[] getPhotoProduit(Long id){
-//        Produit produit = produitRepository.findById(id)
-//                .orElseThrow(()->new RuntimeException("Produit non trouvé."));
-//        return produit.getPhoto();
-//    }
+    public byte[] getPhotoProduit(Long id) throws IOException {
+        Produit produit = produitRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Produit non trouvé."));
+        if (produit.getImageUrl() == null) {
+            throw new RuntimeException("No photo found for produit ID: " + id);
+        }
+        Path filePath = fileStorageLocation.resolve(produit.getImageUrl().replace("/uploads/", "")).normalize();
+        return Files.readAllBytes(filePath);
+    }
 
     public Produit modifierProduit(Long id, ProduitDTO dto, MultipartFile file) throws IOException {
         User currentUser = initializeAccess(true);
@@ -72,21 +88,17 @@ public class ProduitService {
         produit.setDescription(dto.getDescription());
         produit.setPrixUnitaire(dto.getPrixUnitaire());
         produit.setQuantiteEnStock(dto.getQuantiteEnStock());
-//        produit.setImageUrl(dto.getImageUrl());
         produit.setCategorie(dto.getCategorie());
 
-        if (file != null && !file.isEmpty()){
-            // produit.setPhoto(file.getBytes()); //  Conversion du MultipartFile en byte[]
-
-            // Supprimer ancienne image si elle existe
-            if (produit.getImageUrl() != null){
-                Path oldPath = Paths.get(produit.getImageUrl());
-                Files.deleteIfExists(oldPath);
+        if (file != null && !file.isEmpty()) {
+            // Delete old image if it exists
+            if (produit.getImageUrl() != null) {
+                // Line 97: Replaced uploadDir with fileStorageLocation
+                Path oldImagePath = fileStorageLocation.resolve(produit.getImageUrl().replace("/uploads/", "")).normalize();
+                Files.deleteIfExists(oldImagePath);
             }
-
-            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            String savedFileName = stockageDeFichierService.saveFile(file, fileName);
-            produit.setImageUrl(savedFileName); // ✅ juste le nom
+            String fileName = stockageDeFichierService.store(file, "produits/" + id);
+            produit.setImageUrl("/uploads/produits/" + id + "/" + fileName);
         }
 
         return produitRepository.save(produit);
@@ -99,8 +111,8 @@ public class ProduitService {
         verificationAccesGym(currentUser, produit.getGym(), "supprimer un produit dans");
 
         // Supprime le fichier associé s’il existe
-        if (produit.getImageUrl() != null){
-            Path oldPath = Paths.get(produit.getImageUrl());
+        if (produit.getImageUrl() != null) {
+            Path oldPath = fileStorageLocation.resolve(produit.getImageUrl().replace("/uploads/", "")).normalize();
             Files.deleteIfExists(oldPath);
         }
 
@@ -123,7 +135,7 @@ public class ProduitService {
         Gym gym = currentUser.getGym();
         verificationAccesGym(currentUser, gym, "consulterla details des produits dans");
         Produit produit = produitRepository.findById(produitId)
-                .orElseThrow(()->new RuntimeException("Produit introuvable"));
+                .orElseThrow(() -> new RuntimeException("Produit introuvable"));
         return produit;
     }
 
@@ -165,4 +177,3 @@ public class ProduitService {
         }
     }
 }
-

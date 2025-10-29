@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -15,6 +17,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ListePaiment {
+
+    private static final Logger logger = LoggerFactory.getLogger(ListePaiment.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,14 +35,28 @@ public class ListePaiment {
 
     private Long referenceId; // ID de l'abonnement, vente, etc.
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private User acheteur;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private User staffEnregistreur;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private Gym gym;
 
     private String details;
+
+    @Override
+    public String toString() {
+        logger.debug("Converting ListePaiment to string: id={}", id);
+        return "ListePaiment{" +
+                "id=" + id +
+                ", typePaiement=" + typePaiement +
+                ", datePaiement=" + datePaiement +
+                ", montant=" + montant +
+                ", modeDePaiement=" + modeDePaiement +
+                ", referenceId=" + referenceId +
+                ", details='" + details + '\'' +
+                '}';
+    }
 }

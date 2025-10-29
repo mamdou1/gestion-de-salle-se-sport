@@ -42,27 +42,24 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Activer CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth ->
                         auth
-                                // Routes publiques
                                 .requestMatchers(
                                         "/api/auth/**",
                                         "/images/**",
+                                        "/uploads/**", // Autoriser l'accès public aux images
                                         "/api/demandeInscriptions/inscriptin/en-ligne",
                                         "/error",
                                         "/swagger-ui/**",
                                         "/api-docs/**",
                                         "/v3/api-docs/**"
                                 ).permitAll()
-                                // Routes authentifiées
                                 .requestMatchers("/api/users/changer").authenticated()
-                                // Routes pour familles (authentifiées)
                                 .requestMatchers("/api/familles/**").authenticated()
-                                // Toutes les autres routes authentifiées
                                 .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtFilter(customUserDetailsService, jwtUtils), UsernamePasswordAuthenticationFilter.class);
@@ -72,12 +69,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000")); // Frontend React
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true); // Permet les cookies/authentification
+        configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration); // Appliquer à toutes les routes
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 

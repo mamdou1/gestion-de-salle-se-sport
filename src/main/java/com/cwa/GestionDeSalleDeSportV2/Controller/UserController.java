@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,12 +21,15 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
-import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,10 +42,18 @@ public class UserController {
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
     private final UserService userService;
     private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
+    private final Path fileStorageLocation;
 
-    public UserController(UserService userService, UtilisateurActuellementConnecter utilisateurActuellementConnecter) {
+    public UserController(UserService userService, UtilisateurActuellementConnecter utilisateurActuellementConnecter,
+                          @Value("${file.upload-dir:uploads/}") String uploadDir) {
         this.userService = userService;
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
+        this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(this.fileStorageLocation);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not create file storage directory: " + this.fileStorageLocation, e);
+        }
     }
 
     // 1. Ajouter un nouveau staff par l'admin
@@ -68,12 +80,11 @@ public class UserController {
         return new ResponseEntity<>(message, HttpStatus.CREATED);
     }
 
-    //  3.  modifier Profil via l' Appli
-    @PutMapping(value = "/modifier-profil/{id}",  consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<String> modifierProfilApp(@ModelAttribute MembreDTO membreDTO, @RequestPart(required = false)MultipartFile file, @PathVariable Long id) throws IOException {
+    // 3. Modifier Profil via l'Appli
+    @PutMapping(value = "/modifier-profil/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> modifierProfilApp(@ModelAttribute MembreDTO membreDTO, @RequestPart(required = false) MultipartFile file, @PathVariable Long id) throws IOException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
         String message = userService.modifierProfilApp(id, membreDTO, currentUser, file);
-
         return new ResponseEntity<>(message, HttpStatus.CREATED);
     }
 
@@ -86,18 +97,36 @@ public class UserController {
 
     @GetMapping("/photo/staff/{id}")
     public ResponseEntity<byte[]> getPhotoProduitStaff(@PathVariable Long id) {
-        byte[] image = userService.getPhotoProduitStaff(id);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, "image/jpeg")
-                .body(image);
+        User user = userService.consulterProfil(id, utilisateurActuellementConnecter.getUtilisateurActuellementConnecter());
+        if (user.getImageUrl() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No photo found for staff ID: " + id);
+        }
+        try {
+            Path filePath = fileStorageLocation.resolve(user.getImageUrl().replace("/uploads/", "")).normalize();
+            byte[] image = Files.readAllBytes(filePath);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_TYPE, "image/jpeg")
+                    .body(image);
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read photo file: " + e.getMessage());
+        }
     }
 
     @GetMapping("/photo/membre/{id}")
     public ResponseEntity<byte[]> getPhotoProduitMembre(@PathVariable Long id) {
-        byte[] image = userService.getPhotoProduitMembre(id);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, "image/jpeg")
-                .body(image);
+        User user = userService.consulterProfil(id, utilisateurActuellementConnecter.getUtilisateurActuellementConnecter());
+        if (user.getImageUrl() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No photo found for member ID: " + id);
+        }
+        try {
+            Path filePath = fileStorageLocation.resolve(user.getImageUrl().replace("/uploads/", "")).normalize();
+            byte[] image = Files.readAllBytes(filePath);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_TYPE, "image/jpeg")
+                    .body(image);
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read photo file: " + e.getMessage());
+        }
     }
 
     // 4. Consultation d’un profil

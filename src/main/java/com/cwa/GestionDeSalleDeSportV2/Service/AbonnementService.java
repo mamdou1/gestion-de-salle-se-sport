@@ -577,4 +577,113 @@ public class AbonnementService {
             throw new AccessDeniedException("Accès refusé : l'utilisateur n'est pas autorisé à " + action + " cette gym");
         }
     }
+
+    // === NOUVELLES MÉTHODES DTO ===
+
+    /**
+     * Récupère tous les abonnements en DTO
+     */
+    public List<AbonnementDTO> getAllAbonnementsDTO() {
+        try {
+            logger.info("🔍 Récupération de tous les abonnements via DTO");
+            List<AbonnementDTO> dtos = abonnementRepository.findAllAbonnementDTOs();
+            logger.info("✅ {} abonnements récupérés via DTO", dtos.size());
+            return dtos;
+        } catch (Exception e) {
+            logger.error("💥 Erreur lors de la récupération des abonnements via DTO", e);
+            throw new RuntimeException("Erreur lors de la récupération des abonnements");
+        }
+    }
+
+    /**
+     * Récupère les abonnements avec filtres en DTO
+     */
+    public List<AbonnementDTO> getAbonnementsDTOByFilters(Long gymId, StatutAbonnement statut, TypeAbonnements type) {
+        try {
+            logger.info("🔍 Récupération abonnements filtrés - gym: {}, statut: {}, type: {}", gymId, statut, type);
+            List<AbonnementDTO> dtos = abonnementRepository.findAbonnementsDTOByFilters(gymId, statut, type);
+            logger.info("✅ {} abonnements filtrés récupérés via DTO", dtos.size());
+            return dtos;
+        } catch (Exception e) {
+            logger.error("💥 Erreur lors du filtrage des abonnements via DTO", e);
+            throw new RuntimeException("Erreur lors du filtrage des abonnements");
+        }
+    }
+
+    /**
+     * Récupère les abonnements par gym en DTO
+     */
+    public List<AbonnementDTO> getAbonnementsDTOByGymId(Long gymId) {
+        try {
+            logger.info("🔍 Récupération abonnements par gym {}", gymId);
+            List<AbonnementDTO> dtos = abonnementRepository.findAbonnementsDTOByGymId(gymId);
+            logger.info("✅ {} abonnements récupérés pour le gym {} via DTO", dtos.size(), gymId);
+            return dtos;
+        } catch (Exception e) {
+            logger.error("💥 Erreur lors de la récupération des abonnements par gym via DTO", e);
+            throw new RuntimeException("Erreur lors de la récupération des abonnements par gym");
+        }
+    }
+
+    /**
+     * Récupère les abonnements actifs en DTO
+     */
+    public List<AbonnementDTO> getAbonnementsActifsDTO() {
+        try {
+            logger.info("🔍 Récupération abonnements actifs via DTO");
+            List<AbonnementDTO> dtos = abonnementRepository.findAbonnementsActifsDTO();
+            logger.info("✅ {} abonnements actifs récupérés via DTO", dtos.size());
+            return dtos;
+        } catch (Exception e) {
+            logger.error("💥 Erreur lors de la récupération des abonnements actifs via DTO", e);
+            throw new RuntimeException("Erreur lors de la récupération des abonnements actifs");
+        }
+    }
+
+    /**
+     * Récupère un abonnement spécifique par ID en DTO
+     */
+    public AbonnementDTO getAbonnementDTOById(Long abonnementId) {
+        try {
+            logger.info("🔍 Récupération abonnement {} via DTO", abonnementId);
+            AbonnementDTO dto = abonnementRepository.findAbonnementDTOById(abonnementId)
+                    .orElseThrow(() -> new RuntimeException("Abonnement non trouvé"));
+            logger.info("✅ Abonnement {} récupéré via DTO", abonnementId);
+            return dto;
+        } catch (Exception e) {
+            logger.error("💥 Erreur lors de la récupération de l'abonnement {} via DTO", abonnementId, e);
+            throw new RuntimeException("Erreur lors de la récupération de l'abonnement");
+        }
+    }
+
+    /**
+     * Récupère les abonnements d'un membre en DTO
+     */
+    public List<AbonnementDTO> getAbonnementsDTOByMembreId(Long membreId) {
+        try {
+            logger.info("🔍 Récupération abonnements pour le membre {}", membreId);
+            List<AbonnementDTO> dtos = abonnementRepository.findAbonnementsDTOByMembreId(membreId);
+            logger.info("✅ {} abonnements récupérés pour le membre {} via DTO", dtos.size(), membreId);
+            return dtos;
+        } catch (Exception e) {
+            logger.error("💥 Erreur lors de la récupération des abonnements du membre {} via DTO", membreId, e);
+            throw new RuntimeException("Erreur lors de la récupération des abonnements du membre");
+        }
+    }
+
+    /**
+     * Récupère les abonnements d'une famille en DTO
+     */
+    public List<AbonnementDTO> getAbonnementsDTOByFamilleId(Long familleId) {
+        try {
+            logger.info("🔍 Récupération abonnements pour la famille {}", familleId);
+            List<AbonnementDTO> dtos = abonnementRepository.findAbonnementsDTOByFamilleId(familleId);
+            logger.info("✅ {} abonnements récupérés pour la famille {} via DTO", dtos.size(), familleId);
+            return dtos;
+        } catch (Exception e) {
+            logger.error("💥 Erreur lors de la récupération des abonnements de la famille {} via DTO", familleId, e);
+            throw new RuntimeException("Erreur lors de la récupération des abonnements de la famille");
+        }
+    }
+
 }

@@ -1,12 +1,13 @@
 package com.cwa.GestionDeSalleDeSportV2.DTO;
 
-
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.PeriodAbonnement;
+import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public class FamilleAbonnementDTO {
 
@@ -32,11 +33,15 @@ public class FamilleAbonnementDTO {
     @Min(value = 1, message = "Le nombre de mois doit être au moins 1")
     private BigDecimal nombreMois;
 
-    @NotNull( message = "Le mode payement est obligatoire")
+    @NotNull(message = "Le mode payement est obligatoire")
     private ModeDePaiement modeDePaiement;
 
-    private Long gymId; // Ajout pour associer à un gym
+    private Long gymId;
 
+    // 🔥 AJOUT : Pour spécifier le type de service
+    private Long typeDeServiceId;
+
+    // Getters et setters
     public PeriodAbonnement getPeriodAbonnement() {
         return periodAbonnement;
     }
@@ -99,5 +104,39 @@ public class FamilleAbonnementDTO {
 
     public void setGymId(Long gymId) {
         this.gymId = gymId;
+    }
+
+    // 🔥 AJOUT : Getter/Setter pour type de service
+    public Long getTypeDeServiceId() {
+        return typeDeServiceId;
+    }
+
+    public void setTypeDeServiceId(Long typeDeServiceId) {
+        this.typeDeServiceId = typeDeServiceId;
+    }
+
+    // 🔥 Méthodes utilitaires
+    public boolean estValide() {
+        return familleId != null &&
+                tarifHomme != null && tarifHomme.compareTo(BigDecimal.ZERO) >= 0 &&
+                tarifFemme != null && tarifFemme.compareTo(BigDecimal.ZERO) >= 0 &&
+                reductionParPersonne != null && reductionParPersonne.compareTo(BigDecimal.ZERO) >= 0 &&
+                nombreMois != null && nombreMois.compareTo(BigDecimal.ONE) >= 0 &&
+                modeDePaiement != null &&
+                periodAbonnement != null;
+    }
+
+    @Override
+    public String toString() {
+        return "FamilleAbonnementDTO{" +
+                "familleId=" + familleId +
+                ", tarifHomme=" + tarifHomme +
+                ", tarifFemme=" + tarifFemme +
+                ", reductionParPersonne=" + reductionParPersonne +
+                ", nombreMois=" + nombreMois +
+                ", modeDePaiement=" + modeDePaiement +
+                ", periodAbonnement=" + periodAbonnement +
+                ", typeDeServiceId=" + typeDeServiceId +
+                '}';
     }
 }

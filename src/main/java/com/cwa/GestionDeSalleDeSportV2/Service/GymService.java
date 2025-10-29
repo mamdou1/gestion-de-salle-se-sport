@@ -1,6 +1,5 @@
 package com.cwa.GestionDeSalleDeSportV2.Service;
 
-
 import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
 import com.cwa.GestionDeSalleDeSportV2.DTO.InscriptionDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.staffsDTO;
@@ -12,12 +11,13 @@ import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -35,20 +35,29 @@ public class GymService {
     private final GymRepository gymRepository;
     private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
     private final StockageDeFichierService stockageDeFichierService;
+    private final Path fileStorageLocation;
 
-    public GymService(EmailService emailService, UserRepository userRepository, PasswordEncoder passwordEncoder, GymRepository gymRepository, UtilisateurActuellementConnecter utilisateurActuellementConnecter, StockageDeFichierService stockageDeFichierService) {
+    public GymService(EmailService emailService, UserRepository userRepository, PasswordEncoder passwordEncoder,
+                      GymRepository gymRepository, UtilisateurActuellementConnecter utilisateurActuellementConnecter,
+                      StockageDeFichierService stockageDeFichierService,
+                      @Value("${file.upload-dir:uploads/}") String uploadDir) {
         this.emailService = emailService;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.gymRepository = gymRepository;
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
         this.stockageDeFichierService = stockageDeFichierService;
+        this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(this.fileStorageLocation);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not create file storage directory: " + this.fileStorageLocation, e);
+        }
     }
 
-    //  1.  Consulter liste des gym
+    // 1. Consulter liste des gym
     public List<Gym> ConsulterGymListe() throws AccessDeniedException {
         initializeAccess(true);
-
         List<Gym> gym = gymRepository.findAll();
         return gym;
     }
@@ -56,47 +65,39 @@ public class GymService {
     public String modifierGym(InscriptionDTO dto, Long gymId, MultipartFile file) throws IOException {
         initializeAccessGym(true);
         Gym gym = gymRepository.findById(gymId)
-                .orElseThrow(()->new RuntimeException("Gym non trouvé."));
-        if(dto.getNomGym() != null) gym.setNom(dto.getNomGym());
-        if(dto.getAdresseGym() != null) gym.setAdresse(dto.getAdresseGym());
-        if(dto.getEmailGym() != null) gym.setEmail(dto.getEmailGym());
-        if(dto.getTelephoneGym() != null) gym.setTelephone(dto.getTelephoneGym());
-        if(dto.getDescription() != null) gym.setDescription(dto.getDescription());
-        if(file != null && !file.isEmpty()){
-//            gym.setPhoto(file.getBytes());
+                .orElseThrow(() -> new RuntimeException("Gym non trouvé."));
+        if (dto.getNomGym() != null) gym.setNom(dto.getNomGym());
+        if (dto.getAdresseGym() != null) gym.setAdresse(dto.getAdresseGym());
+        if (dto.getEmailGym() != null) gym.setEmail(dto.getEmailGym());
+        if (dto.getTelephoneGym() != null) gym.setTelephone(dto.getTelephoneGym());
+        if (dto.getDescription() != null) gym.setDescription(dto.getDescription());
 
-            // Supprimer ancienne image si elle existe
-            if (gym.getImageUrl() != null){
-                Path oldPath = Paths.get(gym.getImageUrl());
+        if (file != null && !file.isEmpty()) {
+            // Delete old image if it exists
+            if (gym.getImageUrl() != null) {
+                Path oldPath = fileStorageLocation.resolve(gym.getImageUrl().replace("/uploads/", "")).normalize();
                 Files.deleteIfExists(oldPath);
             }
-
-            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            String savedFileName = stockageDeFichierService.saveFile(file, fileName);
-            gym.setImageUrl(savedFileName);
+            // Line 75: Replaced saveFile with store
+            String fileName = stockageDeFichierService.store(file, "gyms/" + gymId);
+            gym.setImageUrl("/uploads/gyms/" + gymId + "/" + fileName);
         }
 
         gymRepository.save(gym);
         return "Gym modifier avec succès.";
-
     }
 
-    //  2.  GetById d'un Gym pour voir les details
+    // 2. GetById d'un Gym pour voir les details
     public Gym getGymById(Long gymId) throws AccessDeniedException {
         initializeAccess(true);
-
         Gym gym = gymRepository.findById(gymId)
-                .orElseThrow(()->new RuntimeException("Gym introuvable"));
+                .orElseThrow(() -> new RuntimeException("Gym introuvable"));
         return gym;
     }
 
-    //  3. Ajouter un membre à l'équipe technique
+    // 3. Ajouter un membre à l'équipe technique
     public User ajouterUnMembreEquipeTech(staffsDTO dto) throws AccessDeniedException, MessagingException {
-
-
-
         User equipe = new User();
-
         equipe.setNom(dto.getNomStaff());
         equipe.setPrenom(dto.getPrenomStaff());
         equipe.setAdresse(dto.getAdresseStaff());
@@ -140,9 +141,9 @@ public class GymService {
             Long gymId = (Long) count[0];
             StatutAbonnement statut = (StatutAbonnement) count[1];
             Long nombre = (Long) count[2];
-
             result.computeIfAbsent(gymId, k -> new HashMap<>())
-                    .put(statut, nombre);}
+                    .put(statut, nombre);
+        }
 
         // Remplir avec 0 pour les statuts manquants
         for (StatutAbonnement statut : StatutAbonnement.values()) {
@@ -154,17 +155,15 @@ public class GymService {
         return result;
     }
 
-
     private User initializeAccess(boolean requireStaff) throws AccessDeniedException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (
-                requireStaff &&
-                        currentUser.getRole() != Role.ADMIN_PRINCIPAL &&
-                        currentUser.getRole() != Role.ADMIN &&
-                        currentUser.getRole() != Role.RECEPTIONNISTE &&
-                        currentUser.getRole() != Role.MEMBRE &&
-                        currentUser.getRole() != Role.GERANT &&
-                        currentUser.getRole() != Role.COACH) {
+        if (requireStaff &&
+                currentUser.getRole() != Role.ADMIN_PRINCIPAL &&
+                currentUser.getRole() != Role.ADMIN &&
+                currentUser.getRole() != Role.RECEPTIONNISTE &&
+                currentUser.getRole() != Role.MEMBRE &&
+                currentUser.getRole() != Role.GERANT &&
+                currentUser.getRole() != Role.COACH) {
             throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
         }
         return currentUser;
@@ -175,20 +174,18 @@ public class GymService {
         if (requireStaff && currentUser.getRole() != Role.ADMIN) {
             throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
         }
-        if (currentUser.getGym() == null && requireStaff) { // Vérification du gym uniquement pour staff
+        if (currentUser.getGym() == null && requireStaff) {
             throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
         }
         return currentUser;
     }
 
-    //  2.  Generation du mot de passe
-    private String genererMotDePasse(User user){
-
+    // 2. Generation du mot de passe
+    private String genererMotDePasse(User user) {
         String nom = user.getNom().length() >= 2 ? user.getNom().substring(0, 2) : user.getNom();
         String prenom = user.getPrenom().length() >= 2 ? user.getPrenom().substring(0, 2) : user.getPrenom();
         String tel = user.getTelephone().replaceAll("\\D", "");
         tel = tel.length() >= 4 ? tel.substring(0, 4) : tel;
-
         return (nom + prenom + tel).toLowerCase();
     }
 }

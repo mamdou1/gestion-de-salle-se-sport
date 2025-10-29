@@ -3,39 +3,56 @@ package com.cwa.GestionDeSalleDeSportV2.DTO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class PaiementDTO {
+    private static final Logger logger = LoggerFactory.getLogger(PaiementDTO.class);
+
     private Long id;
     private String typePaiement; // "ABONNEMENT", "FRAIS_INSCRIPTION", "CASIER", "VENTE"
     private LocalDateTime datePaiement;
     private BigDecimal montant;
     private String modePaiement;
     //private String statut;
-
-    // Informations de l'acheteur (peuvent être null pour les ventes)
     private Long acheteurId;
     private String acheteurNom;
     private String acheteurPrenom;
     private String acheteurTelephone;
     private String acheteurEmail;
-
-    // Informations supplémentaires selon le type
-    private String details; // Description du service/produit
-    private Long referenceId; // ID de l'abonnement, vente, etc.
-    private String gymNom; // Nom du gym
-
-    // Staff qui a enregistré le paiement
+    private String details;
+    private Long referenceId;
+    private String gymNom;
     private String staffNom;
     private String staffPrenom;
 
-
+    @Override
+    public String toString() {
+        logger.debug("Converting PaiementDTO to string: id={}", id);
+        return "PaiementDTO{" +
+                "id=" + id +
+                ", typePaiement='" + typePaiement + '\'' +
+                ", datePaiement=" + datePaiement +
+                ", montant=" + montant +
+                ", modePaiement='" + modePaiement + '\'' +
+                ", acheteurId=" + acheteurId +
+                ", acheteurNom='" + acheteurNom + '\'' +
+                ", acheteurPrenom='" + acheteurPrenom + '\'' +
+                ", acheteurTelephone='" + acheteurTelephone + '\'' +
+                ", acheteurEmail='" + acheteurEmail + '\'' +
+                ", details='" + details + '\'' +
+                ", referenceId=" + referenceId +
+                ", gymNom='" + gymNom + '\'' +
+                ", staffNom='" + staffNom + '\'' +
+                ", staffPrenom='" + staffPrenom + '\'' +
+                '}';
+    }
 
     public Long getId() {
         return id;

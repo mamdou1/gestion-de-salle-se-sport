@@ -37,7 +37,7 @@ public class JwtFilter extends OncePerRequestFilter {
         logger.info("Requête reçue pour le chemin : {}", path);
 
         // Ne filtre pas les routes publiques
-        if (path.startsWith("/api/auth/")) {
+        if (path.startsWith("/api/auth/") || path.startsWith("/uploads/")) {
             logger.info("Route publique, aucun filtrage JWT : {}", path);
             filterChain.doFilter(request, response);
             return;

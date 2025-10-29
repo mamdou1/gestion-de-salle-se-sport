@@ -1,34 +1,41 @@
 package com.cwa.GestionDeSalleDeSportV2.Service;
 
 import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
+import com.cwa.GestionDeSalleDeSportV2.DTO.AbonnementDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.FamilleAbonnementDTO;
-import com.cwa.GestionDeSalleDeSportV2.DTO.MembreDTO;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.*;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Famille;
+import com.cwa.GestionDeSalleDeSportV2.Entity.ListePaiment;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Repository.AbonnementRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.FamilleRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.GymRepository;
+import com.cwa.GestionDeSalleDeSportV2.Repository.ListePaimentRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
-import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.math.RoundingMode;
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class FamilleAbonnementService {
+
+    private static final Logger logger = LoggerFactory.getLogger(FamilleAbonnementService.class);
 
     private final AbonnementRepository abonnementRepository;
     private final FamilleRepository familleRepository;
@@ -40,6 +47,7 @@ public class FamilleAbonnementService {
     private final UserService userService;
     private final UtilisateurActuellementConnecter utilisateurActuellementConnecter;
     private final GymRepository gymRepository;
+    private final ListePaimentRepository listePaimentRepository;
 
     public FamilleAbonnementService(
             AbonnementRepository abonnementRepository,
@@ -50,7 +58,9 @@ public class FamilleAbonnementService {
             PasswordEncoder passwordEncoder,
             UserRepository userRepository,
             UserService userService,
-            UtilisateurActuellementConnecter utilisateurActuellementConnecter, GymRepository gymRepository) {
+            UtilisateurActuellementConnecter utilisateurActuellementConnecter,
+            GymRepository gymRepository,
+            ListePaimentRepository listePaimentRepository) {
         this.abonnementRepository = abonnementRepository;
         this.familleRepository = familleRepository;
         this.factureCollectiveService = factureCollectiveService;
@@ -61,6 +71,151 @@ public class FamilleAbonnementService {
         this.userService = userService;
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
         this.gymRepository = gymRepository;
+        this.listePaimentRepository = listePaimentRepository;
+    }
+
+    // === MÉTHODES UTILITAIRES POUR CORRIGER LES ERREURS ===
+
+    /**
+     * Méthode utilitaire pour remplacer findByFamilleAndStatut manquant
+     */
+    private List<Abonnement> findByFamilleAndStatut(Famille famille, StatutAbonnement statut) {
+        return abonnementRepository.findByFamilleId(famille.getId()).stream()
+                .filter(abonnement -> abonnement.getStatut() == statut)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Méthode utilitaire pour trouver le premier abonnement actif d'une famille
+     */
+    private Abonnement findFirstByFamilleAndStatutActif(Famille famille) {
+        return abonnementRepository.findByFamilleId(famille.getId()).stream()
+                .filter(abonnement -> abonnement.getStatut() == StatutAbonnement.EN_COURS)
+                .findFirst()
+                .orElse(null);
+    }
+
+    // === NOUVELLES MÉTHODES DTO POUR ÉVITER STACKOVERFLOW ===
+
+    /**
+     * Récupère tous les abonnements familiaux en DTO (sans StackOverflow)
+     */
+    public List<AbonnementDTO> getAllAbonnementsFamiliauxDTO() {
+        try {
+            logger.info("🔍 Récupération de tous les abonnements familiaux via DTO");
+
+            List<AbonnementDTO> dtos = abonnementRepository.findAllAbonnementsFamiliauxDTO();
+
+            List<AbonnementDTO> abonnementsEnrichis = dtos.stream()
+                    .map(this::enrichirAvecDetailsFamiliaux)
+                    .collect(Collectors.toList());
+
+            logger.info("✅ {} abonnements familiaux récupérés via DTO", abonnementsEnrichis.size());
+            return abonnementsEnrichis;
+        } catch (Exception e) {
+            logger.error("💥 Erreur lors de la récupération des abonnements familiaux via DTO", e);
+            throw new RuntimeException("Erreur lors de la récupération des abonnements familiaux");
+        }
+    }
+
+    /**
+     * Récupère les abonnements familiaux actifs en DTO
+     */
+    public List<AbonnementDTO> getAbonnementsFamiliauxActifsDTO() {
+        try {
+            logger.info("🔍 Récupération abonnements familiaux actifs via DTO");
+
+            List<AbonnementDTO> dtos = abonnementRepository.findAbonnementsFamiliauxActifsDTO();
+
+            List<AbonnementDTO> abonnementsEnrichis = dtos.stream()
+                    .map(this::enrichirAvecDetailsFamiliaux)
+                    .collect(Collectors.toList());
+
+            logger.info("✅ {} abonnements familiaux actifs récupérés via DTO", abonnementsEnrichis.size());
+            return abonnementsEnrichis;
+        } catch (Exception e) {
+            logger.error("💥 Erreur lors de la récupération des abonnements familiaux actifs via DTO", e);
+            throw new RuntimeException("Erreur lors de la récupération des abonnements familiaux actifs");
+        }
+    }
+
+    /**
+     * Récupère les abonnements familiaux par gym en DTO
+     */
+    public List<AbonnementDTO> getAbonnementsFamiliauxDTOByGymId(Long gymId) {
+        try {
+            logger.info("🔍 Récupération abonnements familiaux par gym {} via DTO", gymId);
+
+            List<AbonnementDTO> dtos = abonnementRepository.findAbonnementsFamiliauxDTOByGymId(gymId);
+
+            List<AbonnementDTO> abonnementsEnrichis = dtos.stream()
+                    .map(this::enrichirAvecDetailsFamiliaux)
+                    .collect(Collectors.toList());
+
+            logger.info("✅ {} abonnements familiaux récupérés pour le gym {} via DTO", abonnementsEnrichis.size(), gymId);
+            return abonnementsEnrichis;
+        } catch (Exception e) {
+            logger.error("💥 Erreur lors de la récupération des abonnements familiaux par gym via DTO", e);
+            throw new RuntimeException("Erreur lors de la récupération des abonnements familiaux par gym");
+        }
+    }
+
+    /**
+     * Enrichit les DTO familiaux avec les détails manquants
+     */
+    private AbonnementDTO enrichirAvecDetailsFamiliaux(AbonnementDTO dto) {
+        try {
+            // Récupérer l'entité complète pour les détails manquants
+            Abonnement abonnement = abonnementRepository.findById(dto.getId()).orElse(null);
+
+            if (abonnement != null) {
+                // Informations du membre
+                if (abonnement.getMembre() != null) {
+                    dto.setMembreId(abonnement.getMembre().getId());
+                    dto.setNomMembre(abonnement.getMembre().getNom() + " " + abonnement.getMembre().getPrenom());
+                }
+
+                // Informations de la famille
+                if (abonnement.getFamille() != null) {
+                    dto.setFamilleId(abonnement.getFamille().getId());
+                    dto.setNomFamille(abonnement.getFamille().getNom());
+                }
+
+                // Informations du gym
+                if (abonnement.getGym() != null) {
+                    dto.setGymId(abonnement.getGym().getId());
+                    dto.setNomGym(abonnement.getGym().getNom());
+                }
+
+                // Informations du type de service
+                if (abonnement.getTypeDeService() != null) {
+                    dto.setNomTypeDeService(abonnement.getTypeDeService().getNom());
+                }
+
+                // Dates supplémentaires
+                dto.setDateMiseEnPause(abonnement.getDatePauseAbonnement());
+                dto.setDateResiliation(abonnement.getDateResiliation());
+            }
+        } catch (Exception e) {
+            logger.warn("⚠️ Impossible d'enrichir les détails pour l'abonnement familial {}: {}", dto.getId(), e.getMessage());
+        }
+
+        return dto;
+    }
+
+    // === MÉTHODES EXISTANTES CORRIGÉES ===
+
+    private List<com.cwa.GestionDeSalleDeSportV2.Entity.Gym> getUserGyms(User user) {
+        List<com.cwa.GestionDeSalleDeSportV2.Entity.Gym> result = new ArrayList<>();
+
+        if (user.getGyms() != null && !user.getGyms().isEmpty()) {
+            result.addAll(user.getGyms());
+        }
+        else if (user.getGym() != null) {
+            result.add(user.getGym());
+        }
+
+        return result;
     }
 
     private boolean estMembreDuStaff(User user) {
@@ -68,7 +223,99 @@ public class FamilleAbonnementService {
         return role == Role.ADMIN || role == Role.RECEPTIONNISTE || role == Role.GERANT;
     }
 
-    //  1.  Crée un abonnement familial pour une famille
+    // === MÉTHODES POUR LA GESTION DES STATUTS ===
+
+    private void mettreAJourStatutAbonnement(Abonnement abonnement) {
+        LocalDate aujourdHui = LocalDate.now();
+        StatutAbonnement ancienStatut = abonnement.getStatut();
+
+        if (ancienStatut == StatutAbonnement.EN_PAUSE ||
+                ancienStatut == StatutAbonnement.RESILIE) {
+            return;
+        }
+
+        StatutAbonnement nouveauStatut = ancienStatut;
+
+        if (aujourdHui.isAfter(abonnement.getDateFinAbonnement())) {
+            nouveauStatut = StatutAbonnement.EXPIRE;
+        }
+        else if (aujourdHui.plusDays(7).isAfter(abonnement.getDateFinAbonnement())) {
+            nouveauStatut = StatutAbonnement.BIENTOT_EXPIRE;
+        }
+        else {
+            nouveauStatut = StatutAbonnement.EN_COURS;
+        }
+
+        if (nouveauStatut != ancienStatut) {
+            abonnement.setStatut(nouveauStatut);
+            abonnementRepository.save(abonnement);
+            logger.info("Abonnement {} : {} → {}", abonnement.getId(), ancienStatut, nouveauStatut);
+        }
+    }
+
+    @Transactional
+    public void mettreAJourStatutsFamille(Long familleId) {
+        Famille famille = familleRepository.findById(familleId)
+                .orElseThrow(() -> new RuntimeException("Famille non trouvée"));
+
+        List<Abonnement> abonnements = abonnementRepository.findByFamilleId(familleId);
+        int compteurMisesAJour = 0;
+
+        for (Abonnement abonnement : abonnements) {
+            StatutAbonnement ancienStatut = abonnement.getStatut();
+            mettreAJourStatutAbonnement(abonnement);
+            if (abonnement.getStatut() != ancienStatut) {
+                compteurMisesAJour++;
+            }
+        }
+
+        logger.info("Statuts mis à jour pour {}/{} abonnements de la famille {}",
+                compteurMisesAJour, abonnements.size(), familleId);
+    }
+
+    // === MÉTHODES POUR L'ENREGISTREMENT DANS LISTE_PAIMENT ===
+
+    /**
+     * 🔥 NOUVELLE MÉTHODE : Créer un enregistrement de paiement pour l'abonnement familial complet
+     */
+    private void creerEnregistrementListePaimentFamilial(Abonnement abonnement, Famille famille, User staffEnregistreur, String typeOperation) {
+        ListePaiment paiement = new ListePaiment();
+        paiement.setTypePaiement(TypePaiement.ABONNEMENT_FAMILIAL);
+        paiement.setDatePaiement(LocalDateTime.now());
+        paiement.setMontant(abonnement.getPrixAbonnement());
+        paiement.setModeDePaiement(abonnement.getModeDePaiement());
+        paiement.setReferenceId(abonnement.getId());
+        paiement.setAcheteur(famille.getChefFamille()); // Utiliser le chef de famille comme acheteur
+        paiement.setStaffEnregistreur(staffEnregistreur);
+        paiement.setGym(abonnement.getGym());
+        paiement.setDetails(String.format("Abonnement familial %s - Famille: %s (%d membres)",
+                typeOperation, famille.getNom(), famille.getMembres().size()));
+
+        listePaimentRepository.save(paiement);
+        logger.info("Enregistrement ListePaiment créé pour l'abonnement familial {}: {}", typeOperation, paiement);
+    }
+
+    private void creerEnregistrementRenouvellementListePaiment(Abonnement abonnement, User membre, User staffEnregistreur, int moisAjoutes) {
+        ListePaiment paiement = new ListePaiment();
+        paiement.setTypePaiement(TypePaiement.ABONNEMENT_FAMILIAL);
+        paiement.setDatePaiement(LocalDateTime.now());
+        paiement.setMontant(abonnement.getPrixAbonnement());
+        paiement.setModeDePaiement(abonnement.getModeDePaiement());
+        paiement.setReferenceId(abonnement.getId());
+        paiement.setAcheteur(membre);
+        paiement.setStaffEnregistreur(staffEnregistreur);
+        paiement.setGym(abonnement.getGym());
+        paiement.setDetails(String.format("Renouvellement abonnement familial - %s: %s %s (+%s mois)",
+                abonnement.getFamille().getNom(),
+                membre.getNom(), membre.getPrenom(),
+                moisAjoutes));
+
+        listePaimentRepository.save(paiement);
+        logger.info("Enregistrement ListePaiment créé pour le renouvellement familial: {}", paiement);
+    }
+
+    // 1. Crée un abonnement familial pour une famille - CORRIGÉ : UN SEUL ABONNEMENT
+    @Transactional
     public void creerAbonnementFamilial(FamilleAbonnementDTO dto) throws MessagingException, AccessDeniedException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
         if (!estMembreDuStaff(currentUser)) {
@@ -78,469 +325,626 @@ public class FamilleAbonnementService {
         Famille famille = familleRepository.findById(dto.getFamilleId())
                 .orElseThrow(() -> new RuntimeException("Famille non trouvée"));
 
-        // Vérification que le staff est autorisé à gérer ce gym
-        if (!currentUser.getGyms().contains(famille.getGym())) {
+        mettreAJourStatutsFamille(famille.getId());
+
+        if (!getUserGyms(currentUser).contains(famille.getGym())) {
             throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
         }
 
         List<User> membres = famille.getMembres();
-        BigDecimal total = BigDecimal.ZERO;
-        List<Abonnement> abonnements = new ArrayList<>();
+        if (membres == null || membres.isEmpty()) {
+            throw new RuntimeException("La famille ne contient aucun membre");
+        }
 
+        // 🔥 CORRECTION : Calculer le prix TOTAL pour toute la famille
+        BigDecimal prixTotal = BigDecimal.ZERO;
         for (User membre : membres) {
-            BigDecimal base = membre.getGenre().name().equals("FEMME") ? dto.getTarifFemme() : dto.getTarifHomme();
-            BigDecimal montantFinal = base.subtract(dto.getReductionParPersonne());
+            BigDecimal base = (membre.getGenre() == Genre.FEMME) ? dto.getTarifFemme() : dto.getTarifHomme();
+            BigDecimal montantMembre = base.subtract(dto.getReductionParPersonne());
 
-            Abonnement abonnement = new Abonnement();
-            abonnement.setFamille(famille);
-            abonnement.setMembre(membre);
-            abonnement.setGym(famille.getGym());
-            abonnement.setTypes(TypeAbonnements.FAMILIALE);
-            abonnement.setPrixAbonnement(montantFinal);
-            abonnement.setDateDebutAbonnement(LocalDate.now());
-            abonnement.setPeriodAbonnement(dto.getPeriodAbonnement());
-            abonnement.setDateFinAbonnement(LocalDate.now().plusMonths((dto.getNombreMois()).longValue()));
-            abonnement.setDateRappelFinAbonnement(abonnement.getDateFinAbonnement().minusDays(5));
-            abonnement.setNombreDeMois((dto.getNombreMois()));
-            abonnement.setModeDePaiement(dto.getModeDePaiement());
-            abonnement.setEnregistrerPar(utilisateurActuellementConnecter.getUtilisateurActuellementConnecter());
-            abonnement.setStatut(StatutAbonnement.EN_COURS);
+            if (montantMembre.compareTo(BigDecimal.ZERO) < 0) {
+                montantMembre = BigDecimal.ZERO;
+            }
+            prixTotal = prixTotal.add(montantMembre);
+        }
 
-            abonnementRepository.save(abonnement);
-            abonnements.add(abonnement);
-            total = total.add(montantFinal.add(membre.getFraisInscription() != null ? membre.getFraisInscription() : BigDecimal.ZERO));
+        // 🔥 CORRECTION : Créer UN SEUL abonnement pour toute la famille
+        Abonnement abonnement = new Abonnement();
+        abonnement.setFamille(famille);
+        abonnement.setMembre(null); // 🔥 IMPORTANT : Pas de membre spécifique
+        abonnement.setGym(famille.getGym());
+        abonnement.setTypes(TypeAbonnements.FAMILIALE);
+        abonnement.setPrixAbonnement(prixTotal);
+        abonnement.setDateDebutAbonnement(LocalDate.now());
+        abonnement.setPeriodAbonnement(dto.getPeriodAbonnement());
+
+        LocalDate dateFin = LocalDate.now().plusMonths(dto.getNombreMois().longValue());
+        abonnement.setDateFinAbonnement(dateFin);
+        abonnement.setDateRappelFinAbonnement(dateFin.minusDays(5));
+        abonnement.setNombreDeMois(dto.getNombreMois());
+        abonnement.setModeDePaiement(dto.getModeDePaiement());
+        abonnement.setEnregistrerPar(currentUser);
+        abonnement.setStatut(StatutAbonnement.EN_COURS);
+
+        Abonnement savedAbonnement = abonnementRepository.save(abonnement);
+        mettreAJourStatutAbonnement(savedAbonnement);
+
+        // 🔥 CORRECTION : Créer un seul enregistrement de paiement pour toute la famille
+        creerEnregistrementListePaimentFamilial(savedAbonnement, famille, currentUser, "création");
+
+        // Marquer les frais d'inscription comme payés pour tous les membres
+        for (User membre : membres) {
             membre.setFraisInscriptionPayer(true);
             userRepository.save(membre);
         }
-        factureCollectiveService.creeFactureCollective(famille, abonnements, total);
+
+        // 🔥 CORRECTION : Passer une liste avec UN seul abonnement à la facture
+        List<Abonnement> abonnements = List.of(savedAbonnement);
+        factureCollectiveService.creeFactureCollective(famille, abonnements, prixTotal);
     }
 
-    //  2.  Ajouter un membre à une famille déjà existante par le chef de famille
-    public void ajoutParChefDeFamille(@Valid MembreDTO dto) throws MessagingException, AccessDeniedException {
+    // === NOUVELLES MÉTHODES POUR LE RENOUVELLEMENT AVEC LISTE_PAIMENT ===
+
+    @Transactional
+    public void renouvelerAbonnementFamilial(Long familleId, FamilleAbonnementDTO dto) throws MessagingException, AccessDeniedException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-
-        // Vérifie si l'utilisateur est chef d'une famille
-        Famille famille = familleRepository.findByChefFamille(currentUser);
-        if (famille == null) {
-            throw new RuntimeException("Seul le chef de famille peut proposer un ajout");
+        if (!estMembreDuStaff(currentUser)) {
+            throw new RuntimeException("Seul les membres du staff peuvent renouveler un abonnement familial");
         }
 
-        // Vérifie l'affiliation au gym
-        if (!currentUser.getGyms().contains(famille.getGym())) {
-            throw new AccessDeniedException("Accès refusé : vous n'êtes pas affilié à ce gym.");
+        Famille famille = familleRepository.findById(familleId)
+                .orElseThrow(() -> new RuntimeException("Famille non trouvée"));
+
+        mettreAJourStatutsFamille(familleId);
+
+        if (!getUserGyms(currentUser).contains(famille.getGym())) {
+            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
         }
 
-        // Création du membre
-        User membre = construireMembre(dto, famille, currentUser);
-        membre.setStatut(StatutMembre.EN_ATTENTE_VALIDATION);
-        userRepository.save(membre);
+        List<User> membres = famille.getMembres();
+        if (membres == null || membres.isEmpty()) {
+            throw new RuntimeException("La famille ne contient aucun membre");
+        }
 
-        // Notification au chef de famille (lui-même)
-        notificationService.notification(
-                currentUser,
-                "Demande d'ajout de membre",
-                "Demande d'ajout de " + membre.getPrenom() + " à la famille. En attente de validation",
-                "Ajout familial",
-                TypeNotification.ABONNEMENT,
-                true
-        );
+        // 🔥 CORRECTION : Calculer le prix TOTAL pour toute la famille
+        BigDecimal prixTotal = BigDecimal.ZERO;
+        for (User membre : membres) {
+            BigDecimal base = (membre.getGenre() == Genre.FEMME) ? dto.getTarifFemme() : dto.getTarifHomme();
+            BigDecimal montantMembre = base.subtract(dto.getReductionParPersonne());
 
-        // Notification aux staff
-        List<User> staff = userRepository.findByRoleIn(List.of(Role.ADMIN, Role.GERANT, Role.RECEPTIONNISTE));
-        staff.forEach(s -> {
-            try {
-                notificationService.notification(s, "Nouvelle demande",
-                        "Validation requise pour " + membre.getNom() + " " + membre.getPrenom(),
-                        "Ajout famille", TypeNotification.ABONNEMENT, true);
-            } catch (MessagingException e) {
-                throw new RuntimeException(e);
+            if (montantMembre.compareTo(BigDecimal.ZERO) < 0) {
+                montantMembre = BigDecimal.ZERO;
             }
-        });
-    }
-
-    //  2.1.  Liste des demandes d'ajout de chef de famille
-    public List<User> listeDemandesAjoutParChefDeFamille() throws AccessDeniedException {
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-
-        // Vérifie que l'utilisateur est un staff
-        if (!(currentUser.getRole() == Role.ADMIN ||
-                currentUser.getRole() == Role.GERANT ||
-                currentUser.getRole() == Role.RECEPTIONNISTE)) {
-            throw new AccessDeniedException("Accès refusé : seuls les membres du staff peuvent consulter cette liste.");
+            prixTotal = prixTotal.add(montantMembre);
         }
 
-        // Récupère tous les membres avec le statut EN_ATTENTE_VALIDATION
-        return userRepository.findByStatutAndRole(StatutMembre.EN_ATTENTE_VALIDATION, Role.MEMBRE);
-    }
-
-
-
-
-    //  3.  Ajouter un membre à une famille déjà existante par le staff
-    public void ajoutDirectParStaff(@Valid MembreDTO dto) throws MessagingException, AccessDeniedException {
-        User current = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (!(current.getRole() == Role.ADMIN || current.getRole() == Role.GERANT || current.getRole() == Role.RECEPTIONNISTE)) {
-            throw new RuntimeException("Seul un staff peut ajouter un membre directement");
-        }
-
-        User chefFamille = userRepository.findById(dto.getChefFamilleId())
-                .orElseThrow(() -> new RuntimeException("Chef de la famille introuvable"));
-        Famille famille = familleRepository.findByChefFamille(chefFamille);
-
-        if (!current.getGyms().contains(famille.getGym())) {
-            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
-        }
-
-        User membre = (dto.getMembreId() != null) ? userRepository.findById(dto.getMembreId())
-                .orElseThrow(() -> new RuntimeException("Membre introuvable"))
-                : construireMembre(dto, famille, chefFamille);
-
-        // Initialiser les champs telephoneReference et familleId
-        if (dto.getMembreId() != null) {
-            membre.setFamille(famille);
-            membre.setTelephoneReference(chefFamille.getTelephone());
-            userRepository.save(membre); // Sauvegarde explicite pour les membres existants
-        }
-
-        if (membre.getFamille() != null && !membre.getFamille().getId().equals(famille.getId())) {
-            throw new RuntimeException("Ce membre est déjà associé à une autre famille.");
-        }
-
-        // Vérifier s'il existe un abonnement en cours pour ce membre
-        List<Abonnement> abonnementsEnCours = abonnementRepository.findByMembreAndStatut(membre, StatutAbonnement.EN_COURS);
-        if (!abonnementsEnCours.isEmpty()) {
-            throw new RuntimeException("Ce membre a déjà un abonnement en cours. Veuillez attendre la fin de cet abonnement.");
-        }
-
-        String mdp = userService.genererMotDePasse(membre);
-        membre.setPassword(passwordEncoder.encode(mdp));
-        userRepository.save(membre);
-
-        Abonnement abonnementFamilial = abonnementRepository.findByFamilleAndTypes(famille, TypeAbonnements.FAMILIALE)
-                .stream()
-                .filter(a -> a.getStatut() == StatutAbonnement.EN_COURS)
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("Abonnement familial actif introuvable"));
-
-        BigDecimal frais = dto.getFraisInscriptionMembre() != null ? dto.getFraisInscriptionMembre() : BigDecimal.ZERO;
-        BigDecimal montantCalcule = calculerMontantRestant(abonnementFamilial, membre.getGenre(), frais);
-
-        // Créer un nouvel abonnement pour le membre
+        // 🔥 CORRECTION : Créer UN SEUL abonnement pour toute la famille
         Abonnement abonnement = new Abonnement();
         abonnement.setFamille(famille);
-        abonnement.setMembre(membre);
-        abonnement.setGym(famille.getGym());
-        abonnement.setTypes(TypeAbonnements.FAMILIALE); // Type familial pour l'abonnement individuel
-        abonnement.setPrixAbonnement(montantCalcule);
-        abonnement.setDateDebutAbonnement(LocalDate.now());
-        abonnement.setPeriodAbonnement(abonnementFamilial.getPeriodAbonnement());
-        abonnement.setDateFinAbonnement(abonnementFamilial.getDateFinAbonnement());
-        abonnement.setDateRappelFinAbonnement(abonnementFamilial.getDateRappelFinAbonnement());
-        abonnement.setNombreDeMois(BigDecimal.valueOf(ChronoUnit.MONTHS.between(LocalDate.now(), abonnementFamilial.getDateFinAbonnement())));
-        abonnement.setModeDePaiement(abonnementFamilial.getModeDePaiement());
-        abonnement.setEnregistrerPar(current);
-        abonnement.setStatut(StatutAbonnement.EN_COURS);
-        abonnementRepository.save(abonnement);
-
-        membre.setFraisInscriptionPayer(true);
-        userRepository.save(membre);
-
-        factureCollectiveService.creeFactureCollective(famille, List.of(abonnement), montantCalcule.add(dto.getFraisInscriptionMembre()));
-        emailService.envoyerEmailBienvenu(membre, mdp);
-        emailService.envoyerEmail(chefFamille.getEmail(), "Nouveau membre ajouté", membre.getNom() + " " + membre.getPrenom() + " a été ajouté à votre famille.");
-    }
-
-    private User construireMembre(MembreDTO dto, Famille famille, User chefFamille) {
-        User membre = new User();
-        membre.setNom(dto.getNomMembre());
-        membre.setPrenom(dto.getPrenomMembre());
-        membre.setEmail(dto.getEmailMembre());
-        membre.setTelephone(dto.getNumeroTelephoneMembre());
-        membre.setGenre(dto.getGenreMembre());
-        membre.setAdresse(dto.getAdresseMembre());
-        membre.setDate_de_naissance(dto.getDate_de_naissanceMembre());
-        membre.setFraisInscription(dto.getFraisInscriptionMembre());
-        membre.setFraisInscriptionPayer(false);
-        membre.setRole(Role.MEMBRE);
-        membre.setGym(famille.getGym());
-        if (dto.getGymId() != null) {
-            membre.setGym(userService.findGymById(dto.getGymId()));
-        }
-        if (dto.getGymsIds() != null) {
-            membre.setGyms(userService.findGymsByIds(dto.getGymsIds()));
-        }
-        membre.setTelephoneReference(chefFamille.getTelephone());
-        membre.setFamille(famille);
-        famille.getMembres().add(membre);
-        membre.setDate_creation(LocalDateTime.now());
-
-        // 🔐 Ajout du mot de passe
-        if (dto.getPasswordMembre() == null || dto.getPasswordMembre().isBlank()) {
-            throw new IllegalArgumentException("Le mot de passe est requis pour créer un membre");
-        }
-
-        // Si tu utilises un encodeur
-        membre.setPassword(passwordEncoder.encode(dto.getPasswordMembre()));
-
-        return membre;
-    }
-
-    //  4.  Retrait d'un membre
-
-    public void retraitMembre(Long membreId) throws MessagingException, AccessDeniedException {
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        User membre = userRepository.findById(membreId)
-                .orElseThrow(() -> new RuntimeException("Membre introuvable"));
-        User chefFamille = userRepository.findByTelephone(membre.getTelephoneReference())
-                .orElseThrow(() -> new RuntimeException("Chef de famille introuvable"));
-
-        boolean isChefFamille = currentUser.getId().equals(chefFamille.getId());
-        boolean isStaff = currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.RECEPTIONNISTE || currentUser.getRole() == Role.GERANT;
-
-        if (!isChefFamille && !isStaff) {
-            throw new AccessDeniedException("Seul le chef de famille ou un staff autorisé peut demander un retrait.");
-        }
-        if (!currentUser.getGyms().contains(membre.getGym())) {
-            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
-        }
-
-        // Résilier l'abonnement familial du membre uniquement
-        List<Abonnement> abonnementsDuMembre = abonnementRepository.findByMembreAndTypes(membre, TypeAbonnements.FAMILIALE);
-        Abonnement abonnementActif = abonnementsDuMembre.stream()
-                .filter(a -> a.getStatut() == StatutAbonnement.EN_COURS)
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("Abonnement familial en cours introuvable."));
-
-        abonnementActif.setStatut(StatutAbonnement.RESILIE);
-        abonnementActif.setDateResiliation(LocalDate.now()); // facultatif si tu veux garder une trace
-        membre.setDateRetrait(abonnementActif.getDateFinAbonnement());
-        membre.setFamille(null);
-
-        abonnementRepository.save(abonnementActif);
-        userRepository.save(membre);
-
-        emailService.envoyerEmail(
-                membre.getEmail(),
-                "Retrait de la famille",
-                "Vous serez retiré de la famille à la fin de l'abonnement."
-        );
-        emailService.envoyerEmail(
-                chefFamille.getEmail(),
-                "Retrait de membre",
-                membre.getNom() + " " + membre.getPrenom() + " sera retiré de votre famille à la fin de l'abonnement."
-        );
-    }
-
-
-//    public void demandeRetraitMembre(Long membreId) throws MessagingException, AccessDeniedException {
-//        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-//        User membre = userRepository.findById(membreId)
-//                .orElseThrow(() -> new RuntimeException("Membre introuvable"));
-//        User chefFamille = userRepository.findByTelephone(membre.getTelephoneReference())
-//                .orElseThrow(() -> new RuntimeException("Chef de famille introuvable"));
-//        boolean isChefFamille = currentUser.getId().equals(chefFamille.getId());
-//        boolean isStaff = currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.RECEPTIONNISTE || currentUser.getRole() == Role.GERANT;
-//
-//        if (!isChefFamille && !isStaff) {
-//            throw new AccessDeniedException("Seul le chef de famille ou un staff autorisé peut demander un retrait.");
-//        }
-//        if (!currentUser.getGyms().contains(membre.getGym())) {
-//            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
-//        }
-//
-//        Abonnement abonnementFamilial = abonnementRepository.findByFamilleAndTypes(membre.getFamille(), TypeAbonnements.FAMILIALE)
-//                .stream()
-//                .filter(a -> a.getStatut() == StatutAbonnement.EN_COURS)
-//                .findFirst()
-//                .orElseThrow(() -> new RuntimeException("Abonnement familial en cours introuvable."));
-//
-//        // Définir la date de retrait
-//        membre.setDateRetrait(abonnementFamilial.getDateFinAbonnement());
-//        abonnementFamilial.setStatut(StatutAbonnement.RESILIE);
-//        membre.setFamille(null);
-//
-//        userRepository.save(membre);
-//
-//        emailService.envoyerEmail(
-//                membre.getEmail(),
-//                "Retrait de la famille",
-//                "Vous serez retiré de la famille à la fin de l'abonnement."
-//        );
-//        emailService.envoyerEmail(
-//                chefFamille.getEmail(),
-//                "Retrait de membre",
-//                membre.getNom() + " " + membre.getPrenom() + " sera retiré de votre famille à la fin de l'abonnement."
-//        );
-//    }
-
-    //  4.1  Liste de demande de retrait
-    public List<Famille> listeDesRetrait() throws AccessDeniedException {
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        boolean isStaff = currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.RECEPTIONNISTE || currentUser.getRole() == Role.GERANT;
-
-        if (!isStaff) {
-            throw new AccessDeniedException("Seul un staff autorisé peut valider le retrait.");
-        }
-        if (currentUser.getGyms() == null || currentUser.getGyms().isEmpty()) {
-            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer un gym.");
-        }
-
-        return familleRepository.findAll().stream()
-                .filter(famille -> currentUser.getGyms().contains(famille.getGym()))
-                .filter(famille -> famille.getMembres().stream().anyMatch(m->m.getDateRetrait() != null))
-                .toList();
-    }
-
-
-    //  6.  Annule le retrait d’un membre
-    public void annulerRetraitMembre(Long membreId) throws MessagingException, AccessDeniedException {
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        boolean isStaff = currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.GERANT || currentUser.getRole() == Role.RECEPTIONNISTE;
-        if (!isStaff) {
-            throw new RuntimeException("Seul le staff autorisé peut annuler un retrait.");
-        }
-
-        User membre = userRepository.findById(membreId)
-                .orElseThrow(() -> new RuntimeException("Membre introuvable."));
-        User chefFamille = userRepository.findByTelephone(membre.getTelephoneReference())
-                .orElseThrow(() -> new RuntimeException("Chef de famille introuvable."));
-        if (!currentUser.getGyms().contains(membre.getGym())) {
-            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
-        }
-
-        if (membre.getDateRetrait() == null) {
-            throw new IllegalStateException("Aucun retrait n'est planifié pour ce membre.");
-        }
-
-        membre.setDateRetrait(null);
-        userRepository.save(membre);
-
-        emailService.envoyerEmail(
-                membre.getEmail(),
-                "Annulation du retrait",
-                "Votre retrait de la famille a été annulé. Vous restez membre de la famille."
-        );
-        emailService.envoyerEmail(
-                chefFamille.getEmail(),
-                "Annulation du retrait de membre",
-                membre.getNom() + " " + membre.getPrenom() + " reste membre de votre famille."
-        );
-    }
-
-    //  7.  Confirme l'ajout d’un membre
-    public void confirmationAjoutMembre(Long membreId) throws MessagingException, AccessDeniedException {
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        boolean isStaff = currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.RECEPTIONNISTE || currentUser.getRole() == Role.GERANT;
-
-        if (!isStaff) {
-            throw new AccessDeniedException("Seul un staff autorisé peut valider l'ajout.");
-        }
-
-        User membre = userRepository.findById(membreId)
-                .orElseThrow(() -> new RuntimeException("Membre introuvable"));
-        Famille famille = membre.getFamille();
-        if (!currentUser.getGyms().contains(famille.getGym())) {
-            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
-        }
-        Abonnement abonnementFamilial = abonnementRepository.findByFamilleAndTypes(famille, TypeAbonnements.FAMILIALE)
-                .stream()
-                .filter(a -> a.getStatut() == StatutAbonnement.EN_COURS)
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("Abonnement familial en cours introuvable."));
-
-        BigDecimal montantCalcule = calculerMontantRestant(abonnementFamilial, membre.getGenre(), membre.getFraisInscription());
-
-        Abonnement abonnement = new Abonnement();
-        abonnement.setFamille(famille);
-        abonnement.setMembre(membre);
+        abonnement.setMembre(null); // 🔥 IMPORTANT : Pas de membre spécifique
         abonnement.setGym(famille.getGym());
         abonnement.setTypes(TypeAbonnements.FAMILIALE);
-        abonnement.setPrixAbonnement(montantCalcule);
-        abonnement.setPeriodAbonnement(abonnementFamilial.getPeriodAbonnement());
+        abonnement.setPrixAbonnement(prixTotal);
         abonnement.setDateDebutAbonnement(LocalDate.now());
-        abonnement.setDateFinAbonnement(abonnementFamilial.getDateFinAbonnement());
-        abonnement.setDateRappelFinAbonnement(abonnementFamilial.getDateRappelFinAbonnement());
-        abonnement.setNombreDeMois(BigDecimal.valueOf(ChronoUnit.MONTHS.between(LocalDate.now(), abonnementFamilial.getDateFinAbonnement())));
-        abonnement.setModeDePaiement(abonnementFamilial.getModeDePaiement());
+        abonnement.setPeriodAbonnement(dto.getPeriodAbonnement());
+
+        LocalDate dateFin = LocalDate.now().plusMonths(dto.getNombreMois().longValue());
+        abonnement.setDateFinAbonnement(dateFin);
+        abonnement.setDateRappelFinAbonnement(dateFin.minusDays(5));
+        abonnement.setNombreDeMois(dto.getNombreMois());
+        abonnement.setModeDePaiement(dto.getModeDePaiement());
         abonnement.setEnregistrerPar(currentUser);
         abonnement.setStatut(StatutAbonnement.EN_COURS);
-        abonnementRepository.save(abonnement);
 
-        membre.setFraisInscriptionPayer(true);
-        userRepository.save(membre);
-        factureCollectiveService.creeFactureCollective(famille, List.of(abonnement), montantCalcule.add(membre.getFraisInscription()));
-        emailService.envoyerEmailBienvenu(membre, userService.genererMotDePasse(membre));
+        Abonnement savedAbonnement = abonnementRepository.save(abonnement);
+        mettreAJourStatutAbonnement(savedAbonnement);
+        creerEnregistrementListePaimentFamilial(savedAbonnement, famille, currentUser, "renouvellement");
+
+        List<Abonnement> abonnementsRenouvelles = List.of(savedAbonnement);
+        factureCollectiveService.creeFactureCollective(famille, abonnementsRenouvelles, prixTotal);
+
+        logger.info("Abonnement familial renouvelé avec succès pour la famille {} - {} membres",
+                famille.getNom(), membres.size());
     }
 
-    //  8.  Annuler demande d'ajout
-    public void annulationAjoutMembre(Long membreId) throws MessagingException, AccessDeniedException {
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        boolean isStaff = currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.RECEPTIONNISTE || currentUser.getRole() == Role.GERANT;
+    // === MÉTHODES MANQUANTES POUR COMPLÉTER LE SERVICE ===
 
-        if (!isStaff) {
-            throw new AccessDeniedException("Seul un staff autorisé peut annuler un ajout.");
+    @Transactional
+    public void resilierAbonnement(Long familleId) throws AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!estMembreDuStaff(currentUser)) {
+            throw new AccessDeniedException("Seul les membres du staff peuvent résilier un abonnement familial");
         }
 
-        User membre = userRepository.findById(membreId)
-                .orElseThrow(() -> new RuntimeException("Membre introuvable"));
+        Famille famille = familleRepository.findById(familleId)
+                .orElseThrow(() -> new RuntimeException("Famille non trouvée"));
 
-        if (!currentUser.getGyms().contains(membre.getGym())) {
+        mettreAJourStatutsFamille(familleId);
+
+        if (!getUserGyms(currentUser).contains(famille.getGym())) {
             throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
         }
 
-        // Vérifier que le membre est en attente de validation
-        if (membre.getStatut() != StatutMembre.EN_ATTENTE_VALIDATION) {
-            throw new IllegalStateException("Seul un membre en attente de validation peut être annulé.");
+        // CORRECTION : Utiliser la méthode utilitaire pour remplacer findByFamilleAndStatut
+        List<Abonnement> abonnementsActifs = findByFamilleAndStatut(famille, StatutAbonnement.EN_COURS);
+
+        if (abonnementsActifs.isEmpty()) {
+            throw new RuntimeException("Aucun abonnement actif trouvé pour cette famille");
         }
 
-        // Récupérer le chef de famille via le téléphone de référence
-        User chefFamille = userRepository.findByTelephone(membre.getTelephoneReference())
-                .orElseThrow(() -> new RuntimeException("Chef de famille introuvable"));
+        for (Abonnement abonnement : abonnementsActifs) {
+            abonnement.setStatut(StatutAbonnement.RESILIE);
+            abonnement.setDateResiliation(LocalDate.now());
+            abonnementRepository.save(abonnement);
+            logger.info("Abonnement {} résilié", abonnement.getId());
+        }
 
-        // Supprimer le membre (ou marquer comme annulé selon votre préférence)
-        membre.setStatut(StatutMembre.REJETE); // Option 2 : Changer le statut (nécessite un nouveau statut)
-        userRepository.save(membre);
-
-        // Envoyer une notification au chef de famille
-        notificationService.notification(
-                chefFamille,
-                "Annulation de la demande d'ajout",
-                "La demande d'ajout de " + membre.getNom() + " " + membre.getPrenom() + " a été annulée.",
-                "Annulation ajout", TypeNotification.ABONNEMENT, true
-        );
-
-        // Envoyer une notification au staff (optionnel)
-        List<User> staff = userRepository.findByRoleIn(List.of(Role.ADMIN, Role.GERANT, Role.RECEPTIONNISTE));
-        staff.forEach(s -> {
-            try {
-                notificationService.notification(
-                        s,
-                        "Annulation de demande",
-                        "La demande d'ajout de " + membre.getNom() + " " + membre.getPrenom() + " a été annulée par " + currentUser.getNom(),
-                        "Annulation ajout", TypeNotification.ABONNEMENT, true
-                );
-            } catch (MessagingException e) {
-                throw new RuntimeException(e);
-            }
-        });
-
-        // Envoyer un email au chef de famille
-        emailService.envoyerEmail(
-                chefFamille.getEmail(),
-                "Annulation de la demande d'ajout",
-                "La demande d'ajout de " + membre.getNom() + " " + membre.getPrenom() + " à votre famille a été annulée."
-        );
+        logger.info("Abonnement familial résilié avec succès pour la famille {}", famille.getNom());
     }
 
-    //  9.  Montant restant
-    private BigDecimal calculerMontantRestant(Abonnement abonnement, Genre genre, BigDecimal fraisInscription) {
+    @Transactional
+    public void mettreAJourAbonnement(Long familleId, FamilleAbonnementDTO dto) throws AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!estMembreDuStaff(currentUser)) {
+            throw new AccessDeniedException("Seul les membres du staff peuvent mettre à jour un abonnement familial");
+        }
+
+        Famille famille = familleRepository.findById(familleId)
+                .orElseThrow(() -> new RuntimeException("Famille non trouvée"));
+
+        mettreAJourStatutsFamille(familleId);
+
+        if (!getUserGyms(currentUser).contains(famille.getGym())) {
+            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
+        }
+
+        // CORRECTION : Utiliser la méthode utilitaire pour remplacer findByFamilleAndStatut
+        List<Abonnement> abonnementsActifs = findByFamilleAndStatut(famille, StatutAbonnement.EN_COURS);
+
+        if (abonnementsActifs.isEmpty()) {
+            throw new RuntimeException("Aucun abonnement actif trouvé pour cette famille");
+        }
+
+        for (Abonnement abonnement : abonnementsActifs) {
+            // 🔥 CORRECTION : Recalculer le prix total pour la famille
+            BigDecimal prixTotal = BigDecimal.ZERO;
+            for (User membre : famille.getMembres()) {
+                BigDecimal base = (membre.getGenre() == Genre.FEMME) ? dto.getTarifFemme() : dto.getTarifHomme();
+                BigDecimal montantMembre = base.subtract(dto.getReductionParPersonne());
+
+                if (montantMembre.compareTo(BigDecimal.ZERO) < 0) {
+                    montantMembre = BigDecimal.ZERO;
+                }
+                prixTotal = prixTotal.add(montantMembre);
+            }
+
+            abonnement.setPrixAbonnement(prixTotal);
+            abonnement.setPeriodAbonnement(dto.getPeriodAbonnement());
+            abonnement.setModeDePaiement(dto.getModeDePaiement());
+            abonnement.setEnregistrerPar(currentUser);
+
+            abonnementRepository.save(abonnement);
+            mettreAJourStatutAbonnement(abonnement);
+        }
+
+        logger.info("Abonnement familial mis à jour avec succès pour la famille {}", famille.getNom());
+    }
+
+    /**
+     * Obtient le statut de l'abonnement d'une famille - CORRIGÉ : Retourne DTO
+     */
+    public AbonnementDTO getStatutAbonnement(Long familleId) {
+        Famille famille = familleRepository.findById(familleId)
+                .orElseThrow(() -> new RuntimeException("Famille non trouvée"));
+
+        mettreAJourStatutsFamille(familleId);
+
+        // CORRECTION : Utiliser la méthode utilitaire
+        Abonnement abonnementActif = findFirstByFamilleAndStatutActif(famille);
+
+        if (abonnementActif == null) {
+            throw new RuntimeException("Aucun abonnement actif trouvé pour cette famille");
+        }
+
+        return convertirEnAbonnementDTO(abonnementActif);
+    }
+
+    /**
+     * Obtient l'historique des abonnements d'une famille - CORRIGÉ : Retourne DTOs
+     */
+    public List<AbonnementDTO> getHistoriqueAbonnements(Long familleId) {
+        Famille famille = familleRepository.findById(familleId)
+                .orElseThrow(() -> new RuntimeException("Famille non trouvée"));
+
+        mettreAJourStatutsFamille(familleId);
+
+        List<Abonnement> abonnements = abonnementRepository.findByFamilleOrderByDateDebutAbonnementDesc(famille);
+
+        return abonnements.stream()
+                .map(this::convertirEnAbonnementDTO)
+                .collect(Collectors.toList());
+    }
+
+    public boolean estAbonnementActif(Long familleId) {
+        try {
+            Famille famille = familleRepository.findById(familleId)
+                    .orElseThrow(() -> new RuntimeException("Famille non trouvée"));
+
+            mettreAJourStatutsFamille(familleId);
+
+            // CORRECTION : Utiliser la méthode utilitaire
+            List<Abonnement> abonnementsActifs = findByFamilleAndStatut(famille, StatutAbonnement.EN_COURS);
+            return !abonnementsActifs.isEmpty();
+        } catch (Exception e) {
+            logger.error("Erreur lors de la vérification de l'abonnement actif: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    public String getDateExpiration(Long familleId) {
+        Famille famille = familleRepository.findById(familleId)
+                .orElseThrow(() -> new RuntimeException("Famille non trouvée"));
+
+        mettreAJourStatutsFamille(familleId);
+
+        // CORRECTION : Utiliser la méthode utilitaire
+        Abonnement abonnementActif = findFirstByFamilleAndStatutActif(famille);
+
+        if (abonnementActif == null) {
+            throw new RuntimeException("Aucun abonnement actif trouvé pour cette famille");
+        }
+
+        return abonnementActif.getDateFinAbonnement().toString();
+    }
+
+    public long getNombreAbonnementsActifs() {
+        List<Famille> familles = familleRepository.findAll();
+        for (Famille famille : familles) {
+            mettreAJourStatutsFamille(famille.getId());
+        }
+
+        return abonnementRepository.countByTypesAndStatut(TypeAbonnements.FAMILIALE, StatutAbonnement.EN_COURS);
+    }
+
+    /**
+     * Obtient les abonnements expirant bientôt - CORRIGÉ : Retourne DTOs
+     */
+    public List<AbonnementDTO> getAbonnementsExpirantBientot() {
         LocalDate aujourdHui = LocalDate.now();
-        long joursRestants = ChronoUnit.DAYS.between(aujourdHui, abonnement.getDateFinAbonnement());
-        long dureeTotale = ChronoUnit.DAYS.between(abonnement.getDateDebutAbonnement(), abonnement.getDateFinAbonnement());
-        BigDecimal tarifJournalier = genre.name().equals("FEMME") ? new BigDecimal("25000") : new BigDecimal("30000");
-        tarifJournalier = tarifJournalier.divide(BigDecimal.valueOf(dureeTotale), 2, RoundingMode.HALF_UP);
-        BigDecimal reduction = BigDecimal.valueOf(0.1); // 10% pour familial
-        BigDecimal montant = BigDecimal.valueOf(joursRestants).multiply(tarifJournalier).multiply(BigDecimal.ONE.subtract(reduction));
-        return montant.add(fraisInscription != null ? fraisInscription : BigDecimal.ZERO);
+        LocalDate dans7Jours = aujourdHui.plusDays(7);
+
+        List<Famille> familles = familleRepository.findAll();
+        for (Famille famille : familles) {
+            mettreAJourStatutsFamille(famille.getId());
+        }
+
+        // CORRECTION : Utiliser une méthode alternative
+        List<Abonnement> abonnementsFamiliaux = abonnementRepository.findByTypes(TypeAbonnements.FAMILIALE);
+
+        List<Abonnement> abonnementsExpirant = abonnementsFamiliaux.stream()
+                .filter(abonnement -> abonnement.getStatut() == StatutAbonnement.EN_COURS)
+                .filter(abonnement -> {
+                    LocalDate dateFin = abonnement.getDateFinAbonnement();
+                    return !dateFin.isBefore(aujourdHui) && !dateFin.isAfter(dans7Jours);
+                })
+                .collect(Collectors.toList());
+
+        return abonnementsExpirant.stream()
+                .map(this::convertirEnAbonnementDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void mettreEnPause(Long abonnementId) throws AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!estMembreDuStaff(currentUser)) {
+            throw new AccessDeniedException("Seul les membres du staff peuvent mettre un abonnement en pause");
+        }
+
+        Abonnement abonnement = abonnementRepository.findById(abonnementId)
+                .orElseThrow(() -> new RuntimeException("Abonnement non trouvé"));
+
+        if (!getUserGyms(currentUser).contains(abonnement.getGym())) {
+            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
+        }
+
+        if (abonnement.getStatut() != StatutAbonnement.EN_COURS) {
+            throw new RuntimeException("Seul un abonnement en cours peut être mis en pause");
+        }
+
+        abonnement.setStatut(StatutAbonnement.EN_PAUSE);
+        abonnement.setDatePauseAbonnement(LocalDate.now());
+        abonnementRepository.save(abonnement);
+
+        logger.info("Abonnement {} mis en pause", abonnementId);
+    }
+
+    @Transactional
+    public void reprendreAbonnement(Long abonnementId) throws AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!estMembreDuStaff(currentUser)) {
+            throw new AccessDeniedException("Seul les membres du staff peuvent reprendre un abonnement");
+        }
+
+        Abonnement abonnement = abonnementRepository.findById(abonnementId)
+                .orElseThrow(() -> new RuntimeException("Abonnement non trouvé"));
+
+        if (!getUserGyms(currentUser).contains(abonnement.getGym())) {
+            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
+        }
+
+        if (abonnement.getStatut() != StatutAbonnement.EN_PAUSE) {
+            throw new RuntimeException("Seul un abonnement en pause peut être repris");
+        }
+
+        long joursPause = ChronoUnit.DAYS.between(abonnement.getDatePauseAbonnement(), LocalDate.now());
+
+        LocalDate nouvelleDateFin = abonnement.getDateFinAbonnement().plusDays(joursPause);
+        abonnement.setDateFinAbonnement(nouvelleDateFin);
+        abonnement.setDateRappelFinAbonnement(nouvelleDateFin.minusDays(5));
+        abonnement.setStatut(StatutAbonnement.EN_COURS);
+        abonnement.setDatePauseAbonnement(null);
+
+        abonnementRepository.save(abonnement);
+        mettreAJourStatutAbonnement(abonnement);
+
+        logger.info("Abonnement {} repris après {} jours de pause", abonnementId, joursPause);
+    }
+
+    @Transactional
+    public void mettreAJourStatutAutomatiquement(Long abonnementId) {
+        Abonnement abonnement = abonnementRepository.findById(abonnementId)
+                .orElseThrow(() -> new RuntimeException("Abonnement non trouvé"));
+
+        mettreAJourStatutAbonnement(abonnement);
+    }
+
+    /**
+     * Convertit un Abonnement en AbonnementDTO (pour compatibilité)
+     */
+    private AbonnementDTO convertirEnAbonnementDTO(Abonnement abonnement) {
+        AbonnementDTO dto = new AbonnementDTO();
+        dto.setId(abonnement.getId());
+        dto.setPrixAbonnement(abonnement.getPrixAbonnement());
+        dto.setDateDebutAbonnement(abonnement.getDateDebutAbonnement());
+        dto.setDateFinAbonnement(abonnement.getDateFinAbonnement());
+        dto.setDateRappelFinAbonnement(abonnement.getDateRappelFinAbonnement());
+        dto.setPeriodAbonnement(abonnement.getPeriodAbonnement());
+        dto.setNombreDeMois(abonnement.getNombreDeMois());
+        dto.setModeDePaiement(abonnement.getModeDePaiement());
+        dto.setStatut(abonnement.getStatut());
+        dto.setTypes(abonnement.getTypes());
+
+        if (abonnement.getMembre() != null) {
+            dto.setMembreId(abonnement.getMembre().getId());
+            dto.setNomMembre(abonnement.getMembre().getNom() + " " + abonnement.getMembre().getPrenom());
+        }
+
+        if (abonnement.getFamille() != null) {
+            dto.setFamilleId(abonnement.getFamille().getId());
+            dto.setNomFamille(abonnement.getFamille().getNom());
+        }
+
+        if (abonnement.getGym() != null) {
+            dto.setGymId(abonnement.getGym().getId());
+            dto.setNomGym(abonnement.getGym().getNom());
+        }
+
+        return dto;
+    }
+
+    /**
+     * Obtient tous les abonnements familiaux - CORRIGÉ : Utilise maintenant les DTOs
+     */
+    public List<AbonnementDTO> getAllAbonnementsFamiliaux() {
+        // Utilise la nouvelle méthode DTO
+        return getAllAbonnementsFamiliauxDTO();
+    }
+
+    /**
+     * Obtient tous les abonnements familiaux d'un gym spécifique - CORRIGÉ : Utilise maintenant les DTOs
+     */
+    public List<AbonnementDTO> getAbonnementsFamiliauxParGym(Long gymId) {
+        // Utilise la nouvelle méthode DTO
+        return getAbonnementsFamiliauxDTOByGymId(gymId);
+    }
+
+    @Transactional
+    public void verifierEtNotifierAbonnementsExpires() throws MessagingException {
+        LocalDate aujourdHui = LocalDate.now();
+        LocalDate dateRappel = aujourdHui.plusDays(5);
+
+        List<Famille> familles = familleRepository.findAll();
+        for (Famille famille : familles) {
+            mettreAJourStatutsFamille(famille.getId());
+        }
+
+        // CORRECTION : Utiliser une méthode alternative
+        List<Abonnement> abonnementsFamiliaux = abonnementRepository.findByTypes(TypeAbonnements.FAMILIALE);
+
+        List<Abonnement> abonnementsExpirant = abonnementsFamiliaux.stream()
+                .filter(abonnement -> abonnement.getStatut() == StatutAbonnement.EN_COURS)
+                .filter(abonnement -> abonnement.getDateRappelFinAbonnement() != null &&
+                        abonnement.getDateRappelFinAbonnement().equals(dateRappel))
+                .collect(Collectors.toList());
+
+        for (Abonnement abonnement : abonnementsExpirant) {
+            // Notifier le chef de famille
+            User chefFamille = abonnement.getFamille().getChefFamille();
+
+            notificationService.notification(
+                    chefFamille,
+                    "Rappel d'expiration d'abonnement familial",
+                    "Votre abonnement familial pour " + abonnement.getFamille().getNom() + " expire le " + abonnement.getDateFinAbonnement(),
+                    "Expiration abonnement familial",
+                    TypeNotification.ABONNEMENT,
+                    true
+            );
+
+            emailService.envoyerEmail(
+                    chefFamille.getEmail(),
+                    "Rappel d'expiration d'abonnement familial",
+                    "Bonjour " + chefFamille.getPrenom() + ",\n\n" +
+                            "Votre abonnement familial pour " + abonnement.getFamille().getNom() + " expire le " + abonnement.getDateFinAbonnement() + ".\n" +
+                            "Pensez à le renouveler pour continuer à profiter de nos services.\n\n" +
+                            "Cordialement,\nL'équipe de la salle de sport"
+            );
+
+            logger.info("Notification d'expiration envoyée à {}", chefFamille.getEmail());
+        }
+
+        List<Abonnement> abonnementsExpires = abonnementsFamiliaux.stream()
+                .filter(abonnement -> abonnement.getStatut() == StatutAbonnement.EN_COURS)
+                .filter(abonnement -> abonnement.getDateFinAbonnement().isBefore(aujourdHui))
+                .collect(Collectors.toList());
+
+        for (Abonnement abonnement : abonnementsExpires) {
+            abonnement.setStatut(StatutAbonnement.EXPIRE);
+            abonnementRepository.save(abonnement);
+            logger.info("Abonnement {} marqué comme expiré", abonnement.getId());
+        }
+    }
+
+    public Map<String, Object> getStatistiquesAbonnementsFamiliaux() {
+        List<Famille> familles = familleRepository.findAll();
+        for (Famille famille : familles) {
+            mettreAJourStatutsFamille(famille.getId());
+        }
+
+        Map<String, Object> statistiques = new HashMap<>();
+
+        long totalAbonnements = abonnementRepository.countByTypes(TypeAbonnements.FAMILIALE);
+        statistiques.put("totalAbonnements", totalAbonnements);
+
+        long abonnementsActifs = abonnementRepository.countByTypesAndStatut(TypeAbonnements.FAMILIALE, StatutAbonnement.EN_COURS);
+        statistiques.put("abonnementsActifs", abonnementsActifs);
+
+        long abonnementsEnPause = abonnementRepository.countByTypesAndStatut(TypeAbonnements.FAMILIALE, StatutAbonnement.EN_PAUSE);
+        statistiques.put("abonnementsEnPause", abonnementsEnPause);
+
+        long abonnementsExpires = abonnementRepository.countByTypesAndStatut(TypeAbonnements.FAMILIALE, StatutAbonnement.EXPIRE);
+        statistiques.put("abonnementsExpires", abonnementsExpires);
+
+        long abonnementsResilies = abonnementRepository.countByTypesAndStatut(TypeAbonnements.FAMILIALE, StatutAbonnement.RESILIE);
+        statistiques.put("abonnementsResilies", abonnementsResilies);
+
+        BigDecimal chiffreAffairesTotal = abonnementRepository.getChiffreAffairesTotalFamilial();
+        statistiques.put("chiffreAffairesTotal", chiffreAffairesTotal != null ? chiffreAffairesTotal : BigDecimal.ZERO);
+
+        return statistiques;
+    }
+
+    @Transactional
+    public void supprimerAbonnement(Long abonnementId) {
+        Abonnement abonnement = abonnementRepository.findById(abonnementId)
+                .orElseThrow(() -> new RuntimeException("Abonnement non trouvé"));
+
+        if (abonnement.getStatut() == StatutAbonnement.EN_COURS) {
+            throw new RuntimeException("Impossible de supprimer un abonnement actif");
+        }
+
+        abonnementRepository.delete(abonnement);
+        logger.info("Abonnement {} supprimé", abonnementId);
+    }
+
+    // === MÉTHODES UTILITAIRES POUR LE CALCUL DES PRIX ===
+
+    public BigDecimal calculerPrixFamilialTotal(Famille famille, BigDecimal tarifHomme, BigDecimal tarifFemme, BigDecimal reductionParPersonne, BigDecimal nombreMois) {
+        List<User> membres = famille.getMembres();
+        if (membres == null || membres.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal total = BigDecimal.ZERO;
+
+        for (User membre : membres) {
+            BigDecimal base = (membre.getGenre() == Genre.FEMME) ? tarifFemme : tarifHomme;
+            BigDecimal montantMembre = base.subtract(reductionParPersonne);
+
+            if (montantMembre.compareTo(BigDecimal.ZERO) < 0) {
+                montantMembre = BigDecimal.ZERO;
+            }
+
+            montantMembre = montantMembre.multiply(nombreMois);
+
+            BigDecimal fraisInscription = membre.getFraisInscription() != null ? membre.getFraisInscription() : BigDecimal.ZERO;
+            total = total.add(montantMembre.add(fraisInscription));
+        }
+
+        return total;
+    }
+
+    /**
+     * 🔥 CORRIGÉ : Créer un seul abonnement familial et le retourner
+     */
+    @Transactional
+    public List<Abonnement> creerAbonnementFamilialEtRetourner(FamilleAbonnementDTO dto) throws MessagingException, AccessDeniedException {
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        if (!estMembreDuStaff(currentUser)) {
+            throw new RuntimeException("Seul les membres du staff peuvent créer un abonnement familial");
+        }
+
+        Famille famille = familleRepository.findById(dto.getFamilleId())
+                .orElseThrow(() -> new RuntimeException("Famille non trouvée"));
+
+        mettreAJourStatutsFamille(famille.getId());
+
+        if (!getUserGyms(currentUser).contains(famille.getGym())) {
+            throw new AccessDeniedException("Accès refusé : vous n'êtes pas autorisé à gérer ce gym.");
+        }
+
+        List<User> membres = famille.getMembres();
+        if (membres == null || membres.isEmpty()) {
+            throw new RuntimeException("La famille ne contient aucun membre");
+        }
+
+        BigDecimal tarifHomme = dto.getTarifHomme() != null ? dto.getTarifHomme() : BigDecimal.ZERO;
+        BigDecimal tarifFemme = dto.getTarifFemme() != null ? dto.getTarifFemme() : BigDecimal.ZERO;
+        BigDecimal reductionParPersonne = dto.getReductionParPersonne() != null ? dto.getReductionParPersonne() : BigDecimal.ZERO;
+
+        // 🔥 CORRECTION : Calculer le prix TOTAL pour toute la famille
+        BigDecimal prixTotal = BigDecimal.ZERO;
+        for (User membre : membres) {
+            BigDecimal base = (membre.getGenre() == Genre.FEMME) ? tarifFemme : tarifHomme;
+            BigDecimal montantMembre = base.subtract(reductionParPersonne);
+
+            if (montantMembre.compareTo(BigDecimal.ZERO) < 0) {
+                montantMembre = BigDecimal.ZERO;
+            }
+            prixTotal = prixTotal.add(montantMembre);
+        }
+
+        // 🔥 CORRECTION : Créer UN SEUL abonnement pour toute la famille
+        Abonnement abonnement = new Abonnement();
+        abonnement.setFamille(famille);
+        abonnement.setMembre(null); // 🔥 IMPORTANT : Pas de membre spécifique
+        abonnement.setGym(famille.getGym());
+        abonnement.setTypes(TypeAbonnements.FAMILIALE);
+        abonnement.setPrixAbonnement(prixTotal);
+        abonnement.setDateDebutAbonnement(LocalDate.now());
+        abonnement.setPeriodAbonnement(dto.getPeriodAbonnement());
+
+        LocalDate dateFin = LocalDate.now().plusMonths(dto.getNombreMois().longValue());
+        abonnement.setDateFinAbonnement(dateFin);
+        abonnement.setDateRappelFinAbonnement(dateFin.minusDays(5));
+        abonnement.setNombreDeMois(dto.getNombreMois());
+        abonnement.setModeDePaiement(dto.getModeDePaiement());
+        abonnement.setEnregistrerPar(currentUser);
+        abonnement.setStatut(StatutAbonnement.EN_COURS);
+
+        Abonnement savedAbonnement = abonnementRepository.save(abonnement);
+        mettreAJourStatutAbonnement(savedAbonnement);
+        creerEnregistrementListePaimentFamilial(savedAbonnement, famille, currentUser, "création");
+
+        // Marquer les frais d'inscription comme payés pour tous les membres
+        for (User membre : membres) {
+            membre.setFraisInscriptionPayer(true);
+            userRepository.save(membre);
+        }
+
+        List<Abonnement> abonnements = List.of(savedAbonnement);
+        factureCollectiveService.creeFactureCollective(famille, abonnements, prixTotal);
+
+        return abonnements; // 🔥 Retourne une liste avec UN seul abonnement
     }
 }

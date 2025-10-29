@@ -1,6 +1,5 @@
 package com.cwa.GestionDeSalleDeSportV2.Entity;
 
-
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Genre;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
@@ -48,7 +47,6 @@ public class User implements UserDetails {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "gym_id")
     )
-
     private List<Gym> gyms = new ArrayList<>();
     private String nom;
     private String prenom;
@@ -60,14 +58,11 @@ public class User implements UserDetails {
 
     private String password;
 
-//    @PastOrPresent(message = "La date de naissance ne peut pas être dans le futur")
-    //@AgeConstraint(min = 16, max = 80, message = "l'âge doit être comprise entre 16 et 80 ans")
     private String date_de_naissance;
 
-    @CreationTimestamp // Veut dire que la date est (private LocalDateTime  date_creation = LocalDateTime.now(); )
+    @CreationTimestamp
     private LocalDateTime date_creation;
 
-    //@NotNull(message = "Le role est obligatoire")
     @Enumerated(EnumType.STRING)
     private Role role;
     private LocalDateTime lastLogin;
@@ -85,13 +80,13 @@ public class User implements UserDetails {
     private List<Abonnement> abonnements = new ArrayList<>();
 
     @Column
-    private String telephoneReference; // Numéro de téléphone du chef de famille
+    private String telephoneReference;
 
     @Column
-    private LocalDate dateRetrait; // Date à laquelle le retrait prend effet
+    private LocalDate dateRetrait;
 
     @Enumerated(EnumType.STRING)
-    private StatutMembre statut; // Nouveau champ
+    private StatutMembre statut;
 
     @ManyToOne
     @JoinColumn(name = "famille_id")
@@ -108,7 +103,7 @@ public class User implements UserDetails {
 
     @OneToMany(mappedBy = "membre")
     @JsonBackReference
-    private List<Vente> ventes; // Historique des ventes pour l'acheteur
+    private List<Vente> ventes;
 
     private boolean isVerified = false;
 
@@ -120,11 +115,11 @@ public class User implements UserDetails {
     @JoinColumn(name = "type_de_service_id", nullable = true)
     private TypeDeService typeDeService;
 
-    @Lob
-    @Column(name = "profil", columnDefinition = "LONGBLOB")
-    private byte[] profil;
-    private String imageUrl;
+    @Column
+    private String imageUrl; // Chemin de la photo (ex. "/uploads/users/123/photo.jpg")
 
+    @Column(nullable = false)
+    private boolean enabled = true;
 
     @AssertTrue(message = "L'âge doit être compris entre 16 et 80 ans")
     public boolean isValidAge() {
@@ -134,7 +129,7 @@ public class User implements UserDetails {
         try {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             LocalDate birthDate = LocalDate.parse(date_de_naissance, formatter);
-            LocalDate currentDate = LocalDate.now(); // 2025-08-28, 11:21 AM GMT
+            LocalDate currentDate = LocalDate.now();
             int age = Period.between(birthDate, currentDate).getYears();
             return age >= 16 && age <= 80;
         } catch (Exception e) {
@@ -142,13 +137,9 @@ public class User implements UserDetails {
         }
     }
 
-    @Column(nullable = false)
-    private boolean enabled = true; // Champ pour activer/désactiver l'utilisateur
-
-
     @Override
     public boolean isEnabled() {
-        return this.enabled; // ou une logique basée sur un champ comme `isActive`
+        return this.enabled;
     }
 
     @Override
@@ -166,16 +157,24 @@ public class User implements UserDetails {
         return true;
     }
 
-    // Méthode pour ajouter un gym et synchroniser
     public void addGym(Gym gymToAdd) {
         if (!gyms.contains(gymToAdd)) {
             gyms.add(gymToAdd);
         }
         if (this.gym == null) {
-            this.gym = gymToAdd; // Définir comme gym principal si aucun n'est défini
+            this.gym = gymToAdd;
         }
     }
 
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
+    }
+
+    @Override
+    public String getUsername() {
+        return this.telephone;
+    }
 
     public Long getId() {
         return id;
@@ -249,18 +248,8 @@ public class User implements UserDetails {
         this.genre = genre;
     }
 
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_"+this.role.name()));
-    }
-
     public String getPassword() {
         return password;
-    }
-
-    @Override
-    public String getUsername() {
-        return this.telephone;
     }
 
     public void setPassword(String password) {
@@ -273,14 +262,6 @@ public class User implements UserDetails {
 
     public void setDate_de_naissance(String date_de_naissance) {
         this.date_de_naissance = date_de_naissance;
-    }
-
-    public List<Notification> getNotifications() {
-        return notifications;
-    }
-
-    public void setNotifications(List<Notification> notifications) {
-        this.notifications = notifications;
     }
 
     public LocalDateTime getDate_creation() {
@@ -327,16 +308,16 @@ public class User implements UserDetails {
         return fraisInscriptionPayer;
     }
 
+    public void setFraisInscriptionPayer(Boolean fraisInscriptionPayer) {
+        this.fraisInscriptionPayer = fraisInscriptionPayer;
+    }
+
     public Long getStaff() {
         return staff;
     }
 
     public void setStaff(Long staff) {
         this.staff = staff;
-    }
-
-    public void setFraisInscriptionPayer(Boolean fraisInscriptionPayer) {
-        this.fraisInscriptionPayer = fraisInscriptionPayer;
     }
 
     public ModeDePaiement getModeDePaiement() {
@@ -387,6 +368,14 @@ public class User implements UserDetails {
         this.famille = famille;
     }
 
+    public List<Notification> getNotifications() {
+        return notifications;
+    }
+
+    public void setNotifications(List<Notification> notifications) {
+        this.notifications = notifications;
+    }
+
     public List<DemandeInscription> getDemandes() {
         return demandes;
     }
@@ -435,18 +424,6 @@ public class User implements UserDetails {
         this.typeDeService = typeDeService;
     }
 
-    public byte[] getProfil() {
-        return profil;
-    }
-
-    public void setProfil(byte[] profil) {
-        this.profil = profil;
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
     public String getImageUrl() {
         return imageUrl;
     }
@@ -454,5 +431,8 @@ public class User implements UserDetails {
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
     }
-}
 
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+}
