@@ -51,12 +51,21 @@ public class SecurityConfig {
                                 .requestMatchers(
                                         "/api/auth/**",
                                         "/images/**",
-                                        "/uploads/**", // Autoriser l'accès public aux images
+                                        "/uploads/**",
                                         "/api/demandeInscriptions/inscriptin/en-ligne",
                                         "/error",
                                         "/swagger-ui/**",
                                         "/api-docs/**",
-                                        "/v3/api-docs/**"
+                                        "/v3/api-docs/**",
+
+                                        // AJOUTÉ : tous les endpoints produits publics
+                                        "/api/produits/**",
+                                        "/api/abonnements/**",
+                                        "/api/forfaits/**",
+                                        "/api/cours-collectifs/**",
+                                        "/api/tarifs/**",
+                                        "/api/horaires/**",
+                                        "/api/coaches/**"
                                 ).permitAll()
                                 .requestMatchers("/api/users/changer").authenticated()
                                 .requestMatchers("/api/familles/**").authenticated()

@@ -21,13 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.AccessDeniedException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -312,8 +306,8 @@ public class FamilleService {
         User nouveauMembre;
 
         if (membreExistant != null) {
-            if (membreExistant.getFamille() != null) {
-                throw new IllegalArgumentException("Ce membre appartient déjà à une famille.");
+            if (membreExistant.getFamille() != null && !membreExistant.getFamille().getId().equals(familleId)) {
+                throw new IllegalArgumentException("Ce membre appartient déjà à une autre famille.");
             }
             nouveauMembre = membreExistant;
         } else {
@@ -863,6 +857,134 @@ public class FamilleService {
         logger.info("=== [Analyse données pour debug] Fin ===");
 
         return analyse;
+    }
+
+    // === MÉTHODES CORRIGÉES POUR LES MEMBRES DISPONIBLES ===
+
+    // 29. CORRECTION : Récupérer les membres disponibles pour une famille
+    @Transactional(readOnly = true)
+    public List<User> getMembresDisponiblesPourFamille(Long familleId, Long gymId) {
+        logger.info("🔍 [SERVICE] Recherche des membres disponibles pour famille ID: {} dans gym ID: {}", familleId, gymId);
+
+        try {
+            // Vérifier que la famille existe
+            Famille famille = familleRepository.findById(familleId)
+                    .orElseThrow(() -> new EntityNotFoundException("Famille non trouvée avec l'ID: " + familleId));
+
+            // CORRECTION : Utiliser la méthode du repository qui filtre correctement
+            List<User> membresDisponibles = userRepository.findMembresDisponiblesPourFamille(familleId, gymId);
+
+            // FILTRE DE SÉCURITÉ SUPPLÉMENTAIRE
+            List<User> membresFiltres = membresDisponibles.stream()
+                    .filter(membre -> {
+                        boolean estDisponible = membre.getFamille() == null || membre.getFamille().getId().equals(familleId);
+                        if (!estDisponible) {
+                            logger.warn("🚫 Membre {} {} (ID: {}) filtré - appartient à famille ID: {}",
+                                    membre.getNom(), membre.getPrenom(), membre.getId(),
+                                    membre.getFamille() != null ? membre.getFamille().getId() : "null");
+                        }
+                        return estDisponible;
+                    })
+                    .collect(Collectors.toList());
+
+            logger.info("✅ [SERVICE] {} membres disponibles trouvés pour famille ID: {} ({} après filtrage)",
+                    membresDisponibles.size(), familleId, membresFiltres.size());
+
+            // Log pour debug
+            for (User membre : membresFiltres) {
+                logger.debug("📋 Membre disponible: {} {} (ID: {}, Famille: {})",
+                        membre.getNom(), membre.getPrenom(), membre.getId(),
+                        membre.getFamille() != null ? membre.getFamille().getId() : "null");
+            }
+
+            return membresFiltres;
+
+        } catch (Exception e) {
+            logger.error("❌ [SERVICE] Erreur lors de la recherche des membres disponibles: {}", e.getMessage());
+            // Fallback : utiliser la méthode alternative
+            return getMembresDisponiblesPourFamilleAlternative(familleId, gymId);
+        }
+    }
+
+    // 30. MÉTHODE ALTERNATIVE si le repository ne fonctionne pas
+    @Transactional(readOnly = true)
+    public List<User> getMembresDisponiblesPourFamilleAlternative(Long familleId, Long gymId) {
+        logger.info("🔍 [ALTERNATIVE] Recherche des membres disponibles pour famille ID: {} dans gym ID: {}", familleId, gymId);
+
+        try {
+            // Récupérer tous les membres du gym
+            List<User> tousLesMembres = userRepository.findByGymIdAndRole(gymId, Role.MEMBRE);
+
+            // Filtrer manuellement
+            List<User> membresDisponibles = tousLesMembres.stream()
+                    .filter(membre -> {
+                        // Membre sans famille
+                        if (membre.getFamille() == null) {
+                            return true;
+                        }
+                        // Membre déjà dans cette famille
+                        if (membre.getFamille().getId().equals(familleId)) {
+                            return true;
+                        }
+                        // Membre dans une autre famille - NON DISPONIBLE
+                        return false;
+                    })
+                    .collect(Collectors.toList());
+
+            logger.info("✅ [ALTERNATIVE] {} membres disponibles trouvés sur {} membres totaux",
+                    membresDisponibles.size(), tousLesMembres.size());
+
+            return membresDisponibles;
+
+        } catch (Exception e) {
+            logger.error("❌ [ALTERNATIVE] Erreur lors de la recherche alternative: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    // 31. Obtenir les membres sans famille ou dans une famille spécifique
+    @Transactional(readOnly = true)
+    public List<User> getMembresSansFamilleOuDansFamille(Long familleId) {
+        logger.info("🔍 [SERVICE] Recherche des membres sans famille ou dans famille ID: {}", familleId);
+
+        try {
+            List<User> membres = userRepository.findMembresSansFamilleOuDansFamille(familleId);
+
+            logger.info("✅ [SERVICE] {} membres trouvés pour famille ID: {}", membres.size(), familleId);
+
+            return membres;
+
+        } catch (Exception e) {
+            logger.error("❌ [SERVICE] Erreur lors de la recherche des membres: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    // 32. Obtenir les statistiques des membres disponibles
+    @Transactional(readOnly = true)
+    public Map<String, Object> getStatistiquesMembresDisponibles(Long familleId, Long gymId) {
+        logger.info("🔍 [SERVICE] Récupération des statistiques des membres disponibles pour famille ID: {}", familleId);
+
+        Map<String, Object> stats = new HashMap<>();
+
+        try {
+            Long totalMembres = userRepository.countByRole(Role.MEMBRE);
+            Long membresDisponibles = userRepository.countMembresDisponiblesPourFamille(familleId, gymId);
+            Long membresDansFamille = userRepository.countByFamilleIsNotNullAndRole(Role.MEMBRE);
+
+            stats.put("totalMembres", totalMembres);
+            stats.put("membresDisponibles", membresDisponibles);
+            stats.put("membresDansFamille", membresDansFamille);
+            stats.put("familleActuelleId", familleId);
+
+            logger.info("✅ [SERVICE] Statistiques récupérées: {}", stats);
+
+        } catch (Exception e) {
+            logger.error("❌ [SERVICE] Erreur lors de la récupération des statistiques: {}", e.getMessage());
+            stats.put("erreur", e.getMessage());
+        }
+
+        return stats;
     }
 
     // === MÉTHODES UTILITAIRES ===

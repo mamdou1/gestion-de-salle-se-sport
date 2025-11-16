@@ -1,6 +1,5 @@
 package com.cwa.GestionDeSalleDeSportV2.Service;
 
-
 import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.FactureCollective;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Famille;
@@ -31,7 +30,17 @@ public class FactureCollectiveService {
         FactureCollective facture = new FactureCollective();
 
         facture.setFamille(famille);
-        facture.setBeneficiaires(abonnements.stream().map(Abonnement::getMembre).toList());
+
+        // 🔥 CORRECTION : Définir le bénéficiaire principal
+        User chefFamille = famille.getChefFamille();
+        if (chefFamille == null && !famille.getMembres().isEmpty()) {
+            chefFamille = famille.getMembres().get(0);
+        }
+        facture.setBeneficiairePrincipal(chefFamille);
+
+        // 🔥 CORRECTION : Supprimer la ligne qui cause l'erreur
+        // facture.setBeneficiaires(abonnements.stream().map(Abonnement::getMembre).toList());
+
         facture.setMontantTotal(total);
         BigDecimal fraisInscriptionTotal = abonnements.stream()
                 .map(Abonnement::getMembre)

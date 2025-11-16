@@ -150,7 +150,8 @@ public class DocumentService {
         table.addCell("frais d'inscription");
         table.addCell("tarif final");
 
-        for (User membre : facture.getBeneficiaires()){
+        // 🔥 CORRECTION : Remplacer facture.getBeneficiaires() par facture.getFamille().getMembres()
+        for (User membre : facture.getFamille().getMembres()){
 
             BigDecimal tarifDeBase = membre.getGenre().name().equals("FEMME") ? new BigDecimal("25000") : new BigDecimal("30000");
             BigDecimal tarifFinal = facture.getAbonnementsInclus().stream()

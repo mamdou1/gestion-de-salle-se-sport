@@ -137,5 +137,17 @@ public class EmailService {
         envoyerEmailGymAMembre( gym.getEmail(),user.getEmail(), "Bienvenu dans l'équipe", message);
     }
 
+    // Dans votre EmailService.java, ajoutez cette méthode :
+    public void envoyerNouveauMotDePasse(User user, String nouveauMotDePasse) throws MessagingException {
+        // Implémentez l'envoi d'email avec le nouveau mot de passe
+        String sujet = "Réinitialisation de votre mot de passe";
+        String contenu = "Bonjour " + user.getPrenom() + " " + user.getNom() + ",\n\n"
+                + "Votre mot de passe a été réinitialisé. Voici votre nouveau mot de passe : " + nouveauMotDePasse + "\n\n"
+                + "Nous vous recommandons de changer ce mot de passe après votre première connexion.\n\n"
+                + "Cordialement,\nL'équipe de votre salle de sport";
+
+        envoyerEmail(user.getEmail(), sujet, contenu);
+    }
+
 }
 

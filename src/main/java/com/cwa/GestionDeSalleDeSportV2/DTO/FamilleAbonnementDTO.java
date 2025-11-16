@@ -35,8 +35,7 @@ public class FamilleAbonnementDTO {
 
     @NotNull(message = "Le mode payement est obligatoire")
     private ModeDePaiement modeDePaiement;
-
-    private Long gymId;
+    
 
     // 🔥 AJOUT : Pour spécifier le type de service
     private Long typeDeServiceId;
@@ -96,14 +95,6 @@ public class FamilleAbonnementDTO {
 
     public void setModeDePaiement(ModeDePaiement modeDePaiement) {
         this.modeDePaiement = modeDePaiement;
-    }
-
-    public Long getGymId() {
-        return gymId;
-    }
-
-    public void setGymId(Long gymId) {
-        this.gymId = gymId;
     }
 
     // 🔥 AJOUT : Getter/Setter pour type de service

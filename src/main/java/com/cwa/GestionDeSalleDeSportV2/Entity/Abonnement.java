@@ -223,6 +223,7 @@ public class Abonnement {
     public void setDateResiliation(LocalDate dateResiliation) {
         this.dateResiliation = dateResiliation;
     }
+
 }
 
 

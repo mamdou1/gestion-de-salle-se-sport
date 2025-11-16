@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
-    //User findByUsername(String username);
 
     Optional<User> findByTelephone(String telephone);
 
@@ -50,67 +49,34 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // MÉTHODES ESSENTIELLES POUR LE COMPTAGE CORRECT DES MEMBRES SANS FAMILLE
     // =========================================================================
 
-    /**
-     * Compte tous les membres (utilisateurs avec rôle MEMBRE)
-     */
     long countByRole(Role role);
 
-    /**
-     * Compte les membres sans famille - MÉTHODE LA PLUS IMPORTANTE
-     */
     long countByFamilleIsNullAndRole(Role role);
 
-    /**
-     * Compte les membres avec famille
-     */
     long countByFamilleIsNotNullAndRole(Role role);
 
-    /**
-     * Trouve tous les membres (utilisateurs avec rôle MEMBRE)
-     */
     List<User> findByRole(Role role);
 
-    /**
-     * Trouve tous les membres sans famille
-     */
     List<User> findByFamilleIsNullAndRole(Role role);
 
-    /**
-     * Trouve tous les membres avec famille
-     */
     List<User> findByFamilleIsNotNullAndRole(Role role);
 
     // =========================================================================
     // MÉTHODES DE REQUÊTES PERSONNALISÉES SIMPLES ET SÛRES
     // =========================================================================
 
-    /**
-     * Compte le nombre total de membres avec une requête JPQL
-     */
     @Query("SELECT COUNT(u) FROM User u WHERE u.role = com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role.MEMBRE")
     Long countTotalMembres();
 
-    /**
-     * Compte le nombre de membres sans famille avec une requête JPQL
-     */
     @Query("SELECT COUNT(u) FROM User u WHERE u.role = com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role.MEMBRE AND u.famille IS NULL")
     Long countMembresSansFamille();
 
-    /**
-     * Compte le nombre de membres avec famille avec une requête JPQL
-     */
     @Query("SELECT COUNT(u) FROM User u WHERE u.role = com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role.MEMBRE AND u.famille IS NOT NULL")
     Long countMembresAvecFamille();
 
-    /**
-     * Trouve les membres sans famille avec leurs détails complets
-     */
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.gym WHERE u.role = com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role.MEMBRE AND u.famille IS NULL")
     List<User> findMembresSansFamilleWithDetails();
 
-    /**
-     * Statistiques détaillées sur les membres et les familles
-     */
     @Query("SELECT " +
             "COUNT(u) as totalMembres, " +
             "COUNT(CASE WHEN u.famille IS NULL THEN 1 END) as membresSansFamille, " +
@@ -118,9 +84,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
             "FROM User u WHERE u.role = com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role.MEMBRE")
     Object[] getStatistiquesMembresFamilles();
 
-    /**
-     * Vérification de cohérence des données entre membres et familles
-     */
     @Query("SELECT " +
             "f.id as familleId, " +
             "f.nom as familleNom, " +
@@ -134,33 +97,18 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // MÉTHODES POUR LA GESTION DES ABONNEMENTS ET SERVICES
     // =========================================================================
 
-    /**
-     * Trouve les membres sans famille avec un type de service spécifique
-     */
     List<User> findByFamilleIsNullAndRoleAndTypeDeService(Role role, TypeDeService typeDeService);
 
-    /**
-     * Compte les membres sans famille avec un type de service spécifique
-     */
     long countByFamilleIsNullAndRoleAndTypeDeService(Role role, TypeDeService typeDeService);
 
-    /**
-     * Trouve les membres avec famille avec un type de service spécifique
-     */
     List<User> findByFamilleIsNotNullAndRoleAndTypeDeService(Role role, TypeDeService typeDeService);
 
-    /**
-     * Compte les membres avec famille avec un type de service spécifique
-     */
     long countByFamilleIsNotNullAndRoleAndTypeDeService(Role role, TypeDeService typeDeService);
 
     // =========================================================================
     // MÉTHODES SIMPLES POUR LES RAPPORTS
     // =========================================================================
 
-    /**
-     * Rapport détaillé des membres par famille et statut
-     */
     @Query("SELECT " +
             "CASE WHEN u.famille IS NULL THEN 'Sans Famille' ELSE f.nom END as groupe, " +
             "u.statut as statut, " +
@@ -172,20 +120,66 @@ public interface UserRepository extends JpaRepository<User, Long> {
             "ORDER BY groupe, u.statut")
     List<Object[]> getRapportMembresParFamilleEtStatut();
 
-    /**
-     * Membres récents sans famille (pour les tableaux de bord)
-     */
     @Query("SELECT u FROM User u WHERE u.role = com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role.MEMBRE " +
             "AND u.famille IS NULL " +
             "ORDER BY u.date_creation DESC")
     List<User> findMembresRecentsSansFamille();
 
-    /**
-     * Recherche de membres sans famille par nom ou prénom
-     */
     @Query("SELECT u FROM User u WHERE u.role = com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role.MEMBRE " +
             "AND u.famille IS NULL " +
             "AND (LOWER(u.nom) LIKE LOWER(CONCAT('%', :recherche, '%')) " +
             "OR LOWER(u.prenom) LIKE LOWER(CONCAT('%', :recherche, '%')))")
     List<User> searchMembresSansFamille(@Param("recherche") String recherche);
+
+    // =========================================================================
+    // MÉTHODES CORRIGÉES POUR LES MEMBRES DISPONIBLES
+    // =========================================================================
+
+    @Query("SELECT u FROM User u WHERE u.role = com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role.MEMBRE " +
+            "AND (u.famille IS NULL OR u.famille.id = :familleId) " +
+            "AND u.gym.id = :gymId")
+    List<User> findMembresDisponiblesPourFamille(@Param("familleId") Long familleId, @Param("gymId") Long gymId);
+
+    @Query("SELECT COUNT(u) FROM User u WHERE u.role = com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role.MEMBRE " +
+            "AND (u.famille IS NULL OR u.famille.id = :familleId) " +
+            "AND u.gym.id = :gymId")
+    Long countMembresDisponiblesPourFamille(@Param("familleId") Long familleId, @Param("gymId") Long gymId);
+
+    @Query("SELECT u FROM User u WHERE u.role = com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role.MEMBRE " +
+            "AND (u.famille IS NULL OR u.famille.id = :familleId)")
+    List<User> findMembresSansFamilleOuDansFamille(@Param("familleId") Long familleId);
+
+    List<User> findByGymIdAndRole(Long gymId, Role role);
+
+    List<User> findByGymId(Long gymId);
+
+    // ========================================================================
+    // MÉTHODES CORRIGÉES (les seules qui faisaient planter l'application)
+    // ========================================================================
+
+    @Query("SELECT u FROM User u WHERE u.date_creation > :date AND u.role = :role")
+    List<User> findByDateCreationAfterAndRole(@Param("date") LocalDateTime date, @Param("role") Role role);
+
+    @Query("SELECT COUNT(u) FROM User u " +
+            "WHERE u.date_creation > :date " +
+            "AND u.gym IN :gyms " +
+            "AND u.role = :role")
+    long countByDateCreationAfterAndGymInAndRole(
+            @Param("date") LocalDateTime date,
+            @Param("gyms") List<Gym> gyms,
+            @Param("role") Role role);
+
+    // ========================================================================
+    // LE RESTE (inchangé)
+    // ========================================================================
+
+    List<User> findByNomContainingOrPrenomContainingAndGymInAndRole(String nom, String prenom, List<Gym> gyms, Role role);
+    boolean existsByEmail(String email);
+    boolean existsByTelephone(String telephone);
+    List<User> findByGenreAndGymInAndRole(Genre genre, List<Gym> gyms, Role role);
+    List<User> findByTypeDeServiceAndGymIn(TypeDeService typeDeService, List<Gym> gyms);
+    List<User> findByFamilleIsNullAndGymInAndRole(List<Gym> gyms, Role role);
+    long countByGymInAndRole(List<Gym> gyms, Role role);
+    long countByGenreAndGymInAndRole(Genre genre, List<Gym> gyms, Role role);
+    long countByFamilleIsNullAndGymInAndRole(List<Gym> gyms, Role role);
 }

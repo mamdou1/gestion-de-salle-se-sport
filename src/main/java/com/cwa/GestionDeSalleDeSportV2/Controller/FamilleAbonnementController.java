@@ -3,6 +3,8 @@ package com.cwa.GestionDeSalleDeSportV2.Controller;
 import com.cwa.GestionDeSalleDeSportV2.DTO.AbonnementDTO;
 import com.cwa.GestionDeSalleDeSportV2.DTO.FamilleAbonnementDTO;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.ModeDePaiement;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.PeriodAbonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Famille;
 import com.cwa.GestionDeSalleDeSportV2.Repository.FamilleRepository;
 import com.cwa.GestionDeSalleDeSportV2.Service.FamilleAbonnementService;
@@ -15,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.mail.MessagingException;
 import jakarta.persistence.EntityNotFoundException;
+
+import java.math.BigDecimal;
 import java.nio.file.AccessDeniedException;
 import java.util.HashMap;
 import java.util.List;
@@ -152,30 +156,137 @@ public class FamilleAbonnementController {
     // 1. Créer un abonnement familial - CORRIGÉ
     @PostMapping("/cree_abonnement")
     @PreAuthorize("hasAnyRole('ADMIN', 'GERANT', 'RECEPTIONNISTE')")
-    public ResponseEntity<List<AbonnementDTO>> creerAbonnementFamilial(@RequestBody FamilleAbonnementDTO dto) {
+    public ResponseEntity<?> creerAbonnementFamilial(@RequestBody FamilleAbonnementDTO dto) {
         try {
-            logger.info("📥 Création d'abonnement familial pour la famille {}", dto.getFamilleId());
+            logger.info("🎯 === DÉBUT CREATION ABONNEMENT FAMILIAL ===");
+            logger.info("📥 DTO REÇU: {}", dto.toString());
+
+            // 🔥 SUPPRIMER la vérification du gymId
+            // if (dto.getGymId() != null) {
+            //     logger.warn("⚠️ gymId fourni dans le DTO sera ignoré - utilisation du gym de l'utilisateur connecté");
+            // }
+
+            // 🔥 VALIDATION MANUELLE RENFORCÉE (sans gymId)
+            if (dto.getFamilleId() == null) {
+                logger.error("❌ familleId est null");
+                return ResponseEntity.badRequest().body(Map.of("message", "L'ID de la famille est obligatoire"));
+            }
+
+            if (dto.getTarifHomme() == null || dto.getTarifHomme().compareTo(BigDecimal.ZERO) < 0) {
+                logger.error("❌ tarifHomme invalide: {}", dto.getTarifHomme());
+                return ResponseEntity.badRequest().body(Map.of("message", "Le tarif pour homme est invalide"));
+            }
+
+            if (dto.getTarifFemme() == null || dto.getTarifFemme().compareTo(BigDecimal.ZERO) < 0) {
+                logger.error("❌ tarifFemme invalide: {}", dto.getTarifFemme());
+                return ResponseEntity.badRequest().body(Map.of("message", "Le tarif pour femme est invalide"));
+            }
+
+            if (dto.getNombreMois() == null || dto.getNombreMois().compareTo(BigDecimal.ONE) < 0) {
+                logger.error("❌ nombreMois invalide: {}", dto.getNombreMois());
+                return ResponseEntity.badRequest().body(Map.of("message", "Le nombre de mois doit être au moins 1"));
+            }
+
+            if (dto.getModeDePaiement() == null) {
+                logger.error("❌ modeDePaiement est null");
+                return ResponseEntity.badRequest().body(Map.of("message", "Le mode de paiement est obligatoire"));
+            }
+
+            if (dto.getPeriodAbonnement() == null) {
+                logger.error("❌ periodAbonnement est null");
+                return ResponseEntity.badRequest().body(Map.of("message", "La période d'abonnement est obligatoire"));
+            }
+
+            logger.info("✅ Validation DTO réussie");
+
+            // Appel du service
             List<Abonnement> abonnements = familleAbonnementService.creerAbonnementFamilialEtRetourner(dto);
             List<AbonnementDTO> abonnementDTOs = abonnements.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
+
             logger.info("✅ Abonnement familial créé avec succès - {} abonnements générés", abonnementDTOs.size());
+
             return new ResponseEntity<>(abonnementDTOs, HttpStatus.CREATED);
+
         } catch (EntityNotFoundException e) {
-            logger.error("❌ Famille non trouvée pour l'ID : {}", dto.getFamilleId());
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            logger.error("❌ Ressource non trouvée: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Ressource non trouvée: " + e.getMessage()));
+
         } catch (IllegalArgumentException e) {
-            logger.error("❌ Erreur de validation : {}", e.getMessage());
-            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+            logger.error("❌ Erreur de validation: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Erreur de validation: " + e.getMessage()));
+
         } catch (AccessDeniedException e) {
-            logger.error("❌ Accès refusé : {}", e.getMessage());
-            return new ResponseEntity<>(null, HttpStatus.FORBIDDEN);
+            logger.error("❌ Accès refusé: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Accès refusé: " + e.getMessage()));
+
         } catch (MessagingException e) {
-            logger.error("❌ Erreur d'envoi d'email : {}", e.getMessage());
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
-        } catch (RuntimeException e) {
-            logger.error("❌ Erreur lors de la création : {}", e.getMessage());
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            logger.error("❌ Erreur d'envoi d'email: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Erreur lors de l'envoi des notifications"));
+
+        } catch (Exception e) {
+            logger.error("💥 ERREUR INATTENDUE lors de la création: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Erreur interne: " + e.getMessage()));
+        }
+    }
+
+    // 🔥 ENDPOINT DE DEBUG TEMPORAIRE
+    @PostMapping("/debug-creation")
+    public ResponseEntity<?> debugCreation(@RequestBody Map<String, Object> rawData) {
+        try {
+            logger.info("🧪 === MODE DEBUG ===");
+            logger.info("📥 DONNÉES BRUTES REÇUES:");
+
+            for (Map.Entry<String, Object> entry : rawData.entrySet()) {
+                logger.info("   🔹 {}: {} (type: {})",
+                        entry.getKey(), entry.getValue(),
+                        entry.getValue() != null ? entry.getValue().getClass().getSimpleName() : "null");
+            }
+
+            // Conversion manuelle pour debug
+            FamilleAbonnementDTO dto = new FamilleAbonnementDTO();
+
+            // Conversion avec gestion d'erreur
+            try {
+                dto.setFamilleId(Long.valueOf(rawData.get("familleId").toString()));
+                dto.setPeriodAbonnement(PeriodAbonnement.valueOf(rawData.get("periodAbonnement").toString()));
+                dto.setTarifHomme(new BigDecimal(rawData.get("tarifHomme").toString()));
+                dto.setTarifFemme(new BigDecimal(rawData.get("tarifFemme").toString()));
+                dto.setReductionParPersonne(new BigDecimal(rawData.get("reductionParPersonne").toString()));
+                dto.setNombreMois(new BigDecimal(rawData.get("nombreMois").toString()));
+                dto.setModeDePaiement(ModeDePaiement.valueOf(rawData.get("modeDePaiement").toString()));
+
+                if (rawData.containsKey("typeDeServiceId")) {
+                    dto.setTypeDeServiceId(Long.valueOf(rawData.get("typeDeServiceId").toString()));
+                }
+
+
+
+            } catch (Exception conversionError) {
+                logger.error("❌ Erreur conversion: {}", conversionError.getMessage());
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "Erreur conversion: " + conversionError.getMessage()));
+            }
+
+            logger.info("✅ DTO CONVERTI: {}", dto.toString());
+            logger.info("✅ DTO VALIDE: {}", dto.estValide());
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Debug réussi",
+                    "dto", dto.toString(),
+                    "estValide", dto.estValide()
+            ));
+
+        } catch (Exception e) {
+            logger.error("💥 ERREUR DEBUG: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Erreur debug: " + e.getMessage()));
         }
     }
 

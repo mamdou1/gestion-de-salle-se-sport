@@ -3,6 +3,7 @@ package com.cwa.GestionDeSalleDeSportV2.Service;
 import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
 import com.cwa.GestionDeSalleDeSportV2.DTO.*;
 import com.cwa.GestionDeSalleDeSportV2.Entity.*;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Genre;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeNotification;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypePaiement;
@@ -527,6 +528,9 @@ public class UserService {
 
     public Page<User> getAllMembreAvecPagination(Pageable pageable) throws AccessDeniedException {
         User currentUser = initializeAccess(true);
+        logger.info("🔍 DEBUG getAllMembre - Après initializeAccess");
+        logger.info("🔍 DEBUG getAllMembre - CurrentUser Gym: {}", currentUser.getGym());
+        logger.info("🔍 DEBUG getAllMembre - CurrentUser Gyms: {}", currentUser.getGyms());
         List<Gym> userGyms = currentUser.getGyms();
         if (userGyms == null || userGyms.isEmpty()) {
             throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
@@ -584,6 +588,13 @@ public class UserService {
 
     private User initializeAccess(boolean requireStaff) throws AccessDeniedException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        logger.info("🔍 DEBUG initializeAccess - User ID: {}", currentUser.getId());
+        logger.info("🔍 DEBUG initializeAccess - User Role: {}", currentUser.getRole());
+        logger.info("🔍 DEBUG initializeAccess - User Gym: {}", currentUser.getGym());
+        logger.info("🔍 DEBUG initializeAccess - User Gyms list: {}", currentUser.getGyms());
+        logger.info("🔍 DEBUG initializeAccess - User Gyms list size: {}",
+                currentUser.getGyms() != null ? currentUser.getGyms().size() : 0);
+
         if (requireStaff && !peutGererMembre(currentUser)) {
             throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
         }
@@ -644,11 +655,207 @@ public class UserService {
         return passwordEncoder.matches(motDePasseSaisi, motDePasseEncode);
     }
 
+    public void reactiverStaff(Long staffId) {
+        User admin = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+        User staff = userRepository.findById(staffId)
+                .orElseThrow(() -> new RuntimeException("Staff introuvable."));
+
+        if (admin.getRole() != Role.ADMIN) {
+            throw new RuntimeException("Seuls les admins peuvent réactiver un membre du staff.");
+        }
+        if (!admin.getGym().equals(staff.getGym())) {
+            throw new RuntimeException("L'utilisateur n'appartient pas au même gym que le staff.");
+        }
+
+        staff.setEnabled(true);
+        staff.setDateRetrait(null); // Optionnel : supprimer la date de retrait
+        userRepository.save(staff);
+    }
+
     private String getNomComplet(User user) {
         if (user == null) return "Utilisateur inconnu";
         String nom = user.getNom() != null ? user.getNom() : "";
         String prenom = user.getPrenom() != null ? user.getPrenom() : "";
         String nomComplet = (nom + " " + prenom).trim();
         return nomComplet.isEmpty() ? "Sans nom" : nomComplet;
+    }
+
+
+    // Méthode pour récupérer le nombre total de membres
+    public long getTotalMembresCount() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        return userRepository.countByRole(Role.MEMBRE);
+    }
+
+    // Méthode pour récupérer les membres récemment ajoutés
+    public List<User> getRecentMembres(int days) throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        LocalDateTime sinceDate = LocalDateTime.now().minusDays(days);
+        return userRepository.findByDateCreationAfterAndRole(sinceDate, Role.MEMBRE);
+    }
+
+    // Méthode pour rechercher des membres par nom ou prénom
+    public List<User> searchMembres(String searchTerm) throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        List<Gym> userGyms = currentUser.getGyms();
+        return userRepository.findByNomContainingOrPrenomContainingAndGymInAndRole(
+                searchTerm, searchTerm, userGyms, Role.MEMBRE);
+    }
+
+    // Méthode pour vérifier si un email existe déjà
+    public boolean emailExists(String email) {
+        return userRepository.existsByEmail(email);
+    }
+
+    // Méthode pour vérifier si un téléphone existe déjà
+    public boolean telephoneExists(String telephone) {
+        return userRepository.existsByTelephone(telephone);
+    }
+
+    // Méthode pour récupérer les membres par genre
+    public List<User> getMembresByGenre(Genre genre) throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        List<Gym> userGyms = currentUser.getGyms();
+        return userRepository.findByGenreAndGymInAndRole(genre, userGyms, Role.MEMBRE);
+    }
+
+    // Méthode pour récupérer les membres par type de service
+    public List<User> getMembresByTypeService(Long typeServiceId) throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        List<Gym> userGyms = currentUser.getGyms();
+        TypeDeService typeDeService = typeDeServiceRepository.findById(typeServiceId)
+                .orElseThrow(() -> new RuntimeException("Type de service introuvable"));
+        return userRepository.findByTypeDeServiceAndGymIn(typeDeService, userGyms);
+    }
+
+    // Méthode pour récupérer les membres sans famille
+    public List<User> getMembresSansFamille() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        List<Gym> userGyms = currentUser.getGyms();
+        return userRepository.findByFamilleIsNullAndGymInAndRole(userGyms, Role.MEMBRE);
+    }
+
+    // Méthode pour mettre à jour la photo de profil
+   /* public String updateProfilePhoto(Long membreId, MultipartFile file) throws IOException {
+        User membre = userRepository.findById(membreId)
+                .orElseThrow(() -> new RuntimeException("Membre introuvable"));
+
+        // Supprimer l'ancienne image si elle existe
+        if (membre.getImageUrl() != null && membre.getImageUrl().startsWith("/images/")) {
+            try {
+                Path oldPath = Paths.get(uploadDir, membre.getImageUrl().replace("/images/", ""));
+                Files.deleteIfExists(oldPath);
+            } catch (IOException e) {
+                logger.warn("Erreur lors de la suppression de l'ancienne image: {}", e.getMessage());
+            }
+        }
+
+        // Sauvegarder la nouvelle image
+        String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+        String savedFileName = stockageDeFichierService.saveFile(file, fileName);
+        membre.setImageUrl("/images/" + savedFileName);
+
+        userRepository.save(membre);
+        return "Photo de profil mise à jour avec succès";
+    } */
+
+    // Méthode pour réinitialiser le mot de passe d'un membre
+    public String reinitialiserMotDePasse(Long membreId) throws MessagingException {
+        User membre = userRepository.findById(membreId)
+                .orElseThrow(() -> new RuntimeException("Membre introuvable"));
+
+        String nouveauMotDePasse = genererMotDePasse(membre);
+        membre.setPassword(passwordEncoder.encode(nouveauMotDePasse));
+        userRepository.save(membre);
+
+        // Envoyer le nouveau mot de passe par email
+        emailService.envoyerNouveauMotDePasse(membre, nouveauMotDePasse);
+
+        return "Mot de passe réinitialisé avec succès";
+    }
+
+    // Méthode pour exporter la liste des membres
+    public List<Map<String, Object>> exporterMembres() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        List<User> membres = getAllMembre();
+
+        return membres.stream().map(membre -> {
+            Map<String, Object> membreData = new HashMap<>();
+            membreData.put("id", membre.getId());
+            membreData.put("nom", membre.getNom());
+            membreData.put("prenom", membre.getPrenom());
+            membreData.put("email", membre.getEmail());
+            membreData.put("telephone", membre.getTelephone());
+            membreData.put("genre", membre.getGenre());
+            membreData.put("dateNaissance", membre.getDate_de_naissance());
+            membreData.put("adresse", membre.getAdresse());
+            membreData.put("typeService", membre.getTypeDeService() != null ? membre.getTypeDeService().getNom() : "Non défini");
+            membreData.put("famille", membre.getFamille() != null ? membre.getFamille().getNom() : "Aucune");
+            membreData.put("dateCreation", membre.getDate_creation());
+            return membreData;
+        }).collect(Collectors.toList());
+    }
+
+    // Méthode pour obtenir les statistiques des membres
+    public Map<String, Object> getMembresStatistics() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        List<Gym> userGyms = currentUser.getGyms();
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalMembres", userRepository.countByGymInAndRole(userGyms, Role.MEMBRE));
+        stats.put("hommes", userRepository.countByGenreAndGymInAndRole(Genre.HOMME, userGyms, Role.MEMBRE));
+        stats.put("femmes", userRepository.countByGenreAndGymInAndRole(Genre.FEMME, userGyms, Role.MEMBRE));
+        stats.put("membresSansFamille", userRepository.countByFamilleIsNullAndGymInAndRole(userGyms, Role.MEMBRE));
+        stats.put("nouveauxMembresMois", userRepository.countByDateCreationAfterAndGymInAndRole(
+                LocalDateTime.now().minusMonths(1), userGyms, Role.MEMBRE));
+
+        return stats;
+    }
+
+    // Méthode pour transférer un membre vers un autre gym
+    public String transfererMembre(Long membreId, Long nouveauGymId) throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        User membre = userRepository.findById(membreId)
+                .orElseThrow(() -> new RuntimeException("Membre introuvable"));
+
+        Gym nouveauGym = gymRepository.findById(nouveauGymId)
+                .orElseThrow(() -> new RuntimeException("Gym introuvable"));
+
+        // Vérifier que l'utilisateur courant a accès au nouveau gym
+        if (!currentUser.getGyms().contains(nouveauGym)) {
+            throw new AccessDeniedException("Vous n'avez pas accès à ce gym");
+        }
+
+        // Retirer l'ancien gym et ajouter le nouveau
+        membre.getGyms().clear();
+        membre.addGym(nouveauGym);
+        membre.setGym(nouveauGym);
+
+        userRepository.save(membre);
+        return "Membre transféré avec succès vers " + nouveauGym.getNom();
+    }
+
+    // Méthode pour désactiver un membre
+    public String desactiverMembre(Long membreId) {
+        User membre = userRepository.findById(membreId)
+                .orElseThrow(() -> new RuntimeException("Membre introuvable"));
+
+        membre.setEnabled(false);
+        membre.setDateRetrait(LocalDate.now());
+        userRepository.save(membre);
+
+        return "Membre désactivé avec succès";
+    }
+
+    // Méthode pour réactiver un membre
+    public String reactiverMembre(Long membreId) {
+        User membre = userRepository.findById(membreId)
+                .orElseThrow(() -> new RuntimeException("Membre introuvable"));
+
+        membre.setEnabled(true);
+        membre.setDateRetrait(null);
+        userRepository.save(membre);
+
+        return "Membre réactivé avec succès";
     }
 }

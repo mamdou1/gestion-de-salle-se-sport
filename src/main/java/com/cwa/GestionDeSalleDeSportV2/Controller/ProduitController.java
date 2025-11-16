@@ -76,4 +76,6 @@ public class ProduitController {
         Produit produit = produitService.consulterDetailProd(produitId);
         return ResponseEntity.ok(produit);
     }
+
+
 }

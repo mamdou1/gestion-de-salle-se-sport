@@ -186,6 +186,13 @@ public class UserController {
         return new ResponseEntity<>("Staff retiré avec succès.", HttpStatus.OK);
     }
 
+    // Réactiver un staff
+    @PutMapping("/reactiver/staff/{staffId}")
+    public ResponseEntity<String> reactiverStaff(@PathVariable Long staffId) {
+        userService.reactiverStaff(staffId);
+        return new ResponseEntity<>("Staff réactivé avec succès.", HttpStatus.OK);
+    }
+
     // 10. Vérifier le mot de passe
     @PostMapping("/password")
     public ResponseEntity<Map<String, Object>> verifierMotDePasse(@RequestBody Map<String, String> body) {
@@ -234,4 +241,6 @@ public class UserController {
         }
         return ResponseEntity.ok(membre);
     }
+
+
 }

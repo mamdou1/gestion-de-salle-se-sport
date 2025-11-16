@@ -2,6 +2,7 @@ package com.cwa.GestionDeSalleDeSportV2.Repository;
 
 import com.cwa.GestionDeSalleDeSportV2.DTO.AbonnementDTO;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Abonnement;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.PeriodAbonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutAbonnement;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeAbonnements;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Famille;
@@ -269,4 +270,89 @@ public interface AbonnementRepository extends JpaRepository<Abonnement, Long> {
      * Trouve les abonnements par type, statut et période de date de fin
      */
     List<Abonnement> findByTypesAndStatutAndDateFinAbonnementBetween(TypeAbonnements types, StatutAbonnement statut, LocalDate startDate, LocalDate endDate);
+    // === AJOUTER CES MÉTHODES MANQUANTES ===
+
+/**
+ * 🔥 MÉTHODES MANQUANTES POUR LA GESTION FAMILIALE
+ */
+
+    /**
+     * Trouve les abonnements par famille et type
+     */
+    List<Abonnement> findByFamilleAndTypes(Famille famille, TypeAbonnements types);
+
+    /**
+     * Trouve les abonnements par membre, type et statut
+     */
+    List<Abonnement> findByMembreAndTypesAndStatut(User membre, TypeAbonnements types, StatutAbonnement statut);
+
+    /**
+     * Trouve les abonnements familiaux par famille ID
+     */
+    @Query("SELECT a FROM Abonnement a WHERE a.famille.id = :familleId AND a.types = 'FAMILIALE'")
+    List<Abonnement> findAbonnementsFamiliauxByFamilleId(@Param("familleId") Long familleId);
+
+    /**
+     * Trouve les abonnements familiaux actifs par famille ID
+     */
+    @Query("SELECT a FROM Abonnement a WHERE a.famille.id = :familleId AND a.types = 'FAMILIALE' AND a.statut = 'EN_COURS'")
+    List<Abonnement> findAbonnementsFamiliauxActifsByFamilleId(@Param("familleId") Long familleId);
+
+    /**
+     * Vérifie si une famille a un abonnement familial actif
+     */
+    @Query("SELECT COUNT(a) > 0 FROM Abonnement a WHERE a.famille.id = :familleId AND a.types = 'FAMILIALE' AND a.statut = 'EN_COURS'")
+    boolean existsAbonnementFamilialActifByFamilleId(@Param("familleId") Long familleId);
+
+    /**
+     * Trouve le dernier abonnement familial d'une famille
+     */
+    @Query("SELECT a FROM Abonnement a WHERE a.famille.id = :familleId AND a.types = 'FAMILIALE' ORDER BY a.dateDebutAbonnement DESC LIMIT 1")
+    Optional<Abonnement> findLatestAbonnementFamilialByFamilleId(@Param("familleId") Long familleId);
+
+    /**
+     * Trouve les abonnements par membre et type (pour vérifier les doublons)
+     */
+    List<Abonnement> findByMembreAndTypes(User membre, TypeAbonnements types);
+
+    /**
+     * Trouve les abonnements expirant bientôt (dans les 7 jours)
+     */
+    @Query("SELECT a FROM Abonnement a WHERE a.statut = 'EN_COURS' AND a.dateFinAbonnement BETWEEN :today AND :in7Days")
+    List<Abonnement> findAbonnementsExpirantBientot(@Param("today") LocalDate today, @Param("in7Days") LocalDate in7Days);
+
+    /**
+     * Compte les abonnements familiaux actifs par gym
+     */
+    @Query("SELECT COUNT(a) FROM Abonnement a WHERE a.gym.id = :gymId AND a.types = 'FAMILIALE' AND a.statut = 'EN_COURS'")
+    long countAbonnementsFamiliauxActifsByGymId(@Param("gymId") Long gymId);
+
+    /**
+     * Trouve les abonnements par période et statut
+     */
+    List<Abonnement> findByPeriodAbonnementAndStatut(PeriodAbonnement periodAbonnement, StatutAbonnement statut);
+
+// === MÉTHODES POUR LES STATISTIQUES ===
+
+    /**
+     * Chiffre d'affaires total des abonnements familiaux par gym
+     */
+    @Query("SELECT COALESCE(SUM(a.prixAbonnement), 0) FROM Abonnement a WHERE a.types = 'FAMILIALE' AND a.gym.id = :gymId")
+    BigDecimal getChiffreAffairesFamilialByGymId(@Param("gymId") Long gymId);
+
+    /**
+     * Chiffre d'affaires mensuel des abonnements familiaux
+     */
+    @Query("SELECT COALESCE(SUM(a.prixAbonnement), 0) FROM Abonnement a WHERE a.types = 'FAMILIALE' AND a.gym.id = :gymId AND YEAR(a.dateDebutAbonnement) = :year AND MONTH(a.dateDebutAbonnement) = :month")
+    BigDecimal getChiffreAffairesFamilialMensuel(@Param("gymId") Long gymId, @Param("year") int year, @Param("month") int month);
+
+    /**
+     * ✅ REMPLACER par cette méthode corrigée
+     * Compte les membres couverts par des abonnements familiaux actifs
+     */
+    @Query("SELECT COUNT(DISTINCT m.id) FROM User m " +
+            "JOIN m.famille f " +
+            "JOIN Abonnement a ON a.famille.id = f.id " +
+            "WHERE a.types = 'FAMILIALE' AND a.statut = 'EN_COURS' AND a.gym.id = :gymId")
+    Long countMembresCouvertsParAbonnementsFamiliaux(@Param("gymId") Long gymId);
 }

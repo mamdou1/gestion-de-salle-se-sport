@@ -121,6 +121,15 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    // === AJOUTÉ : Champ pour exposer familleId dans le JSON ===
+    @Transient
+    private Long familleId;
+
+    public Long getFamilleId() {
+        return famille != null ? famille.getId() : null;
+    }
+    // === FIN AJOUT ===
+
     @AssertTrue(message = "L'âge doit être compris entre 16 et 80 ans")
     public boolean isValidAge() {
         if (date_de_naissance == null || date_de_naissance.trim().isEmpty()) {
