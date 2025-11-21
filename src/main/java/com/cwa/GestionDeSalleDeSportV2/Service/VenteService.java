@@ -134,6 +134,7 @@ public class VenteService {
     public Vente enregistrerVenteManuelle(VenteManuelDTO dto) throws AccessDeniedException, MessagingException {
         // Vérifier si le staff est autorisé
         User currentUser = initializeAccess(true);
+        Gym gym = currentUser.getGym();
 
         // Créer ou récupérer l'acheteur (optionnel)
         User acheteur = gererAcheteur(dto, currentUser);
@@ -167,7 +168,29 @@ public class VenteService {
         Vente savedVente = venteRepository.save(vente);
 
         // Envoyer les notifications
-        envoyerNotificationsVente(currentUser, acheteur, savedVente);
+        String acheteurInfo = (acheteur != null) ? acheteur.getNom() + " " + acheteur.getPrenom() : "un client inconnu";
+        notificationService.notifyGymAndMember(
+                gym,
+                acheteur,
+                "Vente enregistrée",
+                "Une vente manuelle a été enregistrée pour " + acheteurInfo +
+                        ". Montant total: " + vente.getMontantTotal() + " FCFA",
+                "Vente",
+                TypeNotification.VENTE,
+                true
+        );
+
+        // Notification à l'acheteur uniquement s'il existe et a un email
+        if (acheteur != null && acheteur.getEmail() != null) {
+            notificationService.notification(
+                    acheteur,
+                    "Vente enregistrée",
+                    "Une vente a été enregistrée pour vous. Montant total: " + vente.getMontantTotal() + " FCFA",
+                    "Vente",
+                    TypeNotification.VENTE,
+                    true
+            );
+        }
 
         return savedVente;
     }
@@ -237,42 +260,6 @@ public class VenteService {
         ligne.setPrixUnitaire(produit.getPrixUnitaire() != null ? produit.getPrixUnitaire() : BigDecimal.ZERO);
         ligne.calculerPrixTotal(); // Calcul du prix total seulement (sans déduction de stock)
         return ligne;
-    }
-
-    /**
-     * Envoie les notifications après une vente
-     * @param staff Staff qui a enregistré la vente
-     * @param acheteur Acheteur (peut être null)
-     * @param vente Vente enregistrée
-     */
-    private void envoyerNotificationsVente(User staff, User acheteur, Vente vente) {
-        try {
-            // Notification au staff
-            String acheteurInfo = (acheteur != null) ? acheteur.getNom() + " " + acheteur.getPrenom() : "un client inconnu";
-            notificationService.notification(
-                    staff,
-                    "Vente enregistrée",
-                    "Une vente manuelle a été enregistrée pour " + acheteurInfo +
-                            ". Montant total: " + vente.getMontantTotal() + " FCFA",
-                    "Vente",
-                    TypeNotification.VENTE,
-                    true
-            );
-
-            // Notification à l'acheteur uniquement s'il existe et a un email
-            if (acheteur != null && acheteur.getEmail() != null) {
-                notificationService.notification(
-                        acheteur,
-                        "Vente enregistrée",
-                        "Une vente a été enregistrée pour vous. Montant total: " + vente.getMontantTotal() + " FCFA",
-                        "Vente",
-                        TypeNotification.VENTE,
-                        true
-                );
-            }
-        } catch (MessagingException e) {
-            System.out.println("Échec de l'envoi des notifications: " + e.getMessage());
-        }
     }
 
     /**

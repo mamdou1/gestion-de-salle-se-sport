@@ -90,7 +90,7 @@ public class NotificationService {
         memberNotif.setTitre(title);
         memberNotif.setContenu(content);
         memberNotif.setDateEnvoi(LocalDateTime.now());
-        memberNotif.setDestinataire(member);
+        //memberNotif.setDestinataire(member);
         memberNotif.setContexte(context);
         memberNotif.setTypeNotification(type);
         notificationRepository.save(memberNotif);
