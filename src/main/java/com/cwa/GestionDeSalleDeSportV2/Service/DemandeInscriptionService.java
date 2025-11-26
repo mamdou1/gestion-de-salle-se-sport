@@ -17,6 +17,7 @@ import com.cwa.GestionDeSalleDeSportV2.Repository.TypeDeServiceRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -58,6 +59,7 @@ public class DemandeInscriptionService {
         this.stockageDeFichierService = stockageDeFichierService;
     }
 
+    @Transactional
     public void soumettreDemande(Long gymId, DemandeInscriptionDTO dto) {
         Gym gym = gymRepository.findById(gymId)
                 .orElseThrow(() -> new RuntimeException("Gym non trouvé."));
@@ -78,16 +80,16 @@ public class DemandeInscriptionService {
 
         notificationService.notifyInscriptionEnLigne(
                 membre,
-                "Demande de validation d' inscription",
-                "Votre demande d'insdription au pres de la salle de sport " + gym.getNom() + " a été envoyer avec succès.",
+                "Demande de validation d'inscription",
+                "Votre demande d'inscription auprès de la salle de sport " + gym.getNom() + " a été envoyée avec succès.",
                 "Envoyer",
                 TypeNotification.VALIDATION_INSCRIPTION
         );
 
         notificationService.notifyInscriptionEnLigneGym(
                 gym,
-                "Demande de validation d' inscription",
-                "Vous avez reçu une demande une nouvelle demande d'insdription au pres de votre salle de sport",
+                "Demande de validation d'inscription",
+                "Vous avez reçu une nouvelle demande d'inscription auprès de votre salle de sport",
                 "Validation",
                 TypeNotification.VALIDATION_INSCRIPTION
         );
@@ -97,10 +99,97 @@ public class DemandeInscriptionService {
         return demandeIncriptionRepository.findByEstValideeFalse();
     }
 
-    public void inscriptionEnLigne(InscriptionEnLigneDTO dto, MultipartFile file) throws IOException {
-        // Vérifier si un utilisateur existe déjà avec le même telephone ou email
-        //Optional<User> existingUser = userRepository.findByTelephoneOrEmail(dto.getTelephone(), dto.getEmail());
+    // 🔥 NOUVELLE MÉTHODE : Valider une demande d'inscription
+    @Transactional
+    public void validerDemandeInscription(Long id) {
+        DemandeInscription demande = demandeIncriptionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Demande d'inscription non trouvée avec l'ID: " + id));
 
+        // Marquer la demande comme validée
+        demande.setEstValidee(true);
+        demande.setDateValidation(LocalDateTime.now());
+        demandeIncriptionRepository.save(demande);
+
+        // Mettre à jour le statut de l'utilisateur
+        User user = demande.getUser();
+        user.setGym(demande.getGym());
+        userRepository.save(user);
+
+        // Envoyer une notification de confirmation à l'utilisateur
+        notificationService.notifyInscriptionEnLigne(
+                user,
+                "Inscription validée",
+                "Félicitations ! Votre inscription à la salle de sport " + demande.getGym().getNom() + " a été validée avec succès.",
+                "Validation réussie",
+                TypeNotification.VALIDATION_INSCRIPTION
+
+        );
+
+        // Envoyer une notification au gym pour confirmer la validation
+        notificationService.notifyInscriptionEnLigneGym(
+                demande.getGym(),
+                "Inscription validée",
+                "L'inscription de " + user.getPrenom() + " " + user.getNom() + " a été validée avec succès.",
+                "Validation terminée",
+                TypeNotification.VALIDATION_INSCRIPTION
+        );
+    }
+
+    // 🔥 NOUVELLE MÉTHODE : Rejeter une demande d'inscription
+    @Transactional
+    public void rejeterDemandeInscription(Long id) {
+        DemandeInscription demande = demandeIncriptionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Demande d'inscription non trouvée avec l'ID: " + id));
+
+        // Marquer la demande comme rejetée
+        demande.setEstValidee(false);
+        demande.setDateValidation(LocalDateTime.now());
+        demandeIncriptionRepository.save(demande);
+
+        User user = demande.getUser();
+        userRepository.save(user);
+
+        // Envoyer une notification de rejet à l'utilisateur
+        notificationService.notifyInscriptionEnLigne(
+                user,
+                "Inscription rejetée",
+                "Votre inscription à la salle de sport " + demande.getGym().getNom() + " a été rejetée. Veuillez contacter le gym pour plus d'informations.",
+                "Rejet",
+                TypeNotification.INFO
+        );
+
+        // Envoyer une notification au gym pour confirmer le rejet
+        notificationService.notifyInscriptionEnLigneGym(
+                demande.getGym(),
+                "Inscription rejetée",
+                "L'inscription de " + user.getPrenom() + " " + user.getNom() + " a été rejetée.",
+                "Rejet terminé",
+                TypeNotification.INFO
+        );
+    }
+
+    // 🔥 NOUVELLE MÉTHODE : Obtenir une demande par son ID
+    public DemandeInscription getDemandeById(Long id) {
+        return demandeIncriptionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Demande d'inscription non trouvée avec l'ID: " + id));
+    }
+
+    // 🔥 NOUVELLE MÉTHODE : Obtenir toutes les demandes d'un gym
+    public List<DemandeInscription> getDemandesByGym(Long gymId) {
+        Gym gym = gymRepository.findById(gymId)
+                .orElseThrow(() -> new RuntimeException("Gym non trouvé avec l'ID: " + gymId));
+        return demandeIncriptionRepository.findByGym(gym);
+    }
+
+    // 🔥 NOUVELLE MÉTHODE : Obtenir les demandes en attente d'un gym
+    public List<DemandeInscription> getDemandesEnAttenteByGym(Long gymId) {
+        Gym gym = gymRepository.findById(gymId)
+                .orElseThrow(() -> new RuntimeException("Gym non trouvé avec l'ID: " + gymId));
+        return demandeIncriptionRepository.findByGymAndEstValideeFalse(gym);
+    }
+
+    @Transactional
+    public void inscriptionEnLigne(InscriptionEnLigneDTO dto, MultipartFile file) throws IOException {
         User newMembre = new User();
 
         // 1) Set basic user details
@@ -128,14 +217,14 @@ public class DemandeInscriptionService {
         if (file != null && !file.isEmpty()) {
             String fileName = stockageDeFichierService.store(file, "membres/" + savedMembre.getId());
             savedMembre.setImageUrl("/uploads/membres/" + savedMembre.getId() + "/" + fileName);
-            userRepository.save(savedMembre); // Update user with imageUrl
+            userRepository.save(savedMembre);
         }
 
         notificationService.notifyInscriptionEnLigne(
                 savedMembre,
-                "Demande de validation de panier",
-                "Vous avez reçu une demande une nouveau panier en attente de validation",
-                "Validation",
+                "Inscription en ligne",
+                "Votre inscription en ligne a été enregistrée avec succès. En attente de validation.",
+                "Inscription",
                 TypeNotification.INSCRIPTION
         );
     }

@@ -1,5 +1,6 @@
 package com.cwa.GestionDeSalleDeSportV2.Repository;
 
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeNotification;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Gym;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Notification;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Produit;
@@ -15,18 +16,18 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     List<Notification> findByDestinataireIdAndEstLuFalse(Long userId);
 
-    // Récupérer les notifications non lues d'un utilisateur
-
-    // Récupérer les notifications non lues d'un utilisateur triées par date
     List<Notification> findByDestinataireIdAndEstLuFalseOrderByDateEnvoiDesc(Long destinataireId);
 
-    // Compter les notifications non lues d'un utilisateur
     long countByDestinataireIdAndEstLuFalse(Long destinataireId);
 
-    // Récupérer les notifications par type pour un utilisateur
-    List<Notification> findByDestinataireIdAndTypeNotification(Long destinataireId, String typeNotification);
+    List<Notification> findByDestinataireIdAndTypeNotification(Long destinataireId, TypeNotification typeNotification);
 
-    // Récupérer les notifications récentes (des 30 derniers jours)
     @Query("SELECT n FROM Notification n WHERE n.destinataire.id = :destinataireId AND n.dateEnvoi >= CURRENT_DATE - 30 ORDER BY n.dateEnvoi DESC")
     List<Notification> findRecentNotificationsByDestinataire(@Param("destinataireId") Long destinataireId);
+
+    long countByGymDestinataireIdAndEstLuFalse(Long gymId);
+
+    // AJOUTÉ – Requête native qui marche à 100% (résout le bug LazyInitialization)
+    @Query(value = "SELECT * FROM notification WHERE gym_destinataire_id = :gymId ORDER BY date_envoi DESC", nativeQuery = true)
+    List<Notification> findAllByGymId(@Param("gymId") Long gymId);
 }

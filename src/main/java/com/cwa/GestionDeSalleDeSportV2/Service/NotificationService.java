@@ -1,6 +1,5 @@
 package com.cwa.GestionDeSalleDeSportV2.Service;
 
-
 import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.Role;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeNotification;
@@ -11,13 +10,14 @@ import com.cwa.GestionDeSalleDeSportV2.Repository.NotificationRepository;
 import com.cwa.GestionDeSalleDeSportV2.Repository.UserRepository;
 import jakarta.mail.MessagingException;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@Transactional
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
@@ -32,37 +32,35 @@ public class NotificationService {
         this.userRepository = userRepository;
     }
 
+    // Notification simple pour un utilisateur
     public void notification(User user, String titre, String message, String contexte, TypeNotification typeNotification, boolean envoyerEmail) throws MessagingException {
 
-       // User user1 = new User();
-
         Notification notif = new Notification();
-
         notif.setTitre(titre);
         notif.setContenu(message);
         notif.setDateEnvoi(LocalDateTime.now());
         notif.setDestinataire(user);
         notif.setContexte(contexte);
         notif.setTypeNotification(typeNotification);
+        // Juste un log propre si tu veux
+        System.out.println("Envoi notification à " + user.getNom() + " → Type: " + typeNotification);
 
         notificationRepository.save(notif);
 
-        if (envoyerEmail){
-
+        if (envoyerEmail) {
             emailService.envoyerEmail(user.getEmail(), titre, message);
-
             System.out.println("📨 Envoi du mail à " + user.getEmail() + " avec sujet : " + titre);
-
         }
-
     }
 
+    // Notification pour un gym (staff)
     public void notificationAdminAGym(Gym gym, String titre, String message, String contexte, TypeNotification typeNotification, boolean envoyerEmail) throws MessagingException {
 
-        // User user1 = new User();
+        System.out.println("🔔 Création notification pour le gym: " + gym.getNom());
+        System.out.println("   📝 Titre: " + titre);
+        System.out.println("   📄 Contenu: " + message);
 
         Notification notif = new Notification();
-
         notif.setTitre(titre);
         notif.setContenu(message);
         notif.setDateEnvoi(LocalDateTime.now());
@@ -70,22 +68,19 @@ public class NotificationService {
         notif.setContexte(contexte);
         notif.setTypeNotification(typeNotification);
 
-        notificationRepository.save(notif);
+        Notification savedNotification = notificationRepository.save(notif);
+        System.out.println("✅ Notification créée avec ID: " + savedNotification.getId());
 
-        if (envoyerEmail){
-
+        if (envoyerEmail) {
             emailService.envoyerEmail(gym.getEmail(), titre, message);
-
             System.out.println("📨 Envoi du mail à " + gym.getEmail() + " avec sujet : " + titre);
-
         }
-
     }
 
+    // Notification gym + membre
+    public void notifyGymAndMember(Gym gym, User member, String title, String content, String context, TypeNotification type, boolean sendEmail) throws MessagingException {
 
-
-    public void notifyGymAndMember(Gym gym, User member, String title, String content, String context, TypeNotification type, boolean sendEmail)  {
-        // Notification pour le membre
+        // 🔔 Notification membre
         Notification memberNotif = new Notification();
         memberNotif.setTitre(title);
         memberNotif.setContenu(content);
@@ -101,39 +96,27 @@ public class NotificationService {
                     member.getEmail(),
                     title,
                     content,
-                    null, // Pas de pièce jointe ici, ajustez si nécessaire
+                    null,
                     null
             );
         }
 
-        // Notification pour le staff/admin de la gym
-        //List<User> gymStaff = userRepository.findByGymsContainingAndRoleIn(gym, List.of(Role.ADMIN, Role.GERANT, Role.RECEPTIONNISTE));
-//        //for (User staff : gymStaff) {
-//            Notification staffNotif = new Notification();
-//            staffNotif.setTitre("Action dans votre gym : " + title);
-//            staffNotif.setContenu("Une action concernant " + member.getPrenom() + " " + member.getNom() + " : " + content);
-//            staffNotif.setDateEnvoi(LocalDateTime.now());
-//            //staffNotif.setDestinataire(staff);
-//            staffNotif.setGymDestinataire(gym);
-//            staffNotif.setContexte(context);
-//            staffNotif.setTypeNotification(type);
-//            notificationRepository.save(staffNotif);
+        // 🔔 Notification staff (gym)
+        Notification staffNotif = new Notification();
+        staffNotif.setTitre("Nouvelle demande de validation de panier");
+        staffNotif.setContenu("Le membre " + member.getPrenom() + " " + member.getNom() +
+                " a envoyé un panier pour validation. " + content);
+        staffNotif.setDateEnvoi(LocalDateTime.now());
+        staffNotif.setGymDestinataire(gym);
+        staffNotif.setContexte("VALIDATION_PANIER");
+        staffNotif.setTypeNotification(TypeNotification.VALIDATION_PANIER);
 
-//            if (sendEmail) {
-//                emailService.envoyerEmailAvecPieceJointe(
-//                        gym.getEmail(),
-//                        staff.getEmail(),
-//                        "Action dans votre gym : " + title,
-//                        "Détails : " + content,
-//                        null,
-//                        null
-//                );
-//            }
-        //}
+        notificationRepository.save(staffNotif);
+        System.out.println("✅ Notification staff créée pour le gym: " + gym.getNom());
     }
 
+    // Inscription en ligne - membre
     public void notifyInscriptionEnLigne(User member, String title, String content, String context, TypeNotification type) {
-        // Notification pour le membre
         Notification memberNotif = new Notification();
         memberNotif.setTitre(title);
         memberNotif.setContenu(content);
@@ -141,12 +124,12 @@ public class NotificationService {
         memberNotif.setDestinataire(member);
         memberNotif.setContexte(context);
         memberNotif.setTypeNotification(type);
-        notificationRepository.save(memberNotif);
 
+        notificationRepository.save(memberNotif);
     }
 
+    // Inscription en ligne - gym
     public void notifyInscriptionEnLigneGym(Gym gym, String title, String content, String context, TypeNotification type) {
-        // Notification pour le membre
         Notification memberNotif = new Notification();
         memberNotif.setTitre(title);
         memberNotif.setContenu(content);
@@ -154,139 +137,161 @@ public class NotificationService {
         memberNotif.setGymDestinataire(gym);
         memberNotif.setContexte(context);
         memberNotif.setTypeNotification(type);
-        notificationRepository.save(memberNotif);
 
+        notificationRepository.save(memberNotif);
     }
 
-
-    //  Supprimer une notifilaction
+    // 🗑️ Supprimer une notification
     public void supprimerNotification(Long id) throws AccessDeniedException {
         User currentUser = initializeAccess(true);
+
         Notification notification = notificationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Produit introuvable"));
-        verificationAccesGym(currentUser, currentUser.getGym(), "supprimer un produit dans");
+                .orElseThrow(() -> new RuntimeException("Notification introuvable"));
+
+        verificationAccesGym(currentUser, currentUser.getGym(), "supprimer une notification dans");
+
         notificationRepository.delete(notification);
     }
 
-//    public List<Produit> listerProduitNotifications() throws AccessDeniedException {
-//        User currentUser = initializeAccess(false);
-//        verificationAccesGym(currentUser, currentUser.getGym(), "consulter la liste les produits dans");
-//        return notificationRepository.findByGym(currentUser.getGym());
-//    }
-
-    //  Afficher les detailles d'une notifilaction
+    // 🔍 Consulter le détail d'une notification
     public Notification consulterDetailNotif(Long notificationId) throws AccessDeniedException {
-        initializeAccess(false);
+        User currentUser = initializeAccess(false);
+
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(()->new RuntimeException("Notification introuvable"));
+                .orElseThrow(() -> new RuntimeException("Notification introuvable"));
+
+        // 🔐 Sécurité : empêcher lecture d'une notification qui ne nous appartient pas
+        if (notification.getDestinataire() != null &&
+                !notification.getDestinataire().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Vous n'êtes pas autorisé à consulter cette notification");
+        }
+
+        if (notification.getGymDestinataire() != null) {
+            if (currentUser.getGym() == null ||
+                    !notification.getGymDestinataire().getId().equals(currentUser.getGym().getId())) {
+                throw new AccessDeniedException("Vous n'êtes pas autorisé à consulter cette notification");
+            }
+        }
+
         return notification;
     }
 
-    //  Afficher les notifilaction d'un Gym
+    // 🔔 Notifications d'un gym (staff)
     public List<Notification> getNotificationByGym() throws AccessDeniedException {
         User currentUser = initializeAccess(true);
         Long gymId = currentUser.getGym().getId();
-        return notificationRepository.findByGymDestinataireId(gymId);
+
+        System.out.println("🔔 Récupération notifications pour le gym ID: " + gymId);
+        List<Notification> notifications = notificationRepository.findByGymDestinataireId(gymId);
+        System.out.println("📊 Notifications trouvées: " + notifications.size());
+
+        return notifications;
     }
 
-    //  Afficher les notifilaction d'un user
+    // 🔔 Notifications d'un utilisateur
     public List<Notification> getNotificationByUser() throws AccessDeniedException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
         return notificationRepository.findByDestinataireId(currentUser.getId());
     }
 
-
-    /**
-     * Marque une notification spécifique comme lue
-     * @param notificationId ID de la notification à marquer comme lue
-     * @throws AccessDeniedException Si l'utilisateur n'est pas autorisé à modifier cette notification
-     */
+    // ✔️ Marquer une notification User comme lue
     public void marquerCommeLu(Long notificationId) throws AccessDeniedException {
         User currentUser = initializeAccess(false);
 
-        // Récupérer la notification
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new RuntimeException("Notification introuvable avec l'ID: " + notificationId));
 
-        // Vérifier que l'utilisateur est bien le destinataire de la notification
         if (notification.getDestinataire() == null ||
                 !notification.getDestinataire().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("Vous n'êtes pas autorisé à modifier cette notification");
         }
 
-        // Marquer comme lue seulement si ce n'est pas déjà le cas
         if (!notification.isEstLu()) {
             notification.setEstLu(true);
             notificationRepository.save(notification);
-
-            System.out.println("✅ Notification " + notificationId + " marquée comme lue pour l'utilisateur " + currentUser.getId());
+            System.out.println("✅ Notification " + notificationId + " marquée comme lue");
         }
     }
 
-    /**
-     * Marque toutes les notifications de l'utilisateur comme lues
-     * @param userId ID de l'utilisateur
-     * @throws AccessDeniedException Si l'utilisateur n'est pas autorisé
-     */
+    // ✔️ Marquer toutes les notifications user comme lues
     public void marquerToutesCommeLues(Long userId) throws AccessDeniedException {
         User currentUser = initializeAccess(false);
 
-        // Vérifier que l'utilisateur ne peut marquer que ses propres notifications comme lues
         if (!currentUser.getId().equals(userId)) {
             throw new AccessDeniedException("Vous ne pouvez marquer que vos propres notifications comme lues");
         }
 
-        // Récupérer toutes les notifications non lues de l'utilisateur
         List<Notification> notificationsNonLues = notificationRepository.findByDestinataireIdAndEstLuFalse(userId);
 
         if (!notificationsNonLues.isEmpty()) {
-            // Marquer toutes comme lues
             for (Notification notification : notificationsNonLues) {
                 notification.setEstLu(true);
             }
-
-            // Sauvegarder en une seule opération
             notificationRepository.saveAll(notificationsNonLues);
-
-            System.out.println("✅ " + notificationsNonLues.size() + " notifications marquées comme lues pour l'utilisateur " + userId);
+            System.out.println("✅ " + notificationsNonLues.size() + " notifications marquées comme lues");
         }
     }
 
-    /**
-     * Récupère les notifications non lues de l'utilisateur connecté
-     * @return Liste des notifications non lues
-     * @throws AccessDeniedException Si l'utilisateur n'est pas connecté
-     */
+    // ✔️ Notifications non lues (user)
     public List<Notification> getNotificationsNonLuesByUser() throws AccessDeniedException {
         User currentUser = initializeAccess(false);
         return notificationRepository.findByDestinataireIdAndEstLuFalseOrderByDateEnvoiDesc(currentUser.getId());
     }
 
-    /**
-     * Compte le nombre de notifications non lues de l'utilisateur connecté
-     * @return Nombre de notifications non lues
-     * @throws AccessDeniedException Si l'utilisateur n'est pas connecté
-     */
+    // ✔️ Compter les notifications non lues (user)
     public long countNotificationsNonLuesByUser() throws AccessDeniedException {
         User currentUser = initializeAccess(false);
         return notificationRepository.countByDestinataireIdAndEstLuFalse(currentUser.getId());
     }
 
+    // ✔️ Marquer notification gym comme lue (staff)
+    public void marquerNotificationGymCommeLue(Long notificationId) throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
 
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("Notification introuvable avec l'ID: " + notificationId));
+
+        if (notification.getGymDestinataire() == null ||
+                !notification.getGymDestinataire().getId().equals(currentUser.getGym().getId())) {
+            throw new AccessDeniedException("Vous n'êtes pas autorisé à modifier cette notification");
+        }
+
+        if (!notification.isEstLu()) {
+            notification.setEstLu(true);
+            notificationRepository.save(notification);
+            System.out.println("✅ Notification gym " + notificationId + " marquée comme lue");
+        }
+    }
+
+    // ✔️ Compter notifications non lues d'un gym
+    public long countNotificationsNonLuesByGym() throws AccessDeniedException {
+        User currentUser = initializeAccess(true);
+        return notificationRepository.countByGymDestinataireIdAndEstLuFalse(currentUser.getGym().getId());
+    }
+
+    // Vérification accès staff ou utilisateur simple
     private User initializeAccess(boolean requireStaff) throws AccessDeniedException {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (requireStaff && currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.RECEPTIONNISTE && currentUser.getRole() != Role.GERANT) {
+
+        if (requireStaff &&
+                currentUser.getRole() != Role.ADMIN &&
+                currentUser.getRole() != Role.RECEPTIONNISTE &&
+                currentUser.getRole() != Role.GERANT) {
             throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
         }
-        if (currentUser.getGym() == null && requireStaff) { // Vérification du gym uniquement pour staff
+
+        if (requireStaff && currentUser.getGym() == null) {
             throw new AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
         }
+
         return currentUser;
     }
 
+    // Vérification que le staff appartient au gym
     private void verificationAccesGym(User staff, Gym gym, String action) throws AccessDeniedException {
-        if (!userRepository.existsById(staff.getId()) || !staff.getGyms().contains(gym)) {
+        if (staff.getGym() == null || !staff.getGym().getId().equals(gym.getId())) {
             throw new AccessDeniedException("Accès refusé : l'utilisateur n'est pas autorisé à " + action + " cette gym");
         }
     }
 }
+

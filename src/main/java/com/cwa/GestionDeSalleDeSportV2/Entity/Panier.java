@@ -3,7 +3,7 @@ package com.cwa.GestionDeSalleDeSportV2.Entity;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.StatutPanier;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -26,7 +26,10 @@ public class Panier {
     @OneToMany(mappedBy = "panier", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LigneVente> lignes;
 
+    @Column(name = "montant_total", nullable = false)
+    private BigDecimal montantTotal = BigDecimal.ZERO;
 
+    // GETTERS ET SETTERS MANUELS (100% SÛR, SANS LOMBOK)
     public Long getId() {
         return id;
     }
@@ -65,5 +68,13 @@ public class Panier {
 
     public void setLignes(List<LigneVente> lignes) {
         this.lignes = lignes;
+    }
+
+    public BigDecimal getMontantTotal() {
+        return montantTotal != null ? montantTotal : BigDecimal.ZERO;
+    }
+
+    public void setMontantTotal(BigDecimal montantTotal) {
+        this.montantTotal = montantTotal != null ? montantTotal : BigDecimal.ZERO;
     }
 }

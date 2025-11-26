@@ -1,6 +1,7 @@
 package com.cwa.GestionDeSalleDeSportV2.Controller;
 
 import com.cwa.GestionDeSalleDeSportV2.Configuration.UtilisateurActuellementConnecter;
+import com.cwa.GestionDeSalleDeSportV2.Entity.Enums.TypeNotification;
 import com.cwa.GestionDeSalleDeSportV2.Entity.Notification;
 import com.cwa.GestionDeSalleDeSportV2.Entity.User;
 import com.cwa.GestionDeSalleDeSportV2.Service.NotificationService;
@@ -23,32 +24,34 @@ public class NotificationController {
         this.utilisateurActuellementConnecter = utilisateurActuellementConnecter;
     }
 
-    //  Afficher les notifilaction d'un Gym
+    // ***************************************
+    // 🔔 NOTIFICATIONS GYM (React Staff)
+    // ***************************************
+
     @GetMapping("/gym_notification")
     public ResponseEntity<List<Notification>> getNotificationByGym() throws AccessDeniedException {
-        List<Notification> notif = notificationService.getNotificationByGym();
-        return new ResponseEntity<>(notif, HttpStatus.OK);
+        return ResponseEntity.ok(notificationService.getNotificationByGym());
     }
 
-    //  Afficher les notifilaction d'un user
+    @GetMapping("/gym_notification/unread-count")
+    public ResponseEntity<Long> getUnreadGymNotificationsCount() throws AccessDeniedException {
+        return ResponseEntity.ok(notificationService.countNotificationsNonLuesByGym());
+    }
+
+    @PutMapping("/gym_notification/{id}/lu")
+    public ResponseEntity<Void> marquerNotificationGymCommeLue(@PathVariable Long id) throws AccessDeniedException {
+        notificationService.marquerNotificationGymCommeLue(id);
+        return ResponseEntity.ok().build();
+    }
+
+
+    // ******************************************
+    // 🔔 NOTIFICATIONS USER (Flutter Membres)
+    // ******************************************
+
     @GetMapping("/user_notification")
     public ResponseEntity<List<Notification>> getNotificationByUser() throws AccessDeniedException {
-        List<Notification> notif = notificationService.getNotificationByUser();
-        return new ResponseEntity<>(notif, HttpStatus.OK);
-    }
-
-    //  Afficher les detailles d'une notifilaction
-    @GetMapping("/consulter_detail_notif/{notificationId}")
-    public ResponseEntity<Notification> consulterDetailNotif(@PathVariable Long notificationId) throws AccessDeniedException {
-        Notification notif = notificationService.consulterDetailNotif(notificationId);
-        return new ResponseEntity<>(notif, HttpStatus.OK);
-    }
-
-    //  Supprimer une notifilaction
-    @DeleteMapping("/supprimer_notification/{notificationId}")
-    public ResponseEntity<String> supprimerNotification(@PathVariable Long notificationId) throws AccessDeniedException {
-        notificationService.supprimerNotification(notificationId);
-        return new ResponseEntity<>("Notification suoorimer avec succès", HttpStatus.OK);
+        return ResponseEntity.ok(notificationService.getNotificationByUser());
     }
 
     @PutMapping("/user_notification/{id}/lu")
@@ -57,10 +60,50 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 
-    @PutMapping("/user_notification/marquer-toutes-lues")
-    public ResponseEntity<Void> marquerToutesNotificationsCommeLues() throws AccessDeniedException {
-        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        notificationService.marquerToutesCommeLues(currentUser.getId());
-        return ResponseEntity.ok().build();
+
+    // ***************************************
+    // 🔎 CONSULTER + SUPPRIMER NOTIFICATION
+    // ***************************************
+
+    @GetMapping("/consulter_detail_notif/{notificationId}")
+    public ResponseEntity<Notification> consulterDetailNotif(@PathVariable Long notificationId) throws AccessDeniedException {
+        return ResponseEntity.ok(notificationService.consulterDetailNotif(notificationId));
+    }
+
+    @DeleteMapping("/supprimer_notification/{notificationId}")
+    public ResponseEntity<String> supprimerNotification(@PathVariable Long notificationId) throws AccessDeniedException {
+        notificationService.supprimerNotification(notificationId);
+        return ResponseEntity.ok("Notification supprimée avec succès");
+    }
+
+
+    // ***************************************
+    // 🧪 TEST NOTIFICATION GYM
+    // ***************************************
+
+    @PostMapping("/test-gym-notification")
+    public ResponseEntity<String> createTestGymNotification() {
+
+        try {
+            User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+
+            if (currentUser.getGym() == null) {
+                return ResponseEntity.badRequest().body("❌ Aucun gym associé à l'utilisateur");
+            }
+
+            notificationService.notificationAdminAGym(
+                    currentUser.getGym(),
+                    "📦 Test Notification - Commande #" + System.currentTimeMillis(),
+                    "Ceci est une notification de test pour vérifier que le système fonctionne correctement.",
+                    "TEST",
+                    TypeNotification.VALIDATION_PANIER,
+                    false
+            );
+
+            return ResponseEntity.ok("✅ Notification de test créée avec succès !");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("❌ Erreur: " + e.getMessage());
+        }
     }
 }

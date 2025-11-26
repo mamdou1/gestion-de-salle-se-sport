@@ -65,9 +65,16 @@ public class SecurityConfig {
                                         "/api/cours-collectifs/**",
                                         "/api/tarifs/**",
                                         "/api/horaires/**",
-                                        "/api/coaches/**"
+                                        "/api/coaches/**",
+                                        "/api/paniers/envoie_panier",
+                                        "/api/paniers/envoie_panier/actif/**"
                                 ).permitAll()
+                                .requestMatchers("/api/demandeInscriptions/valider/**").hasAnyRole("ADMIN", "GERANT", "RECEPTIONNISTE")
+                                .requestMatchers("/api/demandeInscriptions/rejeter/**").hasAnyRole("ADMIN", "GERANT", "RECEPTIONNISTE")
+                                .requestMatchers("/api/demandeInscriptions/attente").hasAnyRole("ADMIN", "GERANT", "RECEPTIONNISTE")
+                                .requestMatchers("/api/demandeInscriptions/gym/**").hasAnyRole("ADMIN", "GERANT", "RECEPTIONNISTE")
                                 .requestMatchers("/api/users/changer").authenticated()
+                                .requestMatchers("/api/services/app/**").authenticated()
                                 .requestMatchers("/api/familles/**").authenticated()
                                 .anyRequest().authenticated()
                 )

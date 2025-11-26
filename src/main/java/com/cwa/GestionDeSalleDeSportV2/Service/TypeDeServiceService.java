@@ -116,7 +116,6 @@ public class TypeDeServiceService {
 
     // 6. Consulter tous les types de services pour une application mobile (par ID de gym)
     public List<TypeDeService> getAllTypeDeServiceApp(Long gymId) throws AccessDeniedException {
-        initializeAccess(true);
         Gym gym = gymRepository.findById(gymId)
                 .orElseThrow(() -> new RuntimeException("Gym non trouvé."));
         return typeDeServiceRepository.findByGym(gym);

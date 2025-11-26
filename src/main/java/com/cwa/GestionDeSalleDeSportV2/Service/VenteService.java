@@ -55,7 +55,7 @@ public class VenteService {
         this.gestionStockService = gestionStockService;
         this.listePaimentRepository = listePaimentRepository;
     }
-
+    @Transactional
     public Vente validerPanierEtCreerVente(Long panierId, VenteDTO dto) throws AccessDeniedException, MessagingException {
         User currentUser = initializeAccess(true);
         Gym gym = currentUser.getGym();

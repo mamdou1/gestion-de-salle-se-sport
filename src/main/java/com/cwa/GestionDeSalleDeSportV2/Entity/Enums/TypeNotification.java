@@ -13,4 +13,5 @@ public enum TypeNotification {
     VERIFICATION,
     VALIDATION_PANIER,
     VALIDATION_INSCRIPTION,
+    INFO
 }
