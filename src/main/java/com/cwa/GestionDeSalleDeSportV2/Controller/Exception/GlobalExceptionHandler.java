@@ -1,6 +1,5 @@
 package com.cwa.GestionDeSalleDeSportV2.Controller.Exception;
 
-
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +11,7 @@ import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -28,15 +28,26 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
     }
 
-    // Gérer les exceptions de type RuntimeException (ex. : ressource non trouvée)
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, Object>> handlerRuntimeException(RuntimeException ex, WebRequest request){
+    // ✅ Gérer les ressources non trouvées (NoSuchElementException) → 404 NOT FOUND
+    @ExceptionHandler(NoSuchElementException.class)
+    public ResponseEntity<Map<String, Object>> handlerNoSuchElementException(NoSuchElementException ex, WebRequest request){
         Map<String, Object> errorDetails = new HashMap<>();
         errorDetails.put("timestamp", LocalDateTime.now());
         errorDetails.put("message", ex.getMessage());
         errorDetails.put("path", request.getDescription(false));
         errorDetails.put("status", HttpStatus.NOT_FOUND.value());
         return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
+    }
+
+    // ✅ Gérer les autres RuntimeException (ex. : erreur d'envoi d'email) → 500 INTERNAL SERVER ERROR
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Map<String, Object>> handlerRuntimeException(RuntimeException ex, WebRequest request){
+        Map<String, Object> errorDetails = new HashMap<>();
+        errorDetails.put("timestamp", LocalDateTime.now());
+        errorDetails.put("message", ex.getMessage());
+        errorDetails.put("path", request.getDescription(false));
+        errorDetails.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     // Gérer les violations de contraintes de validation (ex. : @NotBlank, @Email)

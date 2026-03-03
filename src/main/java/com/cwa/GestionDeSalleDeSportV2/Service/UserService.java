@@ -34,6 +34,7 @@ import java.time.LocalDateTime;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 @Service
@@ -170,16 +171,27 @@ public class UserService {
             throw new AccessDeniedException("Seul le staff autorisé peut ajouter un membre.");
         }
 
+        // Log des données d'entrée (sans données sensibles)
+        logger.info("Tentative d'ajout de membre par staff {} (gym {}): téléphone={}, email={}",
+                staff.getId(), staff.getGym().getId(), dto.getNumeroTelephoneMembre(), dto.getEmailMembre());
+
+        // Vérification de l'email pour les nouveaux membres (si obligatoire)
+        if (dto.getEmailMembre() == null || dto.getEmailMembre().trim().isEmpty()) {
+            throw new IllegalArgumentException("L'adresse email est obligatoire pour l'ajout d'un membre.");
+        }
+
         Optional<User> existingUser = userRepository.findByTelephoneOrEmail(dto.getNumeroTelephoneMembre(), dto.getEmailMembre());
         if (existingUser.isPresent()) {
             User membreExistant = existingUser.get();
+            logger.info("Membre existant trouvé (id={}), mise à jour des gyms uniquement. Aucun email de bienvenue envoyé.", membreExistant.getId());
+
             if (!membreExistant.getGyms().contains(staff.getGym())) {
                 membreExistant.getGyms().add(staff.getGym());
             }
             if (dto.getGymsIds() != null) {
                 dto.getGymsIds().forEach(gymId -> {
                     Gym gym = gymRepository.findById(gymId)
-                            .orElseThrow(() -> new RuntimeException("Gym introuvable"));
+                            .orElseThrow(() -> new NoSuchElementException("Gym introuvable"));
                     if (!membreExistant.getGyms().contains(gym)) {
                         membreExistant.getGyms().add(gym);
                     }
@@ -189,8 +201,9 @@ public class UserService {
             return existingUser;
         }
 
+        // Validation du type de service
         TypeDeService typeDeService = typeDeServiceRepository.findById(dto.getTypeDeService())
-                .orElseThrow(() -> new RuntimeException("Type de service introuvable."));
+                .orElseThrow(() -> new NoSuchElementException("Type de service introuvable."));
         if (!typeDeService.getGym().equals(staff.getGym())) {
             throw new RuntimeException("Ce type de service ne fait pas partie de ce gym.");
         }
@@ -200,8 +213,9 @@ public class UserService {
             throw new RuntimeException("Le type de service n'a pas de tarif unique défini.");
         }
 
-        System.out.println("💰 Tarif unique récupéré: " + tarifUnique + " pour le service: " + typeDeService.getNom());
+        logger.info("Tarif unique récupéré: {} pour le service: {}", tarifUnique, typeDeService.getNom());
 
+        // Création du nouveau membre
         User nouveauMembre = new User();
         nouveauMembre.setNom(dto.getNomMembre());
         nouveauMembre.setPrenom(dto.getPrenomMembre());
@@ -216,7 +230,7 @@ public class UserService {
         if (dto.getGymsIds() != null) {
             dto.getGymsIds().forEach(gymId -> {
                 Gym gym = gymRepository.findById(gymId)
-                        .orElseThrow(() -> new RuntimeException("Gym non trouvé : " + gymId));
+                        .orElseThrow(() -> new NoSuchElementException("Gym non trouvé : " + gymId));
                 nouveauMembre.addGym(gym);
             });
         }
@@ -227,16 +241,24 @@ public class UserService {
         nouveauMembre.setDate_de_naissance(dto.getDate_de_naissanceMembre());
 
         String mdp = genererMotDePasse(nouveauMembre);
+        if (mdp == null || mdp.isEmpty()) {
+            logger.error("Le mot de passe généré est vide pour le membre {}", dto.getEmailMembre());
+            throw new RuntimeException("Erreur lors de la génération du mot de passe.");
+        }
         nouveauMembre.setPassword(passwordEncoder.encode(mdp));
 
         User savedMembre = userRepository.save(nouveauMembre);
+        logger.info("Nouveau membre enregistré avec id: {}, email: {}", savedMembre.getId(), savedMembre.getEmail());
 
+        // Gestion de l'image
         if (file != null && !file.isEmpty()) {
             String imageUrl = storeFile(file, savedMembre.getId());
             savedMembre.setImageUrl(imageUrl);
             userRepository.save(savedMembre);
+            logger.debug("Image stockée pour le membre {}: {}", savedMembre.getId(), imageUrl);
         }
 
+        // Enregistrement du paiement
         if (nouveauMembre.getFraisInscriptionPayer() && nouveauMembre.getFraisInscription() != null) {
             ListePaiment paiement = new ListePaiment();
             paiement.setTypePaiement(TypePaiement.FRAIS_INSCRIPTION);
@@ -250,21 +272,40 @@ public class UserService {
             paiement.setDetails("Frais d'inscription pour " + savedMembre.getNom() + " " + savedMembre.getPrenom() + " (" + typeDeService.getNom() + " - Tarif: " + tarifUnique + ")");
 
             listePaimentRepository.save(paiement);
-
-            System.out.println("✅ Paiement enregistré: " + paiement.getMontant() + " pour l'inscription de " + savedMembre.getNom());
-            logger.info("Created ListePaiment for frais d'inscription: {}", paiement);
+            logger.info("Paiement enregistré: {} pour l'inscription de {}", paiement.getMontant(), savedMembre.getEmail());
         }
 
-        emailService.envoyerEmailBienvenu(savedMembre, mdp);
-        notificationService.notifyGymAndMember(
-                staff.getGym(),
-                nouveauMembre,
-                "Ajout de membre",
-                "Vous avez été ajouté avec succès, suite à votre inscription physique à la salle de sport " + staff.getGym().getNom(),
-                "Ajout",
-                TypeNotification.INSCRIPTION,
-                false
-        );
+        // Envoi de l'email de bienvenue avec gestion des exceptions et logs
+        try {
+            logger.info("Tentative d'envoi d'email de bienvenue à {}", savedMembre.getEmail());
+            emailService.envoyerEmailBienvenu(savedMembre, mdp);
+            logger.info("Email de bienvenue envoyé avec succès à {}", savedMembre.getEmail());
+        } catch (MessagingException e) {
+            logger.error("Échec de l'envoi de l'email de bienvenue à {} : {}", savedMembre.getEmail(), e.getMessage(), e);
+            throw e;  // exception déclarée dans la signature
+        } catch (Exception e) {
+            logger.error("Erreur inattendue lors de l'envoi de l'email à {} : {}", savedMembre.getEmail(), e.getMessage(), e);
+            // On wrappe pour ne pas masquer l'erreur et rester compatible avec la signature
+            throw new RuntimeException("Erreur lors de l'envoi de l'email", e);
+        }
+
+        // Notification
+        try {
+            logger.info("Appel à notificationService avec type: {}", TypeNotification.INSCRIPTION);
+            notificationService.notifyGymAndMember(
+                    staff.getGym(),
+                    nouveauMembre,
+                    "Ajout de membre",
+                    "Vous avez été ajouté avec succès, suite à votre inscription physique à la salle de sport " + staff.getGym().getNom(),
+                    "Ajout",
+                    TypeNotification.INSCRIPTION,
+                    false
+            );
+            logger.info("Notification envoyée pour le membre {}", savedMembre.getEmail());
+        } catch (Exception e) {
+            logger.error("Échec de l'envoi de la notification pour {} : {}", savedMembre.getEmail(), e.getMessage(), e);
+            // On ne bloque pas le processus pour une notification
+        }
 
         return Optional.of(savedMembre);
     }

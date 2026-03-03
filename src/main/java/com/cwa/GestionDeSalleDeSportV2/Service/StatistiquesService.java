@@ -110,19 +110,22 @@ public class StatistiquesService {
         try {
             logger.info("CALCUL REVENU TOTAL → du {} au {}", s, e);
 
-            // 1. Frais d'inscription des utilisateurs - CORRECTION: utiliser noms Java
+            // Pour les champs LocalDateTime (User.date_creation)
+            LocalDateTime startDateTime = s.atStartOfDay();
+            LocalDateTime endDateTime = e.plusDays(1).atStartOfDay();
+
+            // 1. Frais d'inscription (LocalDateTime)
             BigDecimal fraisInscription = entityManager.createQuery(
                             "SELECT COALESCE(SUM(u.fraisInscription), 0) FROM User u " +
-                                    "WHERE u.fraisInscription_payer = true " +
-                                    "AND u.date_creation >= :s AND u.date_creation < :e",
+                                    "WHERE u.fraisInscriptionPayer = true " +
+                                    "AND u.date_creation >= :start AND u.date_creation < :end",
                             BigDecimal.class)
-                    .setParameter("s", s.atStartOfDay())
-                    .setParameter("e", e.plusDays(1).atStartOfDay())
+                    .setParameter("start", startDateTime)
+                    .setParameter("end", endDateTime)
                     .getSingleResult();
+            logger.info("Frais inscription: {}", fraisInscription);
 
-            logger.info("Frais d'inscription trouvés: {}", fraisInscription);
-
-            // 2. Prix des abonnements - CORRECTION: utiliser noms Java
+            // 2. Abonnements (LocalDate) – on compare avec des LocalDate, borne inclusive
             BigDecimal prixAbonnements = entityManager.createQuery(
                             "SELECT COALESCE(SUM(a.prixAbonnement), 0) FROM Abonnement a " +
                                     "WHERE a.dateDebutAbonnement >= :s AND a.dateDebutAbonnement <= :e",
@@ -130,10 +133,9 @@ public class StatistiquesService {
                     .setParameter("s", s)
                     .setParameter("e", e)
                     .getSingleResult();
+            logger.info("Abonnements: {}", prixAbonnements);
 
-            logger.info("Prix abonnements trouvés: {}", prixAbonnements);
-
-            // 3. Montant total des ventes - CORRECTION: utiliser noms Java
+            // 3. Ventes (LocalDate)
             BigDecimal montantVentes = entityManager.createQuery(
                             "SELECT COALESCE(SUM(v.montantTotal), 0) FROM Vente v " +
                                     "WHERE v.dateVente >= :s AND v.dateVente <= :e",
@@ -141,15 +143,25 @@ public class StatistiquesService {
                     .setParameter("s", s)
                     .setParameter("e", e)
                     .getSingleResult();
+            logger.info("Ventes: {}", montantVentes);
 
-            logger.info("Montant ventes trouvés: {}", montantVentes);
+            // 4. Casiers (LocalDate)
+            BigDecimal montantCasiers = entityManager.createQuery(
+                            "SELECT COALESCE(SUM(c.prix), 0) FROM Casier c " +
+                                    "WHERE c.dateDebut >= :s AND c.dateDebut <= :e",
+                            BigDecimal.class)
+                    .setParameter("s", s)
+                    .setParameter("e", e)
+                    .getSingleResult();
+            logger.info("Casiers: {}", montantCasiers);
 
-            // Calcul du revenu total
-            BigDecimal revenuTotal = fraisInscription.add(prixAbonnements).add(montantVentes);
+            BigDecimal revenuTotal = fraisInscription
+                    .add(prixAbonnements)
+                    .add(montantVentes)
+                    .add(montantCasiers);
 
-            logger.info("CALCUL REVENU FINAL → Frais inscription: {}, Abonnements: {}, Ventes: {}, Total: {}",
-                    fraisInscription, prixAbonnements, montantVentes, revenuTotal);
-
+            logger.info("TOTAL REVENU: {} (Frais: {}, Abos: {}, Ventes: {}, Casiers: {})",
+                    revenuTotal, fraisInscription, prixAbonnements, montantVentes, montantCasiers);
             return revenuTotal.doubleValue();
 
         } catch (Exception ex) {
@@ -157,7 +169,6 @@ public class StatistiquesService {
             return 0.0;
         }
     }
-
     private Long getTotalMembres(LocalDate s, LocalDate e) {
         return safeCount("SELECT COUNT(u) FROM User u WHERE u.role = :role AND u.date_creation >= :s AND u.date_creation < :e",
                 Map.of("role", Role.MEMBRE), s, e);

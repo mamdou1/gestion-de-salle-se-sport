@@ -15,10 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @Transactional
 public class NotificationService {
+    private static final Logger logger = LoggerFactory.getLogger(NotificationService.class);
 
     private final NotificationRepository notificationRepository;
     private final EmailService emailService;
@@ -80,6 +83,8 @@ public class NotificationService {
     // Notification gym + membre
     public void notifyGymAndMember(Gym gym, User member, String title, String content, String context, TypeNotification type, boolean sendEmail) throws MessagingException {
 
+        logger.info("Création notification - type: {}, gym: {}, membre: {}", type, gym.getNom(), member.getEmail());
+
         // 🔔 Notification membre
         Notification memberNotif = new Notification();
         memberNotif.setTitre(title);
@@ -101,18 +106,18 @@ public class NotificationService {
             );
         }
 
-        // 🔔 Notification staff (gym)
+        // 🔔 Notification staff (gym) - avec le même type mais titre/contenu adaptés
         Notification staffNotif = new Notification();
-        staffNotif.setTitre("Nouvelle demande de validation de panier");
+        staffNotif.setTitre("Ajout de membre par le staff");
         staffNotif.setContenu("Le membre " + member.getPrenom() + " " + member.getNom() +
-                " a envoyé un panier pour validation. " + content);
+                " a été ajouté. " + content);
         staffNotif.setDateEnvoi(LocalDateTime.now());
         staffNotif.setGymDestinataire(gym);
-        staffNotif.setContexte("VALIDATION_PANIER");
-        staffNotif.setTypeNotification(TypeNotification.VALIDATION_PANIER);
+        staffNotif.setContexte(context);
+        staffNotif.setTypeNotification(type); // ← utilisation du type passé en paramètre
 
         notificationRepository.save(staffNotif);
-        System.out.println("✅ Notification staff créée pour le gym: " + gym.getNom());
+        logger.info("✅ Notification staff créée pour le gym: {} avec type {}", gym.getNom(), type);
     }
 
     // Inscription en ligne - membre
