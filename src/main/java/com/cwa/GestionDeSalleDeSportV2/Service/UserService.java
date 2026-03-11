@@ -180,9 +180,19 @@ public class UserService {
             throw new IllegalArgumentException("L'adresse email est obligatoire pour l'ajout d'un membre.");
         }
 
-        Optional<User> existingUser = userRepository.findByTelephoneOrEmail(dto.getNumeroTelephoneMembre(), dto.getEmailMembre());
-        if (existingUser.isPresent()) {
-            User membreExistant = existingUser.get();
+        // RECHERCHE DES MEMBRES EXISTANTS (maintenant retourne une liste)
+        List<User> existingUsers = userRepository.findByTelephoneOrEmail(dto.getNumeroTelephoneMembre(), dto.getEmailMembre());
+
+        if (!existingUsers.isEmpty()) {
+            // Si plusieurs membres existent avec les mêmes coordonnées → conflit de données (anormal)
+            if (existingUsers.size() > 1) {
+                logger.error("Conflit : plusieurs membres trouvés avec téléphone {} ou email {}. Nombre: {}",
+                        dto.getNumeroTelephoneMembre(), dto.getEmailMembre(), existingUsers.size());
+                throw new RuntimeException("Plusieurs membres avec ce téléphone ou cet email existent. Veuillez contacter l'administrateur.");
+            }
+
+            // Un seul membre existant : on l'associe au gym courant s'il n'y est pas déjà
+            User membreExistant = existingUsers.get(0);
             logger.info("Membre existant trouvé (id={}), mise à jour des gyms uniquement. Aucun email de bienvenue envoyé.", membreExistant.getId());
 
             if (!membreExistant.getGyms().contains(staff.getGym())) {
@@ -198,7 +208,7 @@ public class UserService {
                 });
             }
             userRepository.save(membreExistant);
-            return existingUser;
+            return Optional.of(membreExistant);
         }
 
         // Validation du type de service

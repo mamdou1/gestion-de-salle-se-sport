@@ -35,7 +35,8 @@ public class EvenementService {
             EvenementRepository evenementRepository,
             UserRepository userRepository,
             GymRepository gymRepository,
-            UtilisateurActuellementConnecter utilisateurActuellementConnecter, NotificationService notificationService
+            UtilisateurActuellementConnecter utilisateurActuellementConnecter,
+            NotificationService notificationService
     ) {
         this.evenementRepository = evenementRepository;
         this.userRepository = userRepository;
@@ -49,32 +50,36 @@ public class EvenementService {
         return evenementRepository.countByEvennement();
     }
 
-    //  1.  Cette mothod contient l'utilisateur actuellement connecter et qui a l'autorisation requise
     private void checkStaffAccess() {
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        boolean isStaff = currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.RECEPTIONNISTE || currentUser.getRole() == Role.GERANT;
+        boolean isStaff = currentUser.getRole() == Role.ADMIN ||
+                currentUser.getRole() == Role.RECEPTIONNISTE ||
+                currentUser.getRole() == Role.GERANT;
+
         if (!isStaff) {
             throw new AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
         }
     }
 
-    // 2. Vérifie l'accès à une salle spécifique pour une action donnée
     private void verificationAccesGym(User staff, Gym gym, String action){
         if (!userRepository.existsById(staff.getId()) || !staff.getGyms().contains(gym)){
             throw new AccessDeniedException("Accès refusé : l'utilisateur n'est pas autorisé à " + action + " cette gym");
         }
     }
 
-    //  3.  Crée un événement
+    // 3. Créer un événement
     public EvenementViewDTO createEvenement(EvenementDTO dto) throws MessagingException {
         checkStaffAccess();
-        User curentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        User createdBy = userRepository.findById(curentUser.getId())
+
+        User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+
+        User createdBy = userRepository.findById(currentUser.getId())
                 .orElseThrow(() -> new RuntimeException("Créateur introuvable"));
-        Gym gym = gymRepository.findById(curentUser.getGym().getId())
+
+        Gym gym = gymRepository.findById(currentUser.getGym().getId())
                 .orElseThrow(() -> new RuntimeException("Salle de sport introuvable"));
 
-        verificationAccesGym(curentUser, gym, "créer un événement dans ");
+        verificationAccesGym(currentUser, gym, "créer un événement dans ");
 
         if (dto.getDateFin() != null && !dto.getDateDebut().isBefore(dto.getDateFin())) {
             throw new IllegalArgumentException("La date de début doit être antérieure à la date de fin");
@@ -86,6 +91,7 @@ public class EvenementService {
         evenement.setGym(gym);
         evenement.setNom(dto.getNom());
         evenement.setDescription(dto.getDescription());
+
         if ((dto.getDateDebut() != null) && (dto.getDateFin() != null)) {
             if (dto.getDateDebut().isAfter(aujourd_hui)){
                 evenement.setStatutEvent(StatutEvent.EN_ATTENTE);
@@ -95,53 +101,72 @@ public class EvenementService {
                 evenement.setStatutEvent(StatutEvent.EN_COURS);
             }
         }
+
         evenement.setDateDebut(dto.getDateDebut());
         evenement.setDateFin(dto.getDateFin());
         evenement.setCreatedBy(createdBy);
 
         Evenement saved = evenementRepository.save(evenement);
 
-        notificationService.notification(
-                null, // Tous les membres de la gym
+        // 🔔 Notification au gym
+        notificationService.notificationAdminAGym(
+                gym,
                 "Nouvel événement",
                 "Un nouvel événement a été créé : " + saved.getNom(),
-                "Événement",
+                "EVENEMENT",
                 TypeNotification.EVENEMENT,
                 false
         );
 
+        // 🔔 Notification à tous les membres
+        List<User> membres = userRepository.findByGymId(gym.getId());
+
+        for (User membre : membres) {
+            notificationService.notification(
+                    membre,
+                    "Nouvel événement",
+                    "Un nouvel événement a été créé : " + saved.getNom(),
+                    "EVENEMENT",
+                    TypeNotification.EVENEMENT,
+                    false
+            );
+        }
+
         return toViewDTO(saved);
     }
 
-    //  4.  Met à jour un événement
+    // 4. Met à jour un événement
     public EvenementViewDTO mettreAJourEvenement(Long id, EvennenemtUpdateDTO dto) throws MessagingException {
+
         checkStaffAccess();
+
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+
         Evenement evenement = evenementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Événement introuvable"));
 
-        // Vérification d'accès à la gym (utilise la gym existante de l'événement)
         verificationAccesGym(currentUser, evenement.getGym(), "mettre à jour un événement dans ");
 
-        // Mise à jour conditionnelle des champs
         if (dto.getNom() != null) {
             evenement.setNom(dto.getNom());
         }
+
         if (dto.getDescription() != null) {
             evenement.setDescription(dto.getDescription());
         }
+
         if (dto.getStatutEvent() != null) {
             evenement.setStatutEvent(dto.getStatutEvent());
         }
+
         if (dto.getDateDebut() != null) {
             evenement.setDateDebut(dto.getDateDebut());
         }
+
         if (dto.getDateFin() != null) {
-            if (dto.getDateDebut() != null && !dto.getDateDebut().isBefore(dto.getDateFin())) {
-                throw new IllegalArgumentException("La date de début doit être antérieure à la date de fin");
-            }
             evenement.setDateFin(dto.getDateFin());
         }
+
         if (dto.getCreatedById() != null) {
             User createdBy = userRepository.findById(dto.getCreatedById())
                     .orElseThrow(() -> new RuntimeException("Créateur introuvable"));
@@ -150,77 +175,99 @@ public class EvenementService {
 
         Evenement updated = evenementRepository.save(evenement);
 
-        notificationService.notification(
-                null, // Tous les membres de la gym
+        notificationService.notificationAdminAGym(
+                evenement.getGym(),
                 "Événement mis à jour",
                 "L'événement a été mis à jour : " + updated.getNom(),
-                "Événement",
+                "EVENEMENT",
                 TypeNotification.EVENEMENT,
                 false
         );
+
+        List<User> membres = userRepository.findByGymId(evenement.getGym().getId());
+
+        for (User membre : membres) {
+            notificationService.notification(
+                    membre,
+                    "Événement mis à jour",
+                    "L'événement a été mis à jour : " + updated.getNom(),
+                    "EVENEMENT",
+                    TypeNotification.EVENEMENT,
+                    false
+            );
+        }
 
         return toViewDTO(updated);
     }
 
-    //  5.   Supprime un événement
+    // 5. Supprimer un événement
     public void deleteEvenement(Long id) throws MessagingException {
+
         checkStaffAccess();
+
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
+
         Evenement evenement = evenementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Événement introuvable"));
-        evenementRepository.delete(evenement);
 
-        // Vérification d'accès à la gym pour la mise à jour
         verificationAccesGym(currentUser, evenement.getGym(), "supprimer un événement dans");
 
-        notificationService.notification(
-                null,
+        evenementRepository.delete(evenement);
+
+        notificationService.notificationAdminAGym(
+                evenement.getGym(),
                 "Événement supprimé",
                 "L'événement a été supprimé : " + evenement.getNom(),
-                "Événement",
+                "EVENEMENT",
                 TypeNotification.EVENEMENT,
                 false
         );
+
+        List<User> membres = userRepository.findByGymId(evenement.getGym().getId());
+
+        for (User membre : membres) {
+            notificationService.notification(
+                    membre,
+                    "Événement supprimé",
+                    "L'événement a été supprimé : " + evenement.getNom(),
+                    "EVENEMENT",
+                    TypeNotification.EVENEMENT,
+                    false
+            );
+        }
     }
 
-    //  6.  Récupère un événement
     public EvenementViewDTO getByIdEvenement(Long id) {
         Evenement evenement = evenementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Événement introuvable"));
-
         return toViewDTO(evenement);
     }
 
-    //  7.  Cette méthode récupère une liste d'événements (Evenement) associés à une salle de sport spécifique
-    //      (gymId) et se déroulant dans une plage de dates donnée (start et end).
-    //      Elle est conçue pour alimenter un calendrier (ex. : FullCalendar) dans le frontend,
-    //      en fournissant les événements pertinents pour une période et une salle données.
-
     public List<EvenementViewDTO> getEvenementsByGymAndDateRange() {
-        //checkStaffAccess();
+
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
 
         Gym gym = currentUser.getGym();
+
         if (gym == null) {
             throw new RuntimeException("Aucune salle de sport associée à l'utilisateur.");
         }
 
         verificationAccesGym(currentUser, gym, "consulter les événements de ");
 
-        //  Détermine la plage de dates du mois courant
         LocalDateTime start = LocalDate.now().withDayOfMonth(1).atStartOfDay();
         LocalDateTime end = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth()).atTime(23, 59, 59);
 
         List<Evenement> evenements = evenementRepository
                 .findByGymIdAndDateDebutGreaterThanEqualAndDateFinLessThanEqual(gym.getId(), start, end);
 
-        // 🔁 Transforme en DTO
         return evenements.stream().map(this::toViewDTO).collect(Collectors.toList());
     }
 
-    //  8.  Convertie une entitee Evenement ent objet EvenementDTO
     private EvenementViewDTO toViewDTO(Evenement evenement) {
+
         EvenementViewDTO dto = new EvenementViewDTO();
+
         dto.setId(evenement.getId());
         dto.setGymId(evenement.getGym().getId());
         dto.setNom(evenement.getNom());
@@ -228,19 +275,35 @@ public class EvenementService {
         dto.setStatutEvent(evenement.getStatutEvent());
         dto.setDateDebut(evenement.getDateDebut());
         dto.setDateFin(evenement.getDateFin());
-        dto.setCreatedByName(evenement.getCreatedBy().getNom() + " " + evenement.getCreatedBy().getPrenom());
+
+        if (evenement.getCreatedBy() != null) {
+            dto.setCreatedByName(
+                    evenement.getCreatedBy().getNom() + " " +
+                            evenement.getCreatedBy().getPrenom()
+            );
+        } else {
+            dto.setCreatedByName("Inconnu");
+        }
+
         return dto;
     }
 
     private User initializeAccess(boolean requireStaff) throws java.nio.file.AccessDeniedException {
+
         User currentUser = utilisateurActuellementConnecter.getUtilisateurActuellementConnecter();
-        if (requireStaff && currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.RECEPTIONNISTE && currentUser.getRole() != Role.GERANT) {
+
+        if (requireStaff &&
+                currentUser.getRole() != Role.ADMIN &&
+                currentUser.getRole() != Role.RECEPTIONNISTE &&
+                currentUser.getRole() != Role.GERANT) {
+
             throw new java.nio.file.AccessDeniedException("Seul un staff autorisé peut effectuer cette opération.");
         }
-        if (currentUser.getGym() == null && requireStaff) { // Vérification du gym uniquement pour staff
+
+        if (currentUser.getGym() == null && requireStaff) {
             throw new java.nio.file.AccessDeniedException("Aucun gym associé à l'utilisateur courant.");
         }
+
         return currentUser;
     }
-
 }

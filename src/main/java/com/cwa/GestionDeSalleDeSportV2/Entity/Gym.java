@@ -6,10 +6,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 
 import java.util.List;
 
@@ -39,6 +36,7 @@ public class Gym {
     //  orphanRemoval = true : supprime les users orphelins si on les retire de la liste
     @OneToMany (mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonBackReference
+    @ToString.Exclude
     private List<User> propritaires;
 
     @OneToMany(mappedBy = "gym", cascade = CascadeType.ALL, orphanRemoval = true)
